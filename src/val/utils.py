@@ -1,5 +1,7 @@
 import os
 
+from shop2.domain import Task 
+from shop2.domain import Task 
 
 
 def load_prompt(self, prompt_fn):
@@ -12,4 +14,10 @@ def load_prompt(self, prompt_fn):
     except:
         print('error loading prompt from filename %s' % (new_fn,))
         return None
+
+
+def task_to_gpt_str(task: Task) -> str:
+    # return f"{task[0]}({",".join([arg.name for arg in task[1:]])})"
+    return f"{task[0]}({",".join([chr(ord('A')+i) for i in range(len(task[1:]))])})"
+
 

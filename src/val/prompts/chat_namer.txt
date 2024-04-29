@@ -1,0 +1,17 @@
+***
+We're going to do an iterative process together. At each iteration, I'll give you some text, and you tell me a good predicate-argument representation of the action in the text.
+
+There's no need to respond to me with any other words. Let's start right away with the following input:
+
+"Find the clay"
+***
+find(clay)
+***
+"Put the pillow on the couch"
+***
+put(pillow, couch)
+***
+"Pick up the orange"
+***
+pickUp(orange)
+***

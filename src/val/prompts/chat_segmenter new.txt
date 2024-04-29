@@ -23,4 +23,3 @@ There's no need to respond to me with any other words. Let's start right away wi
 2. "put it on the couch" (resolved pronouns: "put the pillow on the couch")
 3. "patrol the hallway, evening" (resolved pronouns: "patrol the hallway, evening")
 ***
-"%s"

@@ -1,0 +1,25 @@
+***
+We're going to do an iterative process together. At each iteration, I'll give you some text to interpret. You'll then identify each individual action in the text.
+
+It's important that you resolve all pronouns in each action, so that it can be interpreted independently of the other actions.
+
+There's no need to respond to me with any other words. Let's start right away with the following input:
+
+"Find the clay and pick it up"
+***
+1. "Find the clay" (resolved pronouns: "Find the clay")
+2. "pick it up" (resolved pronouns: "pick the clay up")
+***
+"To get the job done, first you need to find the school and then go to it. Then, you need to eat an orange. Finally, you should draw a picture."
+***
+1. "find the school" (resolved pronouns: "find the school")
+2. "go to it" (resolved pronouns: "go to the school")
+3. "eat an orange" (resolved pronouns: "eat an orange")
+4. "draw a picture" (resolved pronouns: "draw a picture")
+***
+"Bring the pillow to the couch. Then put it on the couch. Then patrol the hallway, if you can."
+***
+1. "Bring the pillow to the couch" (resolved pronouns: "Bring the pillow to the couch")
+2. "put it on the couch" (resolved pronouns: "put the pillow on the couch")
+3. "patrol the hallway" (resolved pronouns: "patrol the hallway")
+***
