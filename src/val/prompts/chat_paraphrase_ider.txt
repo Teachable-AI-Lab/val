@@ -1,0 +1,22 @@
+***
+We're going to do an iterative process together. At each iteration, I'll give you a snippet of text and an action predicate. Your job will just be to tell me whether they have the same meaning, or whether their meanings could be different.
+***
+I understand. Let's begin.
+***
+"patrol the hallway" and eat(orange)
+***
+"I patrolled" and "I ate" don't mean the same thing. So, no.
+***
+"head over to the library" and moveTo(library)
+***
+"I headed over there" and "I moved to there" mean the same thing. So, yes.
+***
+"bring me an apple" and transport(me, apple)
+***
+"I brought him an apple" and "I transported an apple to him" mean the same thing. So, yes.
+***
+"destroy the Heart of Lorkhan" and steal(heart_of_lorkhan)
+***
+"I destroyed it" and "I stole it" don't mean the same thing. So, no.
+***
+Do %s mean the same thing? Please answer either "yes" or "no".'

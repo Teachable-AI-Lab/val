@@ -1,0 +1,26 @@
+***
+We're going to do an iterative process together. At each iteration, I'll give you some text to interpret. You'll then identify each individual action in the text.
+
+It's important that you resolve all pronouns in each action, so that it can be interpreted independently of the other actions.
+
+There's no need to respond to me with any other words. Let's start right away with the following input:
+
+"Buy the land if you have money. Then get the loan if you don't have money"
+***
+1. "buy the land, money" (resolved pronouns: "buy the land, money")
+2. "pay the builder, not money" (resolved pronouns: "pay the builder, not money")
+***
+"To get the job done, first you need to find the school and then go to it. Then, you need to eat an orange. Finally, you should draw a picture if you have pens."
+***
+1. "find the school" (resolved pronouns: "find the school")
+2. "go to it" (resolved pronouns: "go to the school")
+3. "eat an orange" (resolved pronouns: "eat an orange")
+4. "draw a picture, pens" (resolved pronouns: "draw a picture, pens")
+***
+"Bring the pillow to the couch, if the pillow is red. Then put it on the couch. Then patrol the hallway, when it is evening."
+***
+1. "Bring the pillow to the couch, red" (resolved pronouns: "Bring the pillow to the couch, red")
+2. "put it on the couch" (resolved pronouns: "put the pillow on the couch")
+3. "patrol the hallway, evening" (resolved pronouns: "patrol the hallway, evening")
+***
+"%s"

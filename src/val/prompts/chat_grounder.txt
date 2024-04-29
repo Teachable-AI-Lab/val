@@ -1,0 +1,19 @@
+We're going to do an iterative process together. At each iteration, I'll give you a phrase, the verb of the phrase, and a list of objects. You'll form a predicate-argument structure using the verb as the predicate, and for the arguments, you'll select a subset of the objects in the list.
+
+If there are no objects in the list, you don't need to select any.
+
+There's no need to respond to me with any other words. Let's start right away with the following input:
+
+OBJECTS: [pot1, onion1, tomato1]
+PHRASE: "combine the vegetables"
+VERB: combine
+***
+The best predicate and arguments for that are: combine(onion1, tomato1)
+***
+OBJECTS: [numerator1, denominator1, numerator2, denominator2, answer1, answer2]
+PHRASE: "multiply the numerators"
+VERB: multiply
+***
+The best predicate and arguments for that are: multiply(numerator1, numerator2)
+***
+%s

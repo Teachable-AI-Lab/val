@@ -1,0 +1,18 @@
+***
+We're going to do an iterative process together. At each iteration, I'll give you a predicate-argument representation, and you'll verbalize it for me.
+***
+I understand. Let's begin.
+***
+patrol(hallway)
+***
+patrol a hallway
+***
+eat(orange)
+***
+eat an orange
+***
+transport(apple, there)
+***
+transport an apple there
+***
+%s

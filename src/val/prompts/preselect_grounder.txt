@@ -1,0 +1,7 @@
+Given this function: %s
+
+And this command: "%s"
+
+And these environmental objects to choose from: %s
+
+Please select objects to fill the arguments of the function. Remember that, since %s only has %s, you may only select %s. Respond only with the predicate name and arguments you choose, like this: "%s(%s)"
