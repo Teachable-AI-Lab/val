@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "setuptools-git-versioning<2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "val"
+dynamic = ["version"]
+authors = [
+  { name="Chris MacLellan", email="cmaclell@gatech.edu" },
+]
+description = "A refactored VAL 2.0"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Teachable-AI-Lab/val"
