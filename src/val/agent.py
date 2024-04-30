@@ -33,22 +33,44 @@ class ValAgent:
 
     def interpret(self, user_tasks: str, htn_knowledge: dict):
         tasks = []
-        for user_task in self.segment_gpt(user_tasks):
+
+        segmented_tasks = self.segment_gpt(user_tasks)
+        while not self.user_interface.segment_confirmation(segmented_tasks):
+            # TODO consider adding/editing steps here.
+            user_tasks = self.user_interface.ask_rephrase(user_tasks)
+            segmented_tasks = self.segment_gpt(user_tasks)
+
+        for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
+
+            if ((task_ungrounded is None and
+                   not self.user_interface.map_new_method_confirmation(user_task)) or
+                  not self.user_interface.map_confirmation(user_task, task_ungrounded[0])):
+                # TODO add to htn interface
+                # TODO consider how we convert tasks to strings and handle args
+                known_tasks = [task_to_gpt_str(task) for task in self.htn_interface.get_tasks()]
+                task_ungrounded = self.user_interface.map_correction(user_task, known_tasks)
 
             if task_ungrounded is None:
                 tasks.append(self.add_method(user_task))
 
             else:
                 task_args = self.ground_gpt(user_task, task_ungrounded)
+                if not self.user_interface.ground_confirmation(task_ungrounded[0], task_args):
+                    task_args = self.user_interface.ground_correction(task_ungrounded[0],
+                                                                      task_args,
+                                                                      self.env_interface.get_objects())
+
                 verbalized_task = self.verbalize_gpt(task_ungrounded, task_args)
 
-                if self.paraphrase_gpt(verbalized_task, user_task):
+                if (self.paraphrase_gpt(verbalized_task, user_task) or
+                     self.user_interface.gen_confirmation(user_task, task_ungrounded[0], task_args)):
                     # TODO tasks should have indexed access to head tuple
                     # TODO htn_interface.execute_task need implemented and needs env
                     # TODO make sure we handle success correctly
                     tasks.append(Task(task_ungrounded[0], *task_args))
                     success = self.htn_interface.execute_task(tasks[-1])
+                    
                     if not success:
                         tasks.append(self.add_method(user_task))
                 else:
@@ -64,9 +86,13 @@ class ValAgent:
         This is only called if the HTN method does not already exist.
         """
         task_name = self.name_gpt(user_task)
-        user_subtasks = self.user_interface.ask_user(f"How do I {user_task}?")
+        user_subtasks = self.user_interface.ask_subtasks(user_task)
         subtasks = self.interpret(user_subtasks)
-        task_args = self.gen_gpt(task_name, subtasks)
+        task_args = self.gen_gpt(user_task, task_name, subtasks)
+        if not self.user_interface.gen_confirmation(user_task, task_name, task_args)):
+            task_args = self.user_interface.gen_correction(task_name, task_args,
+                                                           self.env_interface.get_objects())
+
 
         # TODO maybe consider a gpt module that names these better...
         arg_map = {arg: V(chr(ord('A')+i))
@@ -88,6 +114,7 @@ class ValAgent:
             # Code parses string '2. "interact with it" (resolved pronouns: "interact with the onion")'
             # to get "interact with the onion" out.
             segmented_user_tasks.append(line.split('"')[3])
+
         return segmented_user_tasks
 
     def name_gpt(self, user_task: str) -> str:
@@ -175,12 +202,24 @@ class ValAgent:
 		return resp
 
     def gen_gpt(self, user_task: str, task_name: str, subtasks: List[Task]) -> List[str]:
-        
-		prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, obj_str, task_name, num_args_str, num_objs_str, task_name, o_list)
 
+        objects = set(arg for task in subtasks for arg in task[1:])
+        
+        obj_str = ", ".join(objects)
+		prompt = self.gen_prompt % (obj_str, user_task, task_name)
 		resp = self.gpt.get_chat_gpt_completion(prompt).strip()
 
-        pass
+        if ': ' in resp:
+			resp = resp.split(': ')[1]
+
+		if '(' not in resp:
+			return resp + '()'
+        
+        resp = resp.replace(" ", "")
+        resp = resp.split("(")[1]
+        resp = resp.split(")")[0]
+        resp = resp.split(",")
+		return resp
 
     def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
         """

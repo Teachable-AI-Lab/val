@@ -16,4 +16,6 @@ VERB: multiply
 ***
 The best predicate and arguments for that are: multiply(numerator1, numerator2)
 ***
-%s
+OBJECTS: [%s]
+PHRASE: "%s"
+VERB: %s
