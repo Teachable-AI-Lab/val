@@ -1,11 +1,12 @@
 from shop2.domain import Task
+from shop2.common import V
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces import AbstractUserInterface
 from val.env_interfaces import AbstractEnvInterface
-from val.kb_interfaces import AbstractKbInterface
+from val.htn_interfaces import AbstractHtnInterface
 
 
 class ValAgent:
@@ -13,24 +14,24 @@ class ValAgent:
     def __init__(self,
                  user_interface: AbstractUserInterface,
                  env_interface: AbstractEnvInterface,
-                 kb_interface: AbstractKbInterface,
+                 htn_interface: AbstractHtnInterface,
                  openai_key: str):
         self.user_interface = user_interface
         self.env_interface = env_interface
 
         self.segment_prompt = load_prompt("prompts/chat_segmenter.txt")
         self.name_prompt = load_prompt('prompts/chat_namer.txt')
-        self.ground_prompt = load_prompt('prompts/chat_grounder.txt')
+        self.gen_prompt = load_prompt('prompts/chat_gen.txt')
         self.para_prompt = load_prompt('prompts/chat_paraphrase_ider.txt')
         self.verb_prompt = load_prompt('prompts/chat_verbalizer.txt')
-        self.life_depends_prompt = load_prompt('prompts/life_depends new.txt')
-        self.preselect_prompt = load_prompt('prompts/preselect_grounder.txt')
+        self.map_prompt = load_prompt('prompts/chat_map.txt')
+        self.ground_prompt = load_prompt('prompts/chat_ground.txt')
 
         self.gpt = GPTCompleter(openai_key)
 
-        self.kb_interface = kb_interface
+        self.htn_interface = htn_interface
 
-    def interpret(self, user_tasks: str, htn_knowledge: dict) -> List[Task]:
+    def interpret(self, user_tasks: str, htn_knowledge: dict):
         tasks = []
         for user_task in self.segment_gpt(user_tasks):
             task_ungrounded = self.map_gpt(user_task)
@@ -44,7 +45,12 @@ class ValAgent:
 
                 if self.paraphrase_gpt(verbalized_task, user_task):
                     # TODO tasks should have indexed access to head tuple
+                    # TODO htn_interface.execute_task need implemented and needs env
+                    # TODO make sure we handle success correctly
                     tasks.append(Task(task_ungrounded[0], *task_args))
+                    success = self.htn_interface.execute_task(tasks[-1])
+                    if not success:
+                        tasks.append(self.add_method(user_task))
                 else:
                     tasks.append(self.add_method(user_task))
 
@@ -61,18 +67,30 @@ class ValAgent:
         user_subtasks = self.user_interface.ask_user(f"How do I {user_task}?")
         subtasks = self.interpret(user_subtasks)
         task_args = self.gen_gpt(task_name, subtasks)
-        self.kb_interface.add_method(task_name, task_args, subtasks)
+
+        # TODO maybe consider a gpt module that names these better...
+        arg_map = {arg: V(chr(ord('A')+i))
+                   for i, arg in enumerate(task_args)}
+
+        task_args = [arg_map[arg] for arg in task_args]
+        subtasks = [Task(task[0], *[arg_map[subarg] if subarg in arg_map else subarg
+                                    for subarg in task[1:]])
+                    for task in subtasks]
+
+        self.htn_interface.add_method(task_name, task_args, subtasks)
         return Task(task_name, *task_args)
 
-    def segment_gpt(self, user_tasks: str): -> List[str]
+    def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
         resp = self.gpt.get_chat_gpt_completion(f'{self.segment_prompt}"{user_tasks}"')
         segmented_user_tasks = []
         for line in resp.split('\n'):
-            segmented_user_tasks.append(line.split('"')[1])
+            # Code parses string '2. "interact with it" (resolved pronouns: "interact with the onion")'
+            # to get "interact with the onion" out.
+            segmented_user_tasks.append(line.split('"')[3])
         return segmented_user_tasks
 
-    def name_gpt(user_task: str) -> str:
+    def name_gpt(self, user_task: str) -> str:
         """
         Takes user task string and returns a task name that matches it.
         """
@@ -87,7 +105,7 @@ class ValAgent:
         """
 
         # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
-        tasks = self.kb_interface.get_tasks()
+        tasks = self.htn_interface.get_tasks()
 
         task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task)}"
                      for i, task in enumerate(tasks)]
@@ -102,7 +120,7 @@ class ValAgent:
 		object_str = ', '.join(object_list)
 		name_str = '\n'.join(name_list)
 
-        prompt = self.life_depends_prompt % (task_str, object_str,
+        prompt = self.map_prompt % (task_str, object_str,
                                              user_task, name_str)
 		resp = self.gpt.get_chat_gpt_completion(prompt)
 
@@ -128,42 +146,55 @@ class ValAgent:
 
         returns list of argument mappings for task name
         """
-        if '()' in task_name:
-			return task_name
+		num_args = len(task_ungrounded) - 1
+        if num_args == 0:
+		    return task_ungrounded
 
         object_list = self.env_interface.get_objects()
 		object_str = ', '.join(object_list)
 
-		num_args = len(t.split(','))
-
 		num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
 		num_objs_str = '%d object%s' % (num_args, '' if num_args==1 else 's')
 
-		pred_name = chosen_action.split('(')[0]
+		task_name = task[0] 
 
 		o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
 
-		prompt = self.preselect_prompt % (chosen_action, action, obj_str, chosen_action, num_args_str, num_objs_str, pred_name, o_list)
+		prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, obj_str, task_name, num_args_str, num_objs_str, task_name, o_list)
 
 		resp = self.gpt.get_chat_gpt_completion(prompt).strip()
 
 		if '"' in resp:
 			resp = resp.replace('"', '').strip()
+        
+        resp = resp.replace(" ", "")
+        resp = resp.split("(")[1]
+        resp = resp.split(")")[0]
+        resp = resp.split(",")
 
 		return resp
 
+    def gen_gpt(self, user_task: str, task_name: str, subtasks: List[Task]) -> List[str]:
+        
+		prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, obj_str, task_name, num_args_str, num_objs_str, task_name, o_list)
 
+		resp = self.gpt.get_chat_gpt_completion(prompt).strip()
 
-    def verbalize_gpt(self, task_name: str, task_args: List[str]) -> str:
+        pass
+
+    def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
         """
-        Takes the task name and its args and converts it into an English
+        Takes the task_ungrounded and its args and converts it into an English
         formatted verbalization that can be compared with the user_task.
         """
-        pass
+        task = f"{task_ungrounded[0]}({', '.join(task_args)})"
+        return self.gpt.get_chat_gpt_completion(f"{self.verb_prompt}{task}")
 
     def paraphrase_gpt(self, verbalized_task: str, user_task: str) -> bool:
         """
         Takes a verbalized task (generated from task name and args) and the
         original user_task and returns whether they are the same.
         """
-        pass
+		res = self.gpt.get_chat_gpt_completion(
+                self.para_prompt%('"%s" and %s' % (action, pred))).split(" ")
+		return res == 'yes'

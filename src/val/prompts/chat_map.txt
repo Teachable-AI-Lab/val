@@ -1,7 +1,10 @@
 You're in an environment where these operations are available to you: %s
+
 Additionally, these objects are in the environment: %s
-You can also choose:%s
+
 Someone tells you to "%s". Which action corresponds to this?
 
-Please give me the choose with a single letter, like [a] ,[b] ,[c] ,and so on.
+%s
+
+Please respond with a single letter, and start your answer with a "[" (e.g., "[a]").
 

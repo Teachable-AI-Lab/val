@@ -19,5 +19,3 @@ def load_prompt(self, prompt_fn):
 def task_to_gpt_str(task: Task) -> str:
     # return f"{task[0]}({",".join([arg.name for arg in task[1:]])})"
     return f"{task[0]}({",".join([chr(ord('A')+i) for i in range(len(task[1:]))])})"
-
-

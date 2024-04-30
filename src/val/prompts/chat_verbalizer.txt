@@ -15,4 +15,3 @@ transport(apple, there)
 ***
 transport an apple there
 ***
-%s
