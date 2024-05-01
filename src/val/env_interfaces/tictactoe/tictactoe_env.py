@@ -1,3 +1,4 @@
+from tabulate import tabulate
 from val.src.val.env_interfaces.abstract_interface import AbstractEnvInterface
 from val.src.val.env_interfaces.tictactoe.tictactoe import TicTacToe
 
@@ -56,12 +57,19 @@ class TicTacToeEnv(AbstractEnvInterface):
             return False
 
         self.game.place(player, x, y)
+        self._print_board(player, x, y)
         return True
 
-    def print_board(self):
+    def _print_board(self, player, x, y):
+        info = [
+            ["Player:", player],
+            ["Place:", f"({x},{y})"],
+            ["Winner:", self._get_winner()]
+        ]
+        print(tabulate(info, tablefmt="grid"))
         self.game.print_board()
 
-    def get_winner(self):
+    def _get_winner(self):
         outcome = self.game.check_winner()
         if not outcome:
             outcome = None
