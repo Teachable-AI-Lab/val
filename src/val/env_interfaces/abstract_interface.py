@@ -1,10 +1,13 @@
+from typing import List
+from typing import Tuple
+
 
 class AbstractEnvInterface:
 
     def get_objects(self) -> List[str]:
         raise NotImplementedError("Not implemented yet")
 
-    def get_actions(self) -> List[Tuple(str, List[str])]:
+    def get_actions(self) -> List[Tuple[str, List[str]]]:
         """
         Returns actions in a format the HTN interface can create primitives.
         """
@@ -18,6 +21,6 @@ class AbstractEnvInterface:
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         """
-        Returns the state in a dict that can be converted into HTN representation.
+        Takes an action and its arguments and executes it in the environment.
         """
         raise NotImplementedError("Not implemented yet")

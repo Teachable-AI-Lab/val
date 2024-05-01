@@ -1,3 +1,6 @@
+from typing import List
+from typing import Optional
+
 
 class AbstractUserInterface:
 
@@ -12,11 +15,11 @@ class AbstractUserInterface:
 
     def ask_rephrase(self, user_tasks: str) -> str:
         """
-        Takes user tasks (potenttially many) and asks the user to rephrase.
+        Takes user tasks (potentially many) and asks the user to rephrase.
         """
         raise NotImplementedError("Not implemented yet")
 
-    def segment_confirmation(steps: List[str]) -> bool:
+    def segment_confirmation(self, steps: List[str]) -> bool:
         """
         Presents a list of the steps and asks if they are correct.
         """
@@ -37,7 +40,7 @@ class AbstractUserInterface:
 
     def map_new_method_confirmation(self, user_task: str) -> bool:
         """
-        Taeks the user task and asks if it should actually be a new method.
+        Takes the user task and asks if it should actually be a new method.
         """
         raise NotImplementedError("Not implemented yet")
 
@@ -64,7 +67,7 @@ class AbstractUserInterface:
         raise NotImplementedError("Not implemented yet")
 
     def gen_correction(self, task_name: str, task_args: List[str],
-                          env_objects: List[str]) -> List[str]: 
+                       env_objects: List[str]) -> List[str]:
         """
         Takes the task name and the predicted args and the env_objects and
         asks the user to correct the args.

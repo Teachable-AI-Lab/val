@@ -1,4 +1,7 @@
+from typing import List
 from shop2.domain import Task
+from shop2.common import V
+
 
 class AbstractHtnInterface:
 
