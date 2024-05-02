@@ -7,6 +7,7 @@ class TicTacToeEnv(AbstractEnvInterface):
 
     def __init__(self):
         self.game = TicTacToe()
+        self.actions = [('place', ['s', 'x', 'y'])]
 
     def get_objects(self):
         objs = []
@@ -20,8 +21,8 @@ class TicTacToeEnv(AbstractEnvInterface):
         """
         Returns actions in a format the HTN interface can create primitives.
         """
-        actions = [('place', ['s', 'x', 'y'])]
-        return actions
+
+        return self.actions
 
     def get_state(self) -> dict:
         """
