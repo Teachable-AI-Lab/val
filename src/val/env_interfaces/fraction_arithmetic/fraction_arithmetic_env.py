@@ -1,8 +1,9 @@
 from random import randint
 from random import choice
+from val.src.val.env_interfaces.abstract_interface import AbstractEnvInterface
 
 
-class FractionArithmeticTutorEnv:
+class FractionArithmeticTutorEnv(AbstractEnvInterface):
 
     def __init__(self, lower_bound=1, upper_bound=10):
         self.lower_bound = lower_bound
