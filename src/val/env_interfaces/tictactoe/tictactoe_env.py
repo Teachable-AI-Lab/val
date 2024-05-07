@@ -11,15 +11,25 @@ class TicTacToeEnv(AbstractEnvInterface):
 
     def __init__(self):
         self.game = TicTacToe()
-        self.actions = [('place', ['s', 'x', 'y'])]
+        # self.actions = [('place', ['s', 'x', 'y'])]
+        self.actions = [
+            {"name": "place",
+             "args": ["?symbol", "?x", "?y"],
+             "preconditions": [
+                 {"type": "fact", "symbol": "?symbol", "x": "?x", "y": "?y"},
+                 {"type": "filter", "lambda": f"x, y: 0 <= x < {self.game.size} and 0 <= y < {self.game.size}"},
+                 {"type": "filter", "lambda": "symbol: symbol == ''"}
+             ]}
+        ]
         # self.terminal = self._create_terminal()
 
     def get_objects(self):
-        objs = []
-        for x in range(self.game.size):
-            for y in range(self.game.size):
-                if self.game.board[x][y]:
-                    objs.append(f"{self.game.board[x][y]}{x}{y}")
+        objs = ["X", "O"]
+        # objs = []
+        # for x in range(self.game.size):
+        #    for y in range(self.game.size):
+        #        if self.game.board[x][y]:
+        #            objs.append(f"{self.game.board[x][y]}{x}{y}")
         return objs
 
     def get_actions(self):
@@ -29,13 +39,13 @@ class TicTacToeEnv(AbstractEnvInterface):
 
         return self.actions
 
-    def get_state(self) -> dict:
+    def get_state(self):
         """
         Returns the state in a dict that can be converted into HTN representation.
         """
-        return {"state": [{"symbol": self.game.board[x][y], "x": x, "y": y}
-                          for x in range(self.game.size)
-                          for y in range(self.game.size)]}
+        return [{"symbol": self.game.board[x][y], "x": x, "y": y}
+                for x in range(self.game.size)
+                for y in range(self.game.size)]
 
     def execute_action(self, action_name, args):
         """
@@ -59,7 +69,7 @@ class TicTacToeEnv(AbstractEnvInterface):
         except IndexError:
             return False
 
-        if position or self.game.check_winner():
+        if position or self.game.check_winner() or (not self._in_bounds(x, y)):
             return False
 
         self.game.place(player, x, y)
@@ -80,6 +90,9 @@ class TicTacToeEnv(AbstractEnvInterface):
         if not outcome:
             outcome = None
         return outcome
+
+    def _in_bounds(self, x, y):
+        return 0 <= x < self.game.size and 0 <= y < self.game.size
 
     @staticmethod
     def _create_terminal():
