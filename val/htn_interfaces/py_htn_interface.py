@@ -69,7 +69,7 @@ class PyHtnInterface(AbstractHtnInterface):
         return list(set([Task(operator.head[0], tuple([v.name for v in operator.head[1:]]))
                          for ele in self.domain for operator in self.domain[ele]]))
         
-    def execute_task(self, task: Task, env: AbstractEnvInterface) -> bool:
+    def execute_task(self, task: Task) -> bool:
         """
         Executes the task provided in the environment
         """

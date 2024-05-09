@@ -15,12 +15,12 @@ Are "bring me an apple" and "transport an apple to me" the same?
 ***
 yes
 ***
-"bring me an apple" and "transport me to the apple"
+Are "bring me an apple" and "transport me to the apple" the same?
 ***
 no
 ***
-"destroy the heart of lorkhan" and "steal the heart of lorkhan"
+Are "destroy the heart of lorkhan" and "steal the heart of lorkhan" the same?
 ***
 no
 ***
-Do %s mean the same thing? 
+Are "%s" and "%s" the same?

@@ -184,11 +184,11 @@ class ValAgent:
         num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
         num_objs_str = '%d object%s' % (num_args, '' if num_args==1 else 's')
 
-        task_name = task[0] 
+        task_name = task_ungrounded.name
 
         o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
 
-        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, obj_str, task_name, num_args_str, num_objs_str, task_name, o_list)
+        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
 
         resp = self.gpt.get_chat_gpt_completion(prompt).strip()
 
@@ -227,7 +227,7 @@ class ValAgent:
         Takes the task_ungrounded and its args and converts it into an English
         formatted verbalization that can be compared with the user_task.
         """
-        task = f"{task_ungrounded[0]}({', '.join(task_args)})"
+        task = f"{task_ungrounded.name}({', '.join(task_args)})"
         return self.gpt.get_chat_gpt_completion(f"{self.verb_prompt}{task}")
 
     def paraphrase_gpt(self, verbalized_task: str, user_task: str) -> bool:
@@ -236,5 +236,5 @@ class ValAgent:
         original user_task and returns whether they are the same.
         """
         res = self.gpt.get_chat_gpt_completion(
-                self.para_prompt%('"%s" and %s' % (action, pred))).split(" ")
+                self.para_prompt % (user_task, verbalized_task))
         return res == 'yes'
