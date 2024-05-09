@@ -11,41 +11,44 @@ class TicTacToeEnv(AbstractEnvInterface):
 
     def __init__(self):
         self.game = TicTacToe()
-        # self.actions = [('place', ['s', 'x', 'y'])]
-        self.actions = [
-            {"name": "place",
-             "args": ["?symbol", "?x", "?y"],
-             "preconditions": [
-                 {"type": "fact", "symbol": "?symbol", "x": "?x", "y": "?y"},
-                 {"type": "filter", "lambda": f"x, y: 0 <= x < {self.game.size} and 0 <= y < {self.game.size}"},
-                 {"type": "filter", "lambda": "symbol: symbol == ''"}
-             ]}
-        ]
-        # self.terminal = self._create_terminal()
 
     def get_objects(self):
-        objs = ["X", "O"]
-        # objs = []
-        # for x in range(self.game.size):
-        #    for y in range(self.game.size):
-        #        if self.game.board[x][y]:
-        #            objs.append(f"{self.game.board[x][y]}{x}{y}")
-        return objs
+        return ["X", "O"] + [str(i) for i in range(self.game.size)]
 
     def get_actions(self):
         """
         Returns actions in a format the HTN interface can create primitives.
         """
 
-        return self.actions
+        return [
+            {"name": "place",
+             "args": ["?symbol", "?x", "?y"],
+             "preconditions": [
+                 {"type": "fact", "mark": "?symbol", 'is-turn': "yes"},
+                 {"type": "fact", "symbol": "", "x": "?x", "y": "?y"},
+             ]}
+        ]
 
     def get_state(self):
         """
         Returns the state in a dict that can be converted into HTN representation.
         """
-        return [{"symbol": self.game.board[x][y], "x": x, "y": y}
+        state = [{"symbol": self.game.board[x][y], "x": x, "y": y}
                 for x in range(self.game.size)
                 for y in range(self.game.size)]
+
+        num_x = [self.game.board[x][y]
+                 for x in range(self.game.size)
+                 for y in range(self.game.size)].count("X")
+
+        if num_x % 2 == 0:
+            state.append({'mark': 'X', "is-turn": "yes"})
+            state.append({'mark': 'O', "is-turn": "no"})
+        else:
+            state.append({'mark': 'X', "is-turn": "no"})
+            state.append({'mark': 'O', "is-turn": "yes"})
+
+        return state
 
     def execute_action(self, action_name, args):
         """
@@ -69,7 +72,7 @@ class TicTacToeEnv(AbstractEnvInterface):
         except IndexError:
             return False
 
-        if position or self.game.check_winner() or (not self._in_bounds(x, y)):
+        if position or self.game.check_winner():
             return False
 
         self.game.place(player, x, y)
