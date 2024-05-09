@@ -1,4 +1,4 @@
-from val.user_interfaces import AbstractUserInterface
+from val.user_interfaces.abstract_interface import AbstractUserInterface
 from typing import List, Optional
 
 
@@ -103,7 +103,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         return correct_args
 
 if __name__ == "__main__":
-    task_manager = AbstractUserInterface()
+    task_manager = ConsoleUserInterface()
     task_name = "place"
     task_args = ["", "pot", "spoon"]
     env_objects = ["X", "O"]
