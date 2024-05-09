@@ -126,7 +126,7 @@ class ValAgent:
         user_subtasks = self.user_interface.ask_subtasks(user_task)
         subtasks = self.interpret(user_subtasks)
         task_args = self.gen_gpt(user_task, task_name, subtasks)
-        if not self.user_interface.gen_confirmation(user_task, task_name, task_args)):
+        if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
             task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env_interface.get_objects())
 
