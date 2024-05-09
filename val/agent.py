@@ -34,15 +34,16 @@ class V:
 
 @dataclass
 class Task:
-    name: str  
-    args: Tuple[Union[V, str], ...] = field(default_factory=tuple)
-    head: Tuple[str, Union[V, str], ...] = field(init=False)
+    name: str
+    args: Tuple[Union[str, V], ...] = field(init=False)
+    
+    def __init__(self, name: str, *args: Union[str, V]):
+        self.name = name
+        self.args = args
+        self.__post_init__()
 
     def __post_init__(self):
         self.head = (self.name, *self.args)
-
-    def __str__(self):
-        return f"Task(name='{self.name}', args={self.args})"
       
       
 
