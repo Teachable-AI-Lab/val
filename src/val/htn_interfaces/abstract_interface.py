@@ -7,6 +7,14 @@ from shop2.planner import planner
 from env_interfaces import AbstractEnvInterface
 from shop2.fact import Fact
 
+
+def dict_to_facts(data: dict) -> Fact:
+    state = Fact(start=True)
+    for fact in data['state']:
+        state = state & Fact(**{key: (V(value[1:]) if (isinstance(value, str) and value[0] == '?') else value) 
+                                for key, value in fact.items()})
+    return state
+
 class AbstractHtnInterface:
 
     def __init__(self, *args, **kwargs):
@@ -14,7 +22,7 @@ class AbstractHtnInterface:
         Needs both env and user interfaces so it can execute in the world and
         confirm execution.
         """
-        self.state = args[0]
+        self.state = dict_to_facts(args[0])
         self.domain = args[1]
         self.task = args[2]
         raise NotImplementedError("Not implemented yet")
@@ -34,6 +42,7 @@ class AbstractHtnInterface:
         """
         Executes the task provided in the environment
         """
+
         if result := planner(self.state, self.domain, self.task):
             plan, state = result
         for action in plan:
