@@ -1,7 +1,9 @@
 from typing import List
-from shop2.domain import Task, Method, Operator
-from shop2.common import V
+from shop2.domain import Method, Operator
+from agent import Task
+from agent import V
 from shop2.planner import planner
+
 from env_interfaces import AbstractEnvInterface
 from shop2.fact import Fact
 

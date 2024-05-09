@@ -1,13 +1,50 @@
-from shop2.domain import Task
-from shop2.common import V
-
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces import AbstractUserInterface
 from val.env_interfaces import AbstractEnvInterface
 from val.htn_interfaces import AbstractHtnInterface
+from dataclasses import dataclass, field
+from typing import Any, Tuple, Union
 
+variable_counter = 0
+
+def gen_variable():
+    global variable_counter
+    variable_counter += 1
+    return V(f'genvar{variable_counter}')
+
+@dataclass(eq=False)  e
+class V:
+    """
+    A variable for pattern matching.
+    """
+    name: str
+
+    def __repr__(self):
+        return f"V({self.name})"
+
+    def __hash__(self):
+        return hash(f"V({self.name})")
+
+    def __eq__(self, other):
+        if not isinstance(other, V):
+            return False
+        return self.name == other.name
+
+@dataclass
+class Task:
+    name: str  
+    args: Tuple[Union[V, str], ...] = field(default_factory=tuple)
+    head: Tuple[str, Union[V, str], ...] = field(init=False)
+
+    def __post_init__(self):
+        self.head = (self.name, *self.args)
+
+    def __str__(self):
+        return f"Task(name='{self.name}', args={self.args})"
+      
+      
 
 class ValAgent:
 

@@ -1,7 +1,7 @@
 import os
 
-from shop2.domain import Task 
-from shop2.domain import Task 
+from agent import Task
+from agent import V
 
 
 def load_prompt(self, prompt_fn):
