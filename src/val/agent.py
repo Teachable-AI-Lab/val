@@ -14,7 +14,7 @@ def gen_variable():
     variable_counter += 1
     return V(f'genvar{variable_counter}')
 
-@dataclass(eq=False)  e
+@dataclass(eq=False)
 class V:
     """
     A variable for pattern matching.
