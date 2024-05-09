@@ -14,8 +14,8 @@ class ConsoleUserInterface(AbstractUserInterface):
     def ask_rephrase(self, user_tasks: str) -> str:
         # TODO ask step by step or rephrase as a whole? should we
         # include options: "add more steps/yes/no"?
-        rephrased_user_tasks = input(f"Sorry about that. Can you rephrase the tasks
-                                    '{user_tasks}'?")
+        rephrased_user_tasks = input(
+                f"Sorry about that. Can you rephrase the tasks '{user_tasks}'?")
         return rephrased_user_tasks
 
     def segment_confirmation(self, steps: List[str]) -> bool:
