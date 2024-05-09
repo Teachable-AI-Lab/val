@@ -21,7 +21,9 @@ classifiers = [
 ]
 dependencies = [
     "shop2",
-    "flask"
+    "flask",
+    "tabulate",
+    "openai",
 ]
 
 [project.urls]

@@ -6,6 +6,9 @@ import sys
 # import torch
 import xmlrpc.client
 
+# openai_model = "gpt-4"
+openai_model = "gpt-3.5-turbo"
+
 
 class GPTCompleter:
     def __init__(self, openai_key, local_model=None):
@@ -33,6 +36,9 @@ class GPTCompleter:
             # self.init_openai_api()
             self.get_completion = self.get_api_completion
             self.cache = dict()
+
+            if not os.path.exists('api_cache'):
+                os.makedirs('api_cache')
             for fn in os.listdir('api_cache/'):
                 with open('api_cache/%s' % fn, 'r') as f:
                     self.cache[int(fn)] = f.read()
@@ -95,7 +101,7 @@ class GPTCompleter:
             key = int(hashlib.md5(str(('chat', prompt, rep_pen, max_length, stop)).encode('utf-8')).hexdigest(), 16)
             if key not in self.cache:
                 self.cache[key] = openai.ChatCompletion.create(
-                        model='gpt-3.5-turbo',
+                        model=openai_model,
                         messages=annotated_msgs,
                         max_tokens=max_length,
                         temperature=temp,
@@ -109,7 +115,7 @@ class GPTCompleter:
             return self.cache[key]
         else:
             res = openai.ChatCompletion.create(
-                    model='gpt-3.5-turbo',
+                    model=openai_model,
                     messages=annotated_msgs,
                     max_tokens=max_length,
                     temperature=temp,

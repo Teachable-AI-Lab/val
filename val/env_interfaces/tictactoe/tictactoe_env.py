@@ -1,10 +1,6 @@
-import platform
-from subprocess import CREATE_NEW_CONSOLE
-from subprocess import PIPE
-from subprocess import Popen
 from tabulate import tabulate
-from val.src.val.env_interfaces.abstract_interface import AbstractEnvInterface
-from val.src.val.env_interfaces.tictactoe.tictactoe import TicTacToe
+from val.env_interfaces.abstract_interface import AbstractEnvInterface
+from val.env_interfaces.tictactoe.tictactoe import TicTacToe
 
 
 class TicTacToeEnv(AbstractEnvInterface):
@@ -96,16 +92,3 @@ class TicTacToeEnv(AbstractEnvInterface):
 
     def _in_bounds(self, x, y):
         return 0 <= x < self.game.size and 0 <= y < self.game.size
-
-    @staticmethod
-    def _create_terminal():
-        if platform.system() == "Windows":
-            new_window_command = "cmd.exe /c start".split()
-        else:  # XXX this can be made more portable
-            new_window_command = "x-terminal-emulator -e".split()
-
-        return Popen(new_window_command,
-                     # shell=True,
-                     stdout=PIPE,
-                     stdin=PIPE,
-                     creationflags=CREATE_NEW_CONSOLE)

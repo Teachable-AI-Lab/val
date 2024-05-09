@@ -7,6 +7,10 @@ class ConsoleUserInterface(AbstractUserInterface):
     def __init__(self):
         pass
 
+    def request_user_task(self) -> str:
+        user_task = input(f"How can I help you today? ")
+        return user_task
+
     def ask_subtasks(self, user_task: str) -> str:
         steps = input(f"What are the steps for completing the task '{user_task}'? ")
         return steps
