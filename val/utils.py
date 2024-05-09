@@ -7,36 +7,21 @@ from typing import Tuple
 from typing import Union
 
 
-@dataclass(eq=False)
+@dataclass(eq=True, frozen=True)
 class V:
     """
     A variable for pattern matching.
     """
     name: str
 
-    def __repr__(self):
-        return f"V({self.name})"
-
-    def __hash__(self):
-        return hash(f"V({self.name})")
-
-    def __eq__(self, other):
-        if not isinstance(other, V):
-            return False
-        return self.name == other.name
-
-@dataclass
+@dataclass(eq=True, frozen=True)
 class Task:
     name: str
-    args: Tuple[Union[str, V], ...] = field(init=False)
-    
-    def __init__(self, name: str, *args: Union[str, V]):
-        self.name = name
-        self.args = args
-        self.__post_init__()
+    args: Tuple[Union[str, V], ...]
 
-    def __post_init__(self):
-        self.head = (self.name, *self.args)
+    @property
+    def head(self):
+        return (self.name, *self.args)
 
 def load_prompt(prompt_fn: str) -> str:
     #__file__是Python中内置的变量,它表示当前文件的文件名
@@ -52,7 +37,7 @@ def load_prompt(prompt_fn: str) -> str:
 
 def task_to_gpt_str(task: Task) -> str:
     # return f"{task[0]}({",".join([arg.name for arg in task[1:]])})"
-    return f'{task[0]}({",".join([chr(ord("A")+i) for i in range(len(task[1:]))])})'
+    return f'{task.name}({",".join([chr(ord("A")+i) for i in range(len(task.args))])})'
 
 def get_openai_key() -> str:
     file_path = "keys.yaml"

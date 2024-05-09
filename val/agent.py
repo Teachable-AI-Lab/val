@@ -47,7 +47,7 @@ class ValAgent:
 
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
-                  not self.user_interface.map_confirmation(user_task, task_ungrounded[0])):
+                  not self.user_interface.map_confirmation(user_task, task_ungrounded.name)):
                 # TODO add to htn interface
                 # TODO consider how we convert tasks to strings and handle args
                 known_tasks = [task_to_gpt_str(task) for task in self.htn_interface.get_tasks()]
@@ -58,19 +58,19 @@ class ValAgent:
 
             else:
                 task_args = self.ground_gpt(user_task, task_ungrounded)
-                if not self.user_interface.ground_confirmation(task_ungrounded[0], task_args):
-                    task_args = self.user_interface.ground_correction(task_ungrounded[0],
+                if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
+                    task_args = self.user_interface.ground_correction(task_ungrounded.name,
                                                                       task_args,
                                                                       self.env_interface.get_objects())
 
                 verbalized_task = self.verbalize_gpt(task_ungrounded, task_args)
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
-                     self.user_interface.gen_confirmation(user_task, task_ungrounded[0], task_args)):
+                     self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
                     # TODO tasks should have indexed access to head tuple
                     # TODO htn_interface.execute_task need implemented and needs env
                     # TODO make sure we handle success correctly
-                    tasks.append(Task(task_ungrounded[0], *task_args))
+                    tasks.append(Task(task_ungrounded.name, tuple(task_args)))
                     success = self.htn_interface.execute_task(tasks[-1])
                     
                     if not success:
@@ -101,12 +101,12 @@ class ValAgent:
                    for i, arg in enumerate(task_args)}
 
         task_args = [arg_map[arg] for arg in task_args]
-        subtasks = [Task(task[0], *[arg_map[subarg] if subarg in arg_map else subarg
-                                    for subarg in task[1:]])
+        subtasks = [Task(task.name, tuple([arg_map[subarg] if subarg in arg_map else subarg
+                                    for subarg in task.args]))
                     for task in subtasks]
 
         self.htn_interface.add_method(task_name, task_args, subtasks)
-        return Task(task_name, *task_args)
+        return Task(task_name, tuple(task_args))
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
@@ -142,15 +142,14 @@ class ValAgent:
         # TODO get_objects returns -> ['onion', 'pot', ...]
         object_list = self.env_interface.get_objects()
         name_list = [x.split('(')[0] for x in task_list]
-        name_list.append(f"[{chr(ord('a'))+len(known_actions)}] None of the above; "
+        name_list.append(f"[{chr(ord('a')+len(task_list))}] None of the above; "
                          f'"{user_task}" would require a combination of actions.')
 
         task_str = ', '.join(task_list)
         object_str = ', '.join(object_list)
         name_str = '\n'.join(name_list)
 
-        prompt = self.map_prompt % (task_str, object_str,
-                                             user_task, name_str)
+        prompt = self.map_prompt % (task_str, object_str, user_task, name_str)
         resp = self.gpt.get_chat_gpt_completion(prompt)
 
         choice = None
@@ -175,7 +174,7 @@ class ValAgent:
 
         returns list of argument mappings for task name
         """
-        num_args = len(task_ungrounded) - 1
+        num_args = len(task_ungrounded.args)
         if num_args == 0:
             return task_ungrounded
 
