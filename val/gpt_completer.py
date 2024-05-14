@@ -5,8 +5,7 @@ import os
 import sys
 # import torch
 
-# openai_model = "gpt-4"
-openai_model = "gpt-3.5-turbo"
+openai_model = "gpt-4"
 
 
 class GPTCompleter:

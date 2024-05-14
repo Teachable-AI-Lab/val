@@ -6,16 +6,14 @@ from val.utils import get_openai_key
 
 if __name__ == "__main__":
     
-    user_interface = ConsoleUserInterface()
-    env_interface = TicTacToeEnv()
-    # htn_interface = PyHtnInterface(env_interface)
-    htn_interface = BasicHtnInterface(env_interface)
-
     openai_key = get_openai_key()
 
-    agent = ValAgent(user_interface, env_interface, htn_interface, openai_key)
+    env = TicTacToeEnv()
+    # htn_interface = PyHtnInterface
+    user_interface = ConsoleUserInterface
+    htn_interface = BasicHtnInterface
 
-    while True:
-        user_task = user_interface.request_user_task() 
-        agent.interpret(user_task)
+
+    agent = ValAgent(env, ConsoleUserInterface, BasicHtnInterface, openai_key)
+    agent.start()
 

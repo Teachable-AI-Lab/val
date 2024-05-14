@@ -1,11 +1,10 @@
 from typing import List
 from typing import Optional
 
+from val.utils import Task
+
 
 class AbstractUserInterface:
-
-    def __init__(self):
-        pass
 
     def request_user_task(self) -> str:
         """
@@ -79,5 +78,19 @@ class AbstractUserInterface:
         asks the user to correct the args.
 
         Should return new list of task args that are correct.
+        """
+        raise NotImplementedError("Not implemented yet")
+
+    def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
+        """
+        Takes a user_task and the user_subtasks it decomposes into and asks the
+        user if this is the right thing to do, returns bool.
+        """
+        raise NotImplementedError("Not implemented yet")
+
+    def confirm_task_execution(self, user_task: str) -> bool:
+        """
+        Takes a user_task and asks the user if this is the right thing to
+        execute, returns bool.
         """
         raise NotImplementedError("Not implemented yet")

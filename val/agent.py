@@ -14,12 +14,10 @@ from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 class ValAgent:
 
     def __init__(self,
-                 user_interface: AbstractUserInterface,
-                 env_interface: AbstractEnvInterface,
-                 htn_interface: AbstractHtnInterface,
+                 env: AbstractEnvInterface,
+                 user_interface_class,
+                 htn_interface_class,
                  openai_key: str):
-        self.user_interface = user_interface
-        self.env_interface = env_interface
 
         self.segment_prompt = load_prompt("prompts/chat_segmenter.txt")
         self.name_prompt = load_prompt('prompts/chat_namer.txt')
@@ -31,7 +29,14 @@ class ValAgent:
 
         self.gpt = GPTCompleter(openai_key)
 
-        self.htn_interface = htn_interface
+        self.user_interface = user_interface_class()
+        self.env = env
+        self.htn_interface = htn_interface_class(self)
+
+    def start(self):
+        while True:
+            user_task = self.user_interface.request_user_task()
+            self.interpret(user_task)
 
     def interpret(self, user_tasks: str):
         tasks = []
@@ -62,7 +67,7 @@ class ValAgent:
                 if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
                     task_args = self.user_interface.ground_correction(task_ungrounded.name,
                                                                       task_args,
-                                                                      self.env_interface.get_objects())
+                                                                      self.env.get_objects())
 
                 verbalized_task = self.verbalize_gpt(task_ungrounded, task_args)
 
@@ -94,7 +99,7 @@ class ValAgent:
         task_args = self.gen_gpt(user_task, task_name, subtasks)
         if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
             task_args = self.user_interface.gen_correction(task_name, task_args,
-                                                           self.env_interface.get_objects())
+                                                           self.env.get_objects())
 
 
         # TODO maybe consider a gpt module that names these better...
@@ -142,7 +147,7 @@ class ValAgent:
                      for i, task in enumerate(tasks)]
 
         # TODO get_objects returns -> ['onion', 'pot', ...]
-        object_list = self.env_interface.get_objects()
+        object_list = self.env.get_objects()
         name_list = [x.split('(')[0] for x in task_list]
         name_list.append(f"[{chr(ord('a')+len(task_list))}] None of the above; "
                          f'"{user_task}" would require a combination of actions.')
@@ -178,9 +183,9 @@ class ValAgent:
         """
         num_args = len(task_ungrounded.args)
         if num_args == 0:
-            return task_ungrounded
+            return task_ungrounded.args
 
-        object_list = self.env_interface.get_objects()
+        object_list = self.env.get_objects()
         object_str = ', '.join(object_list)
 
         num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
@@ -240,3 +245,18 @@ class ValAgent:
         res = self.gpt.get_chat_gpt_completion(
                 self.para_prompt % (user_task, verbalized_task))
         return res == 'yes'
+
+    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+        # convert task and subtasks into english using GPT prompt.
+        # use user interface to confirm with user
+        # return bool based on confirmation
+        print(f"WOULD CONFIRM { task } TO { subtasks } DECOMPOSITION HERE!")
+        return True
+
+    def confirm_task_execution(self, task: Task) -> bool:
+        # convert task into english using GPT prompt.
+        # use user interface to confirm with user
+        # return bool based on confirmation
+        print(f"WOULD CONFIRM { task } EXECUTION HERE!")
+        return True
+

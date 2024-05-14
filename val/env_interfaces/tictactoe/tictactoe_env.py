@@ -6,6 +6,9 @@ from val.env_interfaces.tictactoe.tictactoe import TicTacToe
 class TicTacToeEnv(AbstractEnvInterface):
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.game = TicTacToe()
 
     def get_objects(self):
@@ -22,7 +25,10 @@ class TicTacToeEnv(AbstractEnvInterface):
              "preconditions": [
                  {"type": "fact", "mark": "?symbol", 'is-turn': "yes"},
                  {"type": "fact", "symbol": "", "x": "?x", "y": "?y"},
-             ]}
+             ]},
+            {"name": "reset",
+             "args": [],
+             "preconditions": []}
         ]
 
     def get_state(self):
@@ -50,6 +56,12 @@ class TicTacToeEnv(AbstractEnvInterface):
         """
         Takes an action and its arguments and executes it in the environment.
         """
+
+        if action_name == "reset":
+            self.reset()
+            self._print_board(player, x, y)
+            return True
+
         player, x, y = args
         """
         Fail in following 3 cases:

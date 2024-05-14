@@ -14,6 +14,9 @@ class V:
     """
     name: str
 
+    def to_unify_str(self):
+        return f"?{ self.name }"
+
 @dataclass(eq=True, frozen=True)
 class Task:
     name: str

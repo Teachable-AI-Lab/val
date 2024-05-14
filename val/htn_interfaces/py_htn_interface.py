@@ -7,6 +7,8 @@ from shop2.domain import Method
 from shop2.fact import Fact
 # from shop2.common import FailedPlanException
 from shop2.conditions import AND
+from py_plan.unification import unify
+from py_plan.unification import subst
 
 from val.utils import Task
 from val.utils import V
@@ -48,18 +50,17 @@ def dict_to_operators(operator_dict_list: list) -> List[Operator]:
 
 class PyHtnInterface(AbstractHtnInterface):
 
-    def __init__(self, env: AbstractHtnInterface,
-                 # user_interface: AbstractUserInterface
-                 ):
+    def __init__(self, agent):
         """
         Needs both env and user interfaces so it can execute in the world and
         confirm execution.
         """
-        self.env = env
+        self.agent = agent
     
         # TODO consider how and in what way we need the user interface
         # self.user_interface = user_interface
-        self.domain = dict_to_operators(env.get_actions())
+        self.domain = dict_to_operators(self.agent.env.get_actions())
+
 
     def get_tasks(self) -> List[Task]:
         """
@@ -77,15 +78,15 @@ class PyHtnInterface(AbstractHtnInterface):
         return False
 
         # TODO implement planner coroutine functionality
-        plan_coroutine = planner(dict_to_facts(self.env.get_state()),
+        plan_coroutine = planner(dict_to_facts(self.agent.env.get_state()),
                                  self.task,
                                  self.domain)
 
         # this should return an action (name and args) for the env to execute
         try:
             for action_name, action_args in plan_coroutine:
-                success = self.env.execute_action(action_name, action_args)
-                plan_couroutine.send(success, dict_to_facts(self.env.get_state()))
+                success = self.agent.env.execute_action(action_name, action_args)
+                plan_couroutine.send(success, dict_to_facts(self.agent.env.get_state()))
             return True
 
         # TODO implement failed plan exception

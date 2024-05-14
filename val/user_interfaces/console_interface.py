@@ -1,11 +1,11 @@
+from typing import List
+from typing import Optional
+
+from val.utils import Task
 from val.user_interfaces.abstract_interface import AbstractUserInterface
-from typing import List, Optional
 
 
 class ConsoleUserInterface(AbstractUserInterface):
-
-    def __init__(self):
-        pass
 
     def request_user_task(self) -> str:
         user_task = input(f"How can I help you today? ")
@@ -105,6 +105,24 @@ class ConsoleUserInterface(AbstractUserInterface):
         correct_args = [env_objects[i] for i in selected_indices
                         if env_objects[i] in task_args]
         return correct_args
+
+    def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
+        print(f"Should I decompose { task } to { subtasks }?")
+        while True:
+            users_choice = input("Please enter 'Yes' or 'No':")
+            if users_choice.lower() in ['yes', 'no']:
+                break
+            print("Invalid input. Please enter 'Yes' or 'No'.")
+        return True if users_choice.lower()=='yes' else False
+
+    def confirm_task_execution(self, user_task: str) -> bool:
+        print(f"Should I execute { user_task }?")
+        while True:
+            users_choice = input("Please enter 'Yes' or 'No':")
+            if users_choice.lower() in ['yes', 'no']:
+                break
+            print("Invalid input. Please enter 'Yes' or 'No'.")
+        return True if users_choice.lower()=='yes' else False
 
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface()

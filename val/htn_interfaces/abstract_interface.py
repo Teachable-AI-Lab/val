@@ -5,10 +5,9 @@ from val.agent import V
 
 class AbstractHtnInterface:
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, agent):
         """
-        Needs both env and user interfaces so it can execute in the world and
-        confirm execution.
+        Needs agent.
         """
         raise NotImplementedError("Not implemented yet")
 

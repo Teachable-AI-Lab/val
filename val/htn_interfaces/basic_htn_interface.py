@@ -4,47 +4,42 @@ from collections import deque
 
 from shop2.domain import Operator
 from shop2.domain import Method
-# from shop2.planner import planner
+from shop2.domain import unify
+from shop2.domain import subst
 from shop2.fact import Fact
-# from shop2.common import FailedPlanException
-from shop2.conditions import AND
 
 from val.utils import Task
 from val.utils import V
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
-from val.env_interfaces.abstract_interface import AbstractEnvInterface
-# from user_interfaces.abstract_interface import AbstractUserInterface
 
 
 def dict_to_operators(operator_dict_list: list) -> List[Operator]:
-    primitives = set()
+    primitives = {}
 
     for operator_dict in operator_dict_list:
-        primitives.add(Task(operator_dict['name'], tuple([V(arg) for arg in operator_dict["args"]])))
+        key = f"{ operator_dict['name'] }/{ len(operator_dict['args']) }"
+        primitives[key] = Task(operator_dict['name'],
+                               tuple([V(arg) for arg in operator_dict["args"]]))
 
     return primitives
 
 class BasicHtnInterface(AbstractHtnInterface):
 
-    def __init__(self, env: AbstractHtnInterface,
-                 # user_interface: AbstractUserInterface
-                 ):
+    def __init__(self, agent):
         """
         Needs both env and user interfaces so it can execute in the world and
         confirm execution.
         """
-        self.env = env
-    
-        # TODO consider how and in what way we need the user interface
-        # self.user_interface = user_interface
-        self.primitives = dict_to_operators(env.get_actions())
-        self.methods = {}
+        self.agent = agent
+        self.primitives = dict_to_operators(self.agent.env.get_actions())
+        self.methods = defaultdict(list)
 
     def get_tasks(self) -> List[Task]:
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        tasks = [t for t in self.primitives] + [t for t in self.methods]
+        tasks = [self.primitives[key] for key in self.primitives] 
+        tasks += [task for key in self.methods for task, _ in self.methods[key]]
         tasks = list(set(tasks))
         return tasks
         
@@ -57,12 +52,35 @@ class BasicHtnInterface(AbstractHtnInterface):
         while len(queue) > 0:
             task = queue.popleft()
 
-            if task in self.primitives:
-                if not self.env.execute_action(task.name, task.args):
-                    return False
+            success = False
 
-            elif task in self.methods:
-                queue.extend(self.methods[task])
+            key = f"{ task.name }/{ len(task.args) }"
+            print(f"solving { task } (key={ key })")
+            print(f"Primitives: { self.primitives }")
+            print(f"Methods: { self.methods }")
+
+            if key in self.primitives and self.agent.confirm_task_execution(task):
+                success = self.agent.env.execute_action(task.name, task.args)
+
+            if not success and key in self.methods:
+                for ungrounded_task, ungrounded_subtasks in self.methods[key]:
+                    theta = unify((task.name, *task.args),
+                                  (ungrounded_task.name, *[v.to_unify_str() for v in ungrounded_task.args]))
+                    print('unifying', (task.name, *task.args), 'with', 
+                          (ungrounded_task.name, *[v.to_unify_str() for v in ungrounded_task.args]))
+                    print("theta", theta)
+
+                    grounded_subtasks = [Task(t.name,
+                                              subst(theta, tuple([v.to_unify_str() if isinstance(v, V) else v for v in t.args])))
+                                         for t in ungrounded_subtasks]
+
+                    if self.agent.confirm_task_decomposition(task, grounded_subtasks):
+                        queue.extend(grounded_subtasks)
+                        success = True
+                        break
+        
+            if not success:
+                return False
 
         return True
 
@@ -71,5 +89,6 @@ class BasicHtnInterface(AbstractHtnInterface):
         """
         Creates a new HTN method and adds to domain.
         """
+        key = f"{ task_name }/{ len(task_args) }"
         task = Task(task_name, tuple(task_args))
-        self.methods[task] = subtasks
+        self.methods[key].append((task, subtasks))
