@@ -47,7 +47,8 @@ class ValAgent:
 
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
-                  not self.user_interface.map_confirmation(user_task, task_ungrounded.name)):
+                  (task_ungrounded is not None and
+                   not self.user_interface.map_confirmation(user_task, task_ungrounded.name))):
                 # TODO add to htn interface
                 # TODO consider how we convert tasks to strings and handle args
                 known_tasks = [task_to_gpt_str(task) for task in self.htn_interface.get_tasks()]
@@ -105,7 +106,8 @@ class ValAgent:
                                     for subarg in task.args]))
                     for task in subtasks]
 
-        self.htn_interface.add_method(task_name, task_args, subtasks)
+        preconditions = []
+        self.htn_interface.add_method(task_name, task_args, preconditions, subtasks)
         return Task(task_name, tuple(task_args))
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
@@ -204,7 +206,7 @@ class ValAgent:
 
     def gen_gpt(self, user_task: str, task_name: str, subtasks: List[Task]) -> List[str]:
 
-        objects = set(arg for task in subtasks for arg in task[1:])
+        objects = set(arg for task in subtasks for arg in task.args)
         
         obj_str = ", ".join(objects)
         prompt = self.gen_prompt % (obj_str, user_task, task_name)
