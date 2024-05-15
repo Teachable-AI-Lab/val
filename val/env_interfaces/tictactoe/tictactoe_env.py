@@ -59,7 +59,7 @@ class TicTacToeEnv(AbstractEnvInterface):
 
         if action_name == "reset":
             self.reset()
-            self._print_board(player, x, y)
+            self.game.print_board()
             return True
 
         player, x, y = args

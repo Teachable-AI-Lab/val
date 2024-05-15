@@ -35,6 +35,7 @@ class ValAgent:
 
     def start(self):
         while True:
+            # TODO show user what agent knows.
             user_task = self.user_interface.request_user_task()
             self.interpret(user_task)
 
