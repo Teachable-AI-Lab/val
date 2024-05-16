@@ -80,7 +80,8 @@ class BasicHtnInterface(AbstractHtnInterface):
                         break
         
             if not success:
-                return False
+               grounded_subtasks = list(self.agent.add_method_from_task(task))
+               queue.extend(grounded_bustasks)
 
         return True
 
