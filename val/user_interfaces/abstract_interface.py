@@ -94,3 +94,10 @@ class AbstractUserInterface:
         execute, returns bool.
         """
         raise NotImplementedError("Not implemented yet")
+
+    def display_known_tasks(self, tasks: List[str]):
+        """
+        Displays the list of tasks that VAL knows how to do.
+        """
+        raise NotImplementedError("Not implemented yet")
+

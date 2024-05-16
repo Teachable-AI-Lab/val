@@ -89,7 +89,7 @@ class PyHtnInterface(AbstractHtnInterface):
             success = self.agent.env.execute_action(action_name, action_args)
             while True:
                 action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
-                print(actio_name, action_args)
+                # print(actio_name, action_args)
                 success = self.agent.env.execute_action(action_name, action_args)
         except StopIteration as e: 
             return True
