@@ -18,8 +18,7 @@ class SpaceTransitEnv():
         self.line_names = ["redline", "blueline", "yellowline"]
 
     def get_objects(self) -> List[str]:
-        cur_state = self.get_state(ws)
-        line_mapping, lines, stations = self.get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = self.get_lines_and_stations()
         return list(stations.keys()) + list(line_mapping.keys())
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
@@ -83,9 +82,29 @@ class SpaceTransitEnv():
         """
         Returns the state in a dict that can be converted into HTN representation.
         """
-        state = get_state_from_game()
-        # TODO convert to facts or dicts or whatever
-        return state
+        val_state = []
+        cur_state = get_state_from_game()
+
+        line_mapping = {}
+        for line in cur_state['lines']:
+            if line['id'] == 0:
+                val_state.append({'line': 'redline', 'id': line['unique_id']})
+            elif line['id'] == 1:
+                val_state.append({'line': 'blueline', 'id': line['unique_id']})
+            elif line['id'] == 2:
+                val_state.append({'line': 'yellowline', 'id': line['unique_id']})
+
+        for station in cur_state['stations']:
+            val_state.append({'station': station['human_name'],
+                              'unique_id': station['unique_id']})
+
+        for segment in cur_state['segments']:
+            if segment['which_line'] not in lines:
+                val_state.append({'from_station': segment['from_station'],
+                                  'to_station': segment['to_station'],
+                                  'segment_line': segment['which_line']})
+
+        return val_state
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         if action_name == "create_line":
@@ -123,7 +142,8 @@ class SpaceTransitEnv():
         state = self.send_and_recv({"command":"get_state", "game_id": 0})
         return state
 
-    def get_lines_and_stations(self, cur_state):
+    def get_lines_and_stations(self):
+        cur_state = self.get_state_from_game()
         line_mapping = {}
         for line in cur_state['lines']:
             if line['id'] == 0:
@@ -152,8 +172,7 @@ class SpaceTransitEnv():
         return formatted_name
 
     def create_line(self, station1: str, station2: str):
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, stations = get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = get_lines_and_stations()
 
         station1 = format_names(station1, stations)
         station2 = format_names(station2, stations)
@@ -207,8 +226,7 @@ class SpaceTransitEnv():
     def delete_line(self, line):
         line = line.lower()
 
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, _ = get_lines_and_stations(cur_state)
+        line_mapping, lines, _ = self.get_lines_and_stations()
 
         line = format_names(line, line_mapping)
         line_idx = line_mapping[line]
@@ -238,8 +256,7 @@ class SpaceTransitEnv():
         """
         line = line.lower()
 
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, stations = get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = self.get_lines_and_stations()
         line = format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
@@ -293,8 +310,7 @@ class SpaceTransitEnv():
         """
         line = line.lower()
 
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, stations = get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = self.get_lines_and_stations()
 
         line = format_names(line, line_mapping)
         line_idx = line_mapping[line]
@@ -346,8 +362,7 @@ class SpaceTransitEnv():
         """
         line = line.lower()
 
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, stations = get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = self.get_lines_and_stations()
         line = format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
@@ -377,8 +392,7 @@ class SpaceTransitEnv():
         return result == "Success"
 
     def print_state_objects(self):
-        cur_state = self.get_state_from_game()
-        line_mapping, lines, stations = get_lines_and_stations(cur_state)
+        line_mapping, lines, stations = get_lines_and_stations()
         station_mapping = {}
         for station_name in stations:
             station = stations[station_name]

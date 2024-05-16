@@ -38,11 +38,11 @@ class BasicHtnInterface(AbstractHtnInterface):
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        tasks = [self.primitives[key] for key in self.primitives] 
+        tasks = [self.primitives[key] for key in self.primitives]
         tasks += [task for key in self.methods for task, _ in self.methods[key]]
         tasks = list(set(tasks))
         return tasks
-        
+
     def execute_task(self, task: Task) -> bool:
         """
         Executes the task provided in the environment
@@ -66,7 +66,7 @@ class BasicHtnInterface(AbstractHtnInterface):
                 for ungrounded_task, ungrounded_subtasks in self.methods[key]:
                     theta = unify((task.name, *task.args),
                                   (ungrounded_task.name, *[v.to_unify_str() for v in ungrounded_task.args]))
-                    print('unifying', (task.name, *task.args), 'with', 
+                    print('unifying', (task.name, *task.args), 'with',
                           (ungrounded_task.name, *[v.to_unify_str() for v in ungrounded_task.args]))
                     print("theta", theta)
 
@@ -78,10 +78,11 @@ class BasicHtnInterface(AbstractHtnInterface):
                         queue.extend(grounded_subtasks)
                         success = True
                         break
-        
+
             if not success:
-               grounded_subtasks = list(self.agent.add_method_from_task(task))
-               queue.extend(grounded_bustasks)
+                grounded_subtasks = list(self.agent.add_method_from_task(task))
+                for subtask in reversed(grounded_subtasks):
+                    queue.appendleft(subtask)
 
         return True
 
