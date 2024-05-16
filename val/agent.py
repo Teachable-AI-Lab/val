@@ -35,7 +35,6 @@ class ValAgent:
 
     def start(self):
         while True:
-            # TODO show user what agent knows.
             tasks = [self.verbalize_gpt(t, [arg.name for arg in t.args])
                                         for t in self.htn_interface.get_tasks()]
             self.user_interface.display_known_tasks(tasks)

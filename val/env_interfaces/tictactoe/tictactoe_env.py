@@ -18,7 +18,6 @@ class TicTacToeEnv(AbstractEnvInterface):
         """
         Returns actions in a format the HTN interface can create primitives.
         """
-
         return [
             {"name": "place",
              "args": ["?symbol", "?x", "?y"],
