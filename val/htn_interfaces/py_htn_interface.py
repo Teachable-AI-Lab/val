@@ -3,37 +3,37 @@ from collections import defaultdict
 
 from shop2.domain import Operator
 from shop2.domain import Method
+from shop2.domain import flatten
 from shop2.planner import planner
 from shop2.planner import FailedPlanException
 from shop2.fact import Fact
+from shop2.common import V
 # from shop2.common import FailedPlanException
 from shop2.conditions import AND, Filter
 from py_plan.unification import unify
 from py_plan.unification import subst
 
-from val.utils import Task
-from val.utils import V
+from shop2.domain import Task
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 # from user_interfaces.abstract_interface import AbstractUserInterface
 
 
 def dict_to_facts(fact_dict_list: list) -> Fact:
-    state = [Fact(start=True)]
+    state = []
     for fact_dict in fact_dict_list:
         state.append(Fact(**{key: value for key, value in fact_dict.items()}))
 
-    return AND(state)
+    return AND(*state)
 
 def dict_to_operators(operator_dict_list: list) -> List[Operator]:
     domain = defaultdict(list)
 
     for operator_dict in operator_dict_list:
-        head = (operator_dict['name'], *[V(arg) for arg in operator_dict["args"]])
-        preconditions = [Fact(start=True)]
+        head = (operator_dict['name'], *[V(arg[1:]) if len(arg)>1 and arg[0]=='?' else arg for arg in operator_dict["args"]])
+        preconditions = []
         for precondition_dict in operator_dict['preconditions']:
             if precondition_dict['type'] == 'fact':
-                # print(precondition_dict.items())
                 f = Fact(**{key: (V(value[1:])
                                   if (isinstance(value, str) and len(value) > 1 and value[0] == '?') else value)
                             for key, value in precondition_dict.items() if key != 'type'})
@@ -45,8 +45,10 @@ def dict_to_operators(operator_dict_list: list) -> List[Operator]:
                 raise NotImplementedError("Not implemented yet")
 
         # TODO remove effects from operator, it will just return the operator name and args
-        domain[head].append(Operator(head, AND(preconditions), []))
-
+        new_operator = Operator(head, AND(*flatten(preconditions)), [])
+        key = f"{ new_operator.name }/{ len(new_operator.args) }"
+        domain[key].append(new_operator)
+    print("DOMAIN CREATED\n", domain)
     return domain
 
 class PyHtnInterface(AbstractHtnInterface):
@@ -80,26 +82,31 @@ class PyHtnInterface(AbstractHtnInterface):
 
         # TODO implement planner coroutine functionality
         plan_coroutine = planner(dict_to_facts(self.agent.env.get_state()),
-                                 task, self.domain)
+                                 [task], self.domain)
 
-        # action_name, action_args = plan_coroutine.send(None)
-        # success = self.agent.env.execute_action(action_name, action_args)
-        # while True:
-        #     action_name, action_args = plan_coroutine.send(success, dict_to_facts(self.agent.env.get_state()))
-        #     if action_name is False:
-        #         return False
-        #     elif action_name is True:
-        #         return True
-        #     success = self.agent.env.execute_action(action_name, action_args)
-        # this should return an action (name and args) for the env to execute
-        try:
-            for action_name, action_args in plan_coroutine:
+        try: 
+            action_name, action_args = plan_coroutine.send(None)
+            success = self.agent.env.execute_action(action_name, action_args)
+            while True:
+                action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
+                print(actio_name, action_args)
                 success = self.agent.env.execute_action(action_name, action_args)
-                plan_coroutine.send(success, dict_to_facts(self.agent.env.get_state()))
+        except StopIteration as e: 
             return True
         except FailedPlanException as e:
             print(e)
             return False
+        # this should return an action (name and args) for the env to execute
+        # print("EXECUTING TASK", task)
+        # try:
+        #     for action_name, action_args in plan_coroutine:
+        #         success = self.agent.env.execute_action(action_name, action_args)
+        #         print(f"DEBUG {action_name}, {action_args}, {success}")
+        #         plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
+        #     return True
+        # except FailedPlanException as e:
+        #     print(e)
+        #     return False
 
 
     def add_method(self, task_name: str,
@@ -108,9 +115,12 @@ class PyHtnInterface(AbstractHtnInterface):
         Creates a new HTN method and adds to domain.
         """
         # head = (task_name, *task_args)
-
+        # TODO if we want to support it we have to convert all variables to SV
+        if preconditions is None:
+            raise NotImplementedError("Preconditions not supported")
+        
         # TODO make a method a single precondition subtask pair.
-        new_method = Method(head=(task_name, *task_args),
+        new_method = Method(head=(task_name, *[V(x.name) if isinstance(x, V) else x for x in task_args]),
                             preconditions=preconditions, subtasks=subtasks)
         
         key = f"{ task_name }/{ len(task_args)}"

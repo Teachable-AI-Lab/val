@@ -8,8 +8,8 @@ from shop2.domain import unify
 from shop2.domain import subst
 from shop2.fact import Fact
 
-from val.utils import Task
-from val.utils import V
+from shop2.domain import Task
+from shop2.common import V
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 
 

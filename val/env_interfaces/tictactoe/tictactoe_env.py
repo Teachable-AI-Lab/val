@@ -23,7 +23,7 @@ class TicTacToeEnv(AbstractEnvInterface):
             {"name": "place",
              "args": ["?symbol", "?x", "?y"],
              "preconditions": [
-                 {"type": "fact", "mark": "?symbol", 'is-turn': "yes"},
+                 {"type": "fact", "mark": "?symbol", 'isturn': "yes"},
                  {"type": "fact", "symbol": "", "x": "?x", "y": "?y"},
              ]},
             {"name": "reset",
@@ -35,7 +35,7 @@ class TicTacToeEnv(AbstractEnvInterface):
         """
         Returns the state in a dict that can be converted into HTN representation.
         """
-        state = [{"symbol": self.game.board[x][y], "x": x, "y": y}
+        state = [{"symbol": self.game.board[x][y], "x": str(x), "y": str(y)}
                 for x in range(self.game.size)
                 for y in range(self.game.size)]
 
@@ -44,11 +44,11 @@ class TicTacToeEnv(AbstractEnvInterface):
                  for y in range(self.game.size)].count("X")
 
         if num_x % 2 == 0:
-            state.append({'mark': 'X', "is-turn": "yes"})
-            state.append({'mark': 'O', "is-turn": "no"})
+            state.append({'mark': 'X', "isturn": "yes"})
+            state.append({'mark': 'O', "isturn": "no"})
         else:
-            state.append({'mark': 'X', "is-turn": "no"})
-            state.append({'mark': 'O', "is-turn": "yes"})
+            state.append({'mark': 'X', "isturn": "no"})
+            state.append({'mark': 'O', "isturn": "yes"})
 
         return state
 

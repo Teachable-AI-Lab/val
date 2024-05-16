@@ -3,8 +3,8 @@ from typing import Optional
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
-from val.utils import Task
-from val.utils import V
+from shop2.domain import Task
+from shop2.common import V
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
