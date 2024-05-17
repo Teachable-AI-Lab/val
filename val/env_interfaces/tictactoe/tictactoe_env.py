@@ -21,12 +21,14 @@ class TicTacToeEnv(AbstractEnvInterface):
         return [
             {"name": "place",
              "args": ["?symbol", "?x", "?y"],
+             "description": "Places a marker for the symbol at the specified x and y location.",
              "preconditions": [
                  {"type": "fact", "mark": "?symbol", 'isturn': "yes"},
                  {"type": "fact", "symbol": "", "x": "?x", "y": "?y"},
              ]},
             {"name": "reset",
              "args": [],
+             "description": "Reset the game board to the empty state",
              "preconditions": []}
         ]
 

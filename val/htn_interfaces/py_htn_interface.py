@@ -69,8 +69,7 @@ class PyHtnInterface(AbstractHtnInterface):
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        # TODO do we need the var symbols? or is it just the var name?
-        return list(set([Task(operator.head[0], tuple([v.name for v in operator.head[1:]]))
+        return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
                          for ele in self.domain for operator in self.domain[ele]]))
         
     def execute_task(self, task: Task) -> bool:

@@ -219,8 +219,6 @@ class SpaceTransitEnv():
         if result2["Status"] != "Success":
             return False
 
-        update_val()
-
         return True
 
     def delete_line(self, line):
@@ -244,8 +242,6 @@ class SpaceTransitEnv():
                 }
         result = self.send_and_recv(command)
         print("Result of deleting line: ", result)
-
-        update_val()
 
         return result == "Success"
 
@@ -299,8 +295,6 @@ class SpaceTransitEnv():
         result = self.send_and_recv(command)
         print("Result of inserting station: ", result)
 
-        update_val()
-
         return result == "Success"
 
     def append_station(self, line, station, end_station):
@@ -351,8 +345,6 @@ class SpaceTransitEnv():
         result = self.send_and_recv(json.dumps(command))
         print("Result of inserting station: ", result)
 
-        update_val()
-
         return result == "Success"
 
     def remove_station(self, line, station):
@@ -386,8 +378,6 @@ class SpaceTransitEnv():
                 }
         result = self.send_and_recv(json.dumps(command))
         print("Result of removing station: ", result)
-
-        update_val()
 
         return result == "Success"
 
