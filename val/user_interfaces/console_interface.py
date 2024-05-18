@@ -107,7 +107,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         return correct_args
 
     def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
-        print(f"Should I decompose { task } to { subtasks }?")
+        print(f"Should I decompose { user_task } to { user_subtasks }?")
         while True:
             users_choice = input("Please enter 'Yes' or 'No':")
             if users_choice.lower() in ['yes', 'no']:
