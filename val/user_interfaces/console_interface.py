@@ -26,24 +26,24 @@ class ConsoleUserInterface(AbstractUserInterface):
         print("These are the individual steps of your command, right?")
         [print(index,step) for index, step in enumerate(steps, start=1)]
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def map_confirmation(self, user_task: str, task_name: str) -> bool:
         print(f"I think that '{user_task}' is the action '{task_name}'. Is that right?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
         print(f"Which of these is the best choice for '{user_task}'?")
-        [print(f"[{ chr(ord('a') + i) }]:", task) for i, task in enumerate(known_tasks)]
+        [print(task) for i, task in enumerate(known_tasks)]
         choices=[chr(ord('a')+i) for i in range(len(known_tasks))]
         while True:
             users_choice = input(f"Please enter {choices}:")
@@ -51,26 +51,26 @@ class ConsoleUserInterface(AbstractUserInterface):
                 break
             print(f"Invalid input. Please enter {choices}:")
         users_choice_int=ord(users_choice)-ord('a')
-        return users_choice_int if users_choice_int < len(known_tasks) else None
+        return users_choice_int+1 if users_choice_int < len(known_tasks)-1 else None
 
     def map_new_method_confirmation(self, user_task: str) -> bool:
         print(f"The task '{user_task}' is a new method. Is that right?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def ground_confirmation(self, task_name: str, task_args: List[str]) -> bool:
         formatted_args = ', '.join(task_args)
         print(f"The task is {task_name}({formatted_args}). Is that right?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def ground_correction(self, task_name: str, task_args: List[str],
                           env_objects: List[str]) -> List[str]:
@@ -88,11 +88,11 @@ class ConsoleUserInterface(AbstractUserInterface):
         formatted_args = ', '.join(task_args)
         print(f"{user_task} is {task_name}({formatted_args}). Is that right?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def gen_correction(self, task_name: str, task_args: List[str],
                        env_objects: List[str]) -> List[str]:
@@ -109,30 +109,20 @@ class ConsoleUserInterface(AbstractUserInterface):
     def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
         print(f"Should I decompose { user_task } to { user_subtasks }?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
     def confirm_task_execution(self, user_task: str) -> bool:
         print(f"Should I execute { user_task }?")
         while True:
-            users_choice = input("Please enter 'Yes' or 'No':")
-            if users_choice.lower() in ['yes', 'no']:
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
                 break
-            print("Invalid input. Please enter 'Yes' or 'No'.")
-        return True if users_choice.lower()=='yes' else False
-
-    def display_known_tasks(self, tasks: List[str]):
-        """
-        Displays the list of tasks that VAL knows how to do.
-        """
-        print()
-        print("Known Tasks:")
-        for t in tasks:
-            print(t)
-        print()
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
 
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface()
@@ -144,4 +134,3 @@ if __name__ == "__main__":
     print("Steps to complete the task:", steps)
     #corrected_args = task_manager.ground_correction(task_name, task_args, env_objects)
     #print("Corrected Arguments:", corrected_args)
-
