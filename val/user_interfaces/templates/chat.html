@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat with ChatGPT</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f2f2f2; }
+        .chat-container { width: 350px; background: white; margin: 50px auto; border: 1px solid #ddd; }
+        #messages { list-style-type: none; margin: 0; padding: 0; }
+        #messages li { padding: 8px; margin-bottom: 2px; border-bottom: 1px solid #ddd; }
+        #messages li:nth-child(odd) { background: #eee; }
+        #messages li.system-message { text-align: center; font-style: italic; }
+        form { display: flex; padding: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 10px; }
+        button { padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="prompt-message"></div>
+    <div class="chat-container">
+        <ul id="messages"></ul>
+        <form action="">
+            <input type="text" placeholder="Type your message here...">
+            <button>Send</button>
+        </form>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+
+        var socket = io();
+
+        $('form').submit(function(e) {
+            e.preventDefault();
+            var input = $('input[type="text"]');
+            var message = input.val().trim();
+            if (message) {
+                socket.emit('message', {'message': message});
+                input.val('');
+            }
+        });
+        
+        socket.on('request_user_task', function(data) {
+            buildDialog(data)
+        });
+
+        function buildDialog(data) {
+            const container = document.getElementById('prompt-message');
+            container.innerHTML = data.text;  // Clear previous content
+
+            // Create dialog element
+            const dialog = document.createElement('div');
+            dialog.className = 'dialog';
+
+            // Create paragraph for instructions
+            const p = document.createElement('p');
+            p.textContent = data.msg;
+
+            // Create buttons container
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'buttons';
+
+            // Create Yes and No buttons
+            const yesButton = document.createElement('button');
+            yesButton.className = 'yes';
+            yesButton.textContent = 'Yes';
+            yesButton.onclick = () => socket.emit('response', { response: 'yes' });
+
+            const noButton = document.createElement('button');
+            noButton.className = 'no';
+            noButton.textContent = 'No';
+            noButton.onclick = () => socket.emit('response', { response: 'no' });
+
+            // Append everything
+            buttonsDiv.appendChild(yesButton);
+            buttonsDiv.appendChild(noButton);
+            dialog.appendChild(p);
+            dialog.appendChild(buttonsDiv);
+            container.appendChild(dialog);
+        }      
+    </script>
+</body>
+</html>
+

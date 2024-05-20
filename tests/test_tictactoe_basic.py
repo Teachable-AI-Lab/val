@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
 from val.env_interfaces.tictactoe.tictactoe_env import TicTacToeEnv 
