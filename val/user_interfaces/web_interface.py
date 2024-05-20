@@ -14,13 +14,18 @@ class WebInterface:
                                   'text': 'How can I help you today?'})
         print("The message is emitted")
 
-        try:
-            print('waiting for response')
-            event = self.sio.receive(timeout=120)
-        except TimeoutError:
-            print('timed out waiting for event')
-        else:
-            print('received event:', event)
+        # if you want timeout you can do something like this...
+        # try:
+        #     print('waiting for response')
+        #     event = self.sio.receive(timeout=120)
+        # except TimeoutError:
+        #     print('timed out waiting for event')
+        # else:
+        #     print('received event:', event)
+
+        print('waiting for response')
+        event = self.sio.receive()
+        print('received event:', event)
 
         return ""
     
