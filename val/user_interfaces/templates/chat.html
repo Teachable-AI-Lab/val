@@ -29,56 +29,62 @@
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script>
 
-        var socket = io();
+        $(function(){
+            console.log('ready');
+            var socket = io();
 
-        $('form').submit(function(e) {
-            e.preventDefault();
-            var input = $('input[type="text"]');
-            var message = input.val().trim();
-            if (message) {
-                socket.emit('message', {'message': message});
-                input.val('');
-            }
+            $('form').submit(function(e) {
+                e.preventDefault();
+                var input = $('input[type="text"]');
+                var message = input.val().trim();
+                if (message) {
+                    socket.emit('message', {'message': message});
+                    input.val('');
+                }
+            });
+            
+            socket.on('message', function(data) {
+                if (data['type'] == 'request_user_task'){
+                    console.log('received request_user_task', data);
+                    buildDialog(data)
+                }
+            });
+
+            function buildDialog(data) {
+                const container = document.getElementById('prompt-message');
+                container.innerHTML = data.text;  // Clear previous content
+
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'dialog';
+
+                // Create paragraph for instructions
+                const p = document.createElement('p');
+                p.textContent = data.msg;
+
+                // Create buttons container
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'buttons';
+
+                // Create Yes and No buttons
+                const yesButton = document.createElement('button');
+                yesButton.className = 'yes';
+                yesButton.textContent = 'Yes';
+                yesButton.onclick = () => socket.emit('response', { response: 'yes' });
+
+                const noButton = document.createElement('button');
+                noButton.className = 'no';
+                noButton.textContent = 'No';
+                noButton.onclick = () => socket.emit('response', { response: 'no' });
+
+                // Append everything
+                buttonsDiv.appendChild(yesButton);
+                buttonsDiv.appendChild(noButton);
+                dialog.appendChild(p);
+                dialog.appendChild(buttonsDiv);
+                container.appendChild(dialog);
+            }      
         });
-        
-        socket.on('request_user_task', function(data) {
-            buildDialog(data)
-        });
-
-        function buildDialog(data) {
-            const container = document.getElementById('prompt-message');
-            container.innerHTML = data.text;  // Clear previous content
-
-            // Create dialog element
-            const dialog = document.createElement('div');
-            dialog.className = 'dialog';
-
-            // Create paragraph for instructions
-            const p = document.createElement('p');
-            p.textContent = data.msg;
-
-            // Create buttons container
-            const buttonsDiv = document.createElement('div');
-            buttonsDiv.className = 'buttons';
-
-            // Create Yes and No buttons
-            const yesButton = document.createElement('button');
-            yesButton.className = 'yes';
-            yesButton.textContent = 'Yes';
-            yesButton.onclick = () => socket.emit('response', { response: 'yes' });
-
-            const noButton = document.createElement('button');
-            noButton.className = 'no';
-            noButton.textContent = 'No';
-            noButton.onclick = () => socket.emit('response', { response: 'no' });
-
-            // Append everything
-            buttonsDiv.appendChild(yesButton);
-            buttonsDiv.appendChild(noButton);
-            dialog.appendChild(p);
-            dialog.appendChild(buttonsDiv);
-            container.appendChild(dialog);
-        }      
     </script>
 </body>
 </html>

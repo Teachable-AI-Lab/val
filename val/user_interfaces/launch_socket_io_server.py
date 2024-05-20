@@ -1,6 +1,7 @@
 from flask import Flask
 from flask import render_template
 from flask_socketio import SocketIO
+from flask_socketio import emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -21,10 +22,12 @@ def handle_disconnect():
 @socketio.on('message')
 def handle_message(data):
     print(f'Received message: { data }')
+    emit('message', data, broadcast=True, include_self=False)
 
 @socketio.on('request_user_task')
 def handle_request_user_Task(data):
     print(f'Received request_user_task: { data }')
+    emit('request_user_task', data, broadcast=True, include_selv=False)
 
 if __name__ == '__main__':
     socketio.run(app, port=4000)

@@ -10,7 +10,8 @@ class WebInterface:
         pass
 
     def request_user_task(self) -> str:
-        self.sio.emit('request_user_task', {'text': 'How can I help you today?'})
+        self.sio.emit('message', {'type': 'request_user_task', 
+                                  'text': 'How can I help you today?'})
         print("The message is emitted")
 
         try:
