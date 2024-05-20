@@ -24,10 +24,6 @@ def handle_message(data):
     print(f'Received message: { data }')
     emit('message', data, broadcast=True, include_self=False)
 
-@socketio.on('request_user_task')
-def handle_request_user_Task(data):
-    print(f'Received request_user_task: { data }')
-    emit('request_user_task', data, broadcast=True, include_selv=False)
 
 if __name__ == '__main__':
     socketio.run(app, port=4000)
