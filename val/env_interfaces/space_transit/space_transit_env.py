@@ -15,7 +15,8 @@ class SpaceTransitEnv():
     def __init__(self, url='ws://localhost:3000/metro'):
         self.url = url
         self.ws = websocket.create_connection(self.url)
-        self.line_names = ["redline", "blueline", "yellowline"]
+        self.line_names = ["redline", "blueline", "yellowline", "greenline", "purpleline"]
+        self.active_game = 0
 
     def get_objects(self) -> List[str]:
         line_mapping, lines, stations = self.get_lines_and_stations()
@@ -83,9 +84,9 @@ class SpaceTransitEnv():
         Returns the state in a dict that can be converted into HTN representation.
         """
         val_state = []
-        cur_state = get_state_from_game()
+        cur_state = self.get_state_from_game()
 
-        line_mapping = {}
+        # line_mapping = {}
         for line in cur_state['lines']:
             if line['id'] == 0:
                 val_state.append({'line': 'redline', 'id': line['unique_id']})
@@ -93,13 +94,17 @@ class SpaceTransitEnv():
                 val_state.append({'line': 'blueline', 'id': line['unique_id']})
             elif line['id'] == 2:
                 val_state.append({'line': 'yellowline', 'id': line['unique_id']})
+            elif line['id'] == 3:
+                val_state.append({'line': 'greenline', 'id': line['unique_id']})
+            elif line['id'] == 4:
+                val_state.append({'line': 'purpleline', 'id': line['unique_id']})
 
         for station in cur_state['stations']:
             val_state.append({'station': station['human_name'],
                               'unique_id': station['unique_id']})
 
         for segment in cur_state['segments']:
-            if segment['which_line'] not in lines:
+            if segment['which_line'] not in val_state: #TODO debug
                 val_state.append({'from_station': segment['from_station'],
                                   'to_station': segment['to_station'],
                                   'segment_line': segment['which_line']})
@@ -171,11 +176,23 @@ class SpaceTransitEnv():
                                  for name in object_group])[0][1]
         return formatted_name
 
-    def create_line(self, station1: str, station2: str):
-        line_mapping, lines, stations = get_lines_and_stations()
+    def goto_game(ws, game_id: str):
+        try:
+            game_id_int = int(game_id.replace("Game", ""))
+            global active_game
+            #TODO look up to make sure this is a valid game...
+            active_game = game_id_int
+        except Exception as e:
+            print("ERROR, trying to go to a game that doesn't exist: {}".format(game_id))
+            pass
 
-        station1 = format_names(station1, stations)
-        station2 = format_names(station2, stations)
+    print("ACTIVE GAME: {}".format(active_game))
+
+    def create_line(self, station1: str, station2: str):
+        line_mapping, lines, stations = self.get_lines_and_stations()
+
+        station1 = self.format_names(station1, stations)
+        station2 = self.format_names(station2, stations)
 
         line_idx = None
         for line_color in line_mapping:
@@ -213,7 +230,7 @@ class SpaceTransitEnv():
                     'insert_index': 0
                     }
                 }
-        result2 = send_and_recv(command2)
+        result2 = self.send_and_recv(command2)
         print("Result of creating second station: ", result2)
 
         if result2["Status"] != "Success":
@@ -226,7 +243,7 @@ class SpaceTransitEnv():
 
         line_mapping, lines, _ = self.get_lines_and_stations()
 
-        line = format_names(line, line_mapping)
+        line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
         if line_idx not in lines or len(lines[line_idx]) == 0:
@@ -253,12 +270,12 @@ class SpaceTransitEnv():
         line = line.lower()
 
         line_mapping, lines, stations = self.get_lines_and_stations()
-        line = format_names(line, line_mapping)
+        line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
-        station = format_names(station, stations)
-        station1 = format_names(station1, stations)
-        station2 = format_names(station2, stations)
+        station = self.format_names(station, stations)
+        station1 = self.format_names(station1, stations)
+        station2 = self.format_names(station2, stations)
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
             return False
@@ -306,11 +323,11 @@ class SpaceTransitEnv():
 
         line_mapping, lines, stations = self.get_lines_and_stations()
 
-        line = format_names(line, line_mapping)
+        line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
-        station = format_names(station, stations)
-        end_station = format_names(end_station, stations)
+        station = self.format_names(station, stations)
+        end_station = self.format_names(end_station, stations)
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
             return False
@@ -355,10 +372,10 @@ class SpaceTransitEnv():
         line = line.lower()
 
         line_mapping, lines, stations = self.get_lines_and_stations()
-        line = format_names(line, line_mapping)
+        line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
-        station = format_names(station, stations)
+        station = self.format_names(station, stations)
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
             return False
@@ -382,7 +399,7 @@ class SpaceTransitEnv():
         return result == "Success"
 
     def print_state_objects(self):
-        line_mapping, lines, stations = get_lines_and_stations()
+        line_mapping, lines, stations = self.get_lines_and_stations()
         station_mapping = {}
         for station_name in stations:
             station = stations[station_name]
