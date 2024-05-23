@@ -89,16 +89,7 @@ class SpaceTransitEnv():
 
         # line_mapping = {}
         for line in cur_state['lines']:
-            if line['id'] == 0:
-                val_state.append({'line': 'redline', 'id': line['unique_id']})
-            elif line['id'] == 1:
-                val_state.append({'line': 'blueline', 'id': line['unique_id']})
-            elif line['id'] == 2:
-                val_state.append({'line': 'yellowline', 'id': line['unique_id']})
-            elif line['id'] == 3:
-                val_state.append({'line': 'greenline', 'id': line['unique_id']})
-            elif line['id'] == 4:
-                val_state.append({'line': 'purpleline', 'id': line['unique_id']})
+            val_state.append({'line': self.line_names[line['id']], 'id': line['unique_id']})
 
         for station in cur_state['stations']:
             val_state.append({'station': station['human_name'],
@@ -152,12 +143,7 @@ class SpaceTransitEnv():
         cur_state = self.get_state_from_game()
         line_mapping = {}
         for line in cur_state['lines']:
-            if line['id'] == 0:
-                line_mapping['redline'] = line['unique_id']
-            elif line['id'] == 1:
-                line_mapping['blueline'] = line['unique_id']
-            elif line['id'] == 2:
-                line_mapping['yellowline'] = line['unique_id']
+            line_mapping[self.line_names[line['id']]] = line['unique_id']
 
         lines = {}
 
@@ -309,9 +295,9 @@ class SpaceTransitEnv():
         result = self.send_and_recv(command)
         print("Result of deleting line: ", result)
 
-        return result == "Success"
+        return result["Status"] == "Success"
     
-    def insert_station(self, line, station):
+    def insert_station(self, station, line):
         """
         insert station to the given line
         """
@@ -339,7 +325,7 @@ class SpaceTransitEnv():
                     'game_id': self.active_game,
                     'arguments': {
                         'action': "insert_station",
-                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line),
+                        'line_index': self.line_names.index(line),
                         'station_name': station,
                         'insert_index': insert_idx
                     }
@@ -347,9 +333,9 @@ class SpaceTransitEnv():
         result = self.send_and_recv(command)
         print("Result of inserting station: ", result)
 
-        return result == "Success"
+        return result["Status"] == "Success"
 
-    def remove_station(self, line, station):
+    def remove_station(self, station, line):
         """
         remove the specified station from the given line
         """
@@ -382,7 +368,7 @@ class SpaceTransitEnv():
         result = self.send_and_recv(command)
         print("Result of removing station: ", result)
 
-        return result == "Success"
+        return result["Status"] == "Success"
     
     def add_train(self, line):
         """
@@ -404,13 +390,13 @@ class SpaceTransitEnv():
                     'game_id': self.active_game,
                     'arguments': {
                         'action': "add_train",
-                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line)
+                        'line_index': self.line_names.index(line)
                     }
             }
         result = self.send_and_recv(command)
         print("Result of adding a new train: ", result)
 
-        return result == "Success"
+        return result["Status"] == "Success"
     
     def remove_train(self, line):
         """
@@ -432,13 +418,13 @@ class SpaceTransitEnv():
                     'game_id': self.active_game,
                     'arguments': {
                         'action': "remove_train",
-                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line)
+                        'line_index': self.line_names.index(line)
                     }
             }
         result = self.send_and_recv(command)
         print("Result of adding a new train: ", result)
 
-        return result == "Success"
+        return result["Status"] == "Success"
 
     def print_state_objects(self):
         line_mapping, lines, stations = self.get_lines_and_stations()
