@@ -4,6 +4,7 @@ import sys
 import websocket
 import importlib
 import json
+import math
 
 from nltk import edit_distance
 from time import sleep
@@ -175,8 +176,47 @@ class SpaceTransitEnv():
                                                 object_name.lower()), name)
                                  for name in object_group])[0][1]
         return formatted_name
+    
+    def find_nearest_station_sameline(self, input_station, input_line):
+    
+        line_mapping, lines, stations = self.get_lines_and_stations()
+        list_stations = list(stations.values()) # the value is a dict
+        input_line_idx = line_mapping[input_line]
+        stations_on_line = lines[input_line_idx] # a list of unique_id
+        stations_mapping = {}
+
+        for station in stations_on_line:
+            for each in list_stations:
+                if each['unique_id'] == station:
+                    stations_mapping[each['human_name']] = station
+
+        distance = {}
+        for station in stations_mapping:
+            distance[station] = math.sqrt(math.pow(stations[station]['x'] - stations[input_station]['x'], 2) +
+                                        math.pow(stations[station]['y'] - stations[input_station]['y'], 2) +
+                                        math.pow(stations[station]['z'] - stations[input_station]['z'], 2))
+        
+        sorted_station_d = sorted(distance.items(), key = lambda x:x[1])
+        nearest_station = stations_mapping[sorted_station_d[0][0]] # unique id
+        nearest_station_idx = stations_on_line.index(nearest_station)
+        if nearest_station_idx == 0:
+            return nearest_station_idx
+        elif nearest_station_idx == len(stations_on_line) - 1:
+            return nearest_station_idx + 1
+        else:
+            station_before = stations_on_line[nearest_station_idx - 1] # unique id
+            station_after = stations_on_line[nearest_station_idx + 1] # unique id
+            station_before_dist = distance[list(stations_mapping.keys())[list(stations_mapping.values()).index(station_before)]]
+            station_after_dist = distance[list(stations_mapping.keys())[list(stations_mapping.values()).index(station_after)]]
+            if station_before_dist < station_after_dist:
+                return nearest_station_idx
+            else:
+                return nearest_station_idx + 1
 
     def goto_game(self, game_id: str):
+        """
+        go to a specific game
+        """
         try:
             game_id_int = int(game_id.replace("Game", ""))
             #TODO look up to make sure this is a valid game...
@@ -188,8 +228,13 @@ class SpaceTransitEnv():
         print("ACTIVE GAME: {}".format(self.active_game))
 
     def create_line(self, station1: str, station2: str):
-        line_mapping, lines, stations = self.get_lines_and_stations()
+        """
+        create a new line that connects station1 and station2
+        """
 
+        print("The current active game is Game {}".format(self.active_game))
+
+        line_mapping, lines, stations = self.get_lines_and_stations()
         station1 = self.format_names(station1, stations)
         station2 = self.format_names(station2, stations)
 
@@ -205,7 +250,7 @@ class SpaceTransitEnv():
 
         command1 = {
                 'command': 'take_action',
-                'game_id': 0,
+                'game_id': self.active_game,
                 'arguments': {
                     'action': "insert_station",
                     'line_index': line_idx,
@@ -221,7 +266,7 @@ class SpaceTransitEnv():
 
         command2 = {
                 'command': 'take_action',
-                'game_id': 0,
+                'game_id': self.active_game,
                 'arguments': {
                     'action': "insert_station",
                     'line_index': line_idx,
@@ -238,10 +283,15 @@ class SpaceTransitEnv():
         return True
 
     def delete_line(self, line):
+        """
+        delete the specified line
+        """
+
+        print("The current active game is Game {}".format(self.active_game))
+
         line = line.lower()
 
         line_mapping, lines, _ = self.get_lines_and_stations()
-
         line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
 
@@ -250,7 +300,7 @@ class SpaceTransitEnv():
 
         command = {
                 'command': 'take_action',
-                'game_id': 0,
+                'game_id': self.active_game,
                 'arguments': {
                     'action': "remove_track",
                     'line_index': self.line_names.index(line)
@@ -260,120 +310,57 @@ class SpaceTransitEnv():
         print("Result of deleting line: ", result)
 
         return result == "Success"
+    
+    def insert_station(self, line, station):
+        """
+        insert station to the given line
+        """
 
-    def insert_station(self, line, station, station1, station2):
-        """
-        add specified station to the specified line
-        between station1 and station2
-        """
+        print("The current active game is Game {}".format(self.active_game))
+
         line = line.lower()
-
         line_mapping, lines, stations = self.get_lines_and_stations()
         line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
-
         station = self.format_names(station, stations)
-        station1 = self.format_names(station1, stations)
-        station2 = self.format_names(station2, stations)
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
             return False
-
+        
         station_id = stations[station]['unique_id']
         if station_id in lines[line_idx]:
             return False
-
-        station1_id = stations[station1]['unique_id']
-        if station1_id not in lines[line_idx]:
-            return False
-
-        station2_id = stations[station2]['unique_id']
-        if station2_id not in lines[line_idx]:
-            return False
-
-        if abs(lines[line_idx].index(station1_id) -
-               lines[line_idx].index(station2_id)) != 1:
-            return False
-
-        insert_idx = max(lines[line_idx].index(station1_id),
-                         lines[line_idx].index(station2_id))
-
+        
+        insert_idx = self.find_nearest_station_sameline(station, line)
+        # insert_idx = 0
+        
         command = {
-                'command': 'take_action',
-                'game_id': 0,
-                'arguments': {
-                    'action': "insert_station",
-                    'line_index': self.line_names.index(line),
-                    'station_name': station,
-                    'insert_index': insert_idx
+                    'command': 'take_action',
+                    'game_id': self.active_game,
+                    'arguments': {
+                        'action': "insert_station",
+                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line),
+                        'station_name': station,
+                        'insert_index': insert_idx
                     }
-                }
+        }
         result = self.send_and_recv(command)
-        print("Result of inserting station: ", result)
-
-        return result == "Success"
-
-    def append_station(self, line, station, end_station):
-        """
-        add specified station to the specified line
-        between station1 and station2
-        """
-        line = line.lower()
-
-        line_mapping, lines, stations = self.get_lines_and_stations()
-
-        line = self.format_names(line, line_mapping)
-        line_idx = line_mapping[line]
-
-        station = self.format_names(station, stations)
-        end_station = self.format_names(end_station, stations)
-
-        if line_idx not in lines or len(lines[line_idx]) < 2:
-            return False
-
-        station_id = stations[station]['unique_id']
-        if station_id in lines[line_idx]:
-            return False
-
-        end_station_id = stations[end_station]['unique_id']
-        if end_station_id not in lines[line_idx]:
-            return False
-
-        station_idx = lines[line_idx].index(end_station_id)
-        if station_idx != 0 and station_idx != len(lines[line_idx]):
-            return False
-
-        if station_idx == 0:
-            insert_idx = 0
-        else:
-            insert_idx = len(lines[line_idx])
-
-        command = {
-                'command': 'take_action',
-                'game_id': 0,
-                'arguments': {
-                    'action': "insert_station",
-                    'line_index': self.line_names.index(line),
-                    'station_name': station,
-                    'insert_index': insert_idx
-                    }
-                }
-        result = self.send_and_recv(json.dumps(command))
         print("Result of inserting station: ", result)
 
         return result == "Success"
 
     def remove_station(self, line, station):
         """
-        add specified station to the specified line
-        between station1 and station2
+        remove the specified station from the given line
         """
+        
+        print("The current active game is Game {}".format(self.active_game))
+
         line = line.lower()
 
         line_mapping, lines, stations = self.get_lines_and_stations()
         line = self.format_names(line, line_mapping)
         line_idx = line_mapping[line]
-
         station = self.format_names(station, stations)
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
@@ -385,15 +372,71 @@ class SpaceTransitEnv():
 
         command = {
                 'command': 'take_action',
-                'game_id': 0,
+                'game_id': self.active_game,
                 'arguments': {
                     'action': "remove_station",
                     'line_index': self.line_names.index(line),
                     'station_name': station
                     }
                 }
-        result = self.send_and_recv(json.dumps(command))
+        result = self.send_and_recv(command)
         print("Result of removing station: ", result)
+
+        return result == "Success"
+    
+    def add_train(self, line):
+        """
+        add a new train from the given line
+        """
+
+        print("The current active game is Game {}".format(self.active_game))
+
+        line = line.lower()
+        line_mapping, lines, _ = self.get_lines_and_stations()
+        line = self.format_names(line, line_mapping)
+        line_idx = line_mapping[line]
+
+        if line_idx not in lines or len(lines[line_idx]) == 0:
+            return False
+
+        command = {
+                    'command': 'take_action',
+                    'game_id': self.active_game,
+                    'arguments': {
+                        'action': "add_train",
+                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line)
+                    }
+            }
+        result = self.send_and_recv(command)
+        print("Result of adding a new train: ", result)
+
+        return result == "Success"
+    
+    def remove_train(self, line):
+        """
+        remove a train from the given line
+        """
+        
+        print("The current active game is Game {}".format(self.active_game))
+
+        line = line.lower()
+        line_mapping, lines, _ = self.get_lines_and_stations()
+        line = self.format_names(line, line_mapping)
+        line_idx = line_mapping[line]
+
+        if line_idx not in lines or len(lines[line_idx]) == 0:
+            return False
+
+        command = {
+                    'command': 'take_action',
+                    'game_id': self.active_game,
+                    'arguments': {
+                        'action': "remove_train",
+                        'line_index': ["redline", "blueline", "yellowline", "greenline", "purpleline"].index(line)
+                    }
+            }
+        result = self.send_and_recv(command)
+        print("Result of adding a new train: ", result)
 
         return result == "Success"
 
