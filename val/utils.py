@@ -38,9 +38,12 @@ def load_prompt(prompt_fn: str) -> str:
         return None
 
 
-def task_to_gpt_str(task: Task) -> str:
+def task_to_gpt_str(task: Task, description: str) -> str:
     # return f"{task[0]}({",".join([arg.name for arg in task[1:]])})"
-    return f'{task.name}({",".join([chr(ord("A")+i) for i in range(len(task.args))])})'
+    if description != "":
+        return f'{task.name}({",".join([arg.name for arg in task.args])}) - {description}'
+    else:
+        return f'{task.name}({",".join([arg.name for arg in task.args])})'
 
 def get_openai_key() -> str:
     file_path = "keys.yaml"

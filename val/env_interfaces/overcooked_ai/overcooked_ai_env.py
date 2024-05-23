@@ -126,9 +126,9 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
         return [
-                {"name": "goTo",
-                 "args": ['?location'],
-                 "description": "goes to and faces the provided location",
+                {"name": "go_to",
+                 "args": ['?object'],
+                 "description": "goes to and faces the target ?object, where ?object is something like pot, onion, onion_dispenser, etc.",
                  "preconditions": [{"type": "fact", "object": "?location"} ]
                  },
                 {"name": "wait20",
@@ -252,7 +252,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
 
-        if action_name == "goTo" and len(args) == 1:
+        if action_name == "go_to" and len(args) == 1:
             action_plan = self.get_route_plan(args[0])
             for action in action_plan:
                 command = [(0, 0) for _ in self.base_env.state.players]

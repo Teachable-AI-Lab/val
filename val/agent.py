@@ -36,7 +36,7 @@ class ValAgent:
     def start(self):
         while True:
             tasks = [self.verbalize_gpt(t, [arg.name for arg in t.args])
-                                        for t in self.htn_interface.get_tasks()]
+                                        for t, _ in self.htn_interface.get_tasks()]
             self.user_interface.display_known_tasks(tasks)
 
             user_tasks = self.user_interface.request_user_task()
@@ -61,7 +61,7 @@ class ValAgent:
                    not self.user_interface.map_confirmation(user_task, task_ungrounded.name))):
                 # TODO add to htn interface
                 # TODO consider how we convert tasks to strings and handle args
-                known_tasks = self.htn_interface.get_tasks()
+                known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
                 str_known_tasks = [task_to_gpt_str(task) for task in known_tasks]
                 task_ungrounded = known_tasks[self.user_interface.map_correction(user_task, str_known_tasks)]
 
@@ -164,9 +164,10 @@ class ValAgent:
         """
 
         # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
-        tasks = self.htn_interface.get_tasks()
+        tasks = [t for t, _ in self.htn_interface.get_tasks()]
+        descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
 
-        task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task)}"
+        task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, descriptions[i])}"
                      for i, task in enumerate(tasks)]
 
         # TODO get_objects returns -> ['onion', 'pot', ...]
@@ -218,7 +219,7 @@ class ValAgent:
 
         o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
 
-        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
+        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded, ""), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
 
         resp = self.gpt.get_chat_gpt_completion(prompt).strip()
 

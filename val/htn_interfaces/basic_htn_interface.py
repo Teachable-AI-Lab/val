@@ -18,8 +18,9 @@ def dict_to_operators(operator_dict_list: list) -> List[Operator]:
 
     for operator_dict in operator_dict_list:
         key = f"{ operator_dict['name'] }/{ len(operator_dict['args']) }"
-        primitives[key] = Task(operator_dict['name'],
-                               tuple([V(arg) for arg in operator_dict["args"]]))
+        primitives[key] = (Task(operator_dict['name'],
+                               tuple([V(arg) for arg in operator_dict["args"]])),
+                           operator_dict['description'])
 
     return primitives
 
@@ -39,7 +40,8 @@ class BasicHtnInterface(AbstractHtnInterface):
         Return a list of ungrounded tasks (no repeats).
         """
         tasks = [self.primitives[key] for key in self.primitives]
-        tasks += [task for key in self.methods for task, _ in self.methods[key]]
+        # TODO the empty string here is a missing description
+        tasks += [(task, "") for key in self.methods for task, _ in self.methods[key]]
         tasks = list(set(tasks))
         return tasks
 
@@ -91,6 +93,7 @@ class BasicHtnInterface(AbstractHtnInterface):
         """
         Creates a new HTN method and adds to domain.
         """
+        # TODO add descriptions to new methods.
         key = f"{ task_name }/{ len(task_args) }"
         task = Task(task_name, tuple(task_args))
         self.methods[key].append((task, subtasks))
