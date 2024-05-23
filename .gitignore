@@ -1,3 +1,4 @@
+.python-version
 api_cache
 keys.yaml
 *.DS_STORE
