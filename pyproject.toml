@@ -28,6 +28,7 @@ dependencies = [
     "numpy",
     "python-socketio",
     "flask",
+    "flask-socketio",
     "tabulate",
     "openai",
     "PyYAML",
