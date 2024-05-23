@@ -128,7 +128,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return [
                 {"name": "go_to",
                  "args": ['?object'],
-                 "description": "goes to and faces the target ?object, where ?object is something like pot, onion, onion_dispenser, etc.",
+                 "description": "goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc.",
                  "preconditions": [{"type": "fact", "object": "?location"} ]
                  },
                 {"name": "wait20",
@@ -156,7 +156,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                  "preconditions": []},
                 {"name": "interact",
                  "args": [],
-                 "description": "presses the space bar to interact",
+                 "description": "interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc.",
                  "preconditions": []}
                 ]
 

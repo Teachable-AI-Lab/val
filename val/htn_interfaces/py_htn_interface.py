@@ -28,6 +28,7 @@ def dict_to_facts(fact_dict_list: list) -> Fact:
 
 def dict_to_operators(operator_dict_list: list) -> List[Operator]:
     domain = defaultdict(list)
+    task_descriptions = {}
 
     for operator_dict in operator_dict_list:
         head = (operator_dict['name'], *[V(arg[1:]) if len(arg)>1 and arg[0]=='?' else arg for arg in operator_dict["args"]])
@@ -48,8 +49,9 @@ def dict_to_operators(operator_dict_list: list) -> List[Operator]:
         new_operator = Operator(head, AND(*flatten(preconditions)), [])
         key = f"{ new_operator.name }/{ len(new_operator.args) }"
         domain[key].append(new_operator)
+        task_descriptions[key] = operator_dict['description']
     print("DOMAIN CREATED\n", domain)
-    return domain
+    return domain, task_descriptions
 
 class PyHtnInterface(AbstractHtnInterface):
 
@@ -62,15 +64,16 @@ class PyHtnInterface(AbstractHtnInterface):
     
         # TODO consider how and in what way we need the user interface
         # self.user_interface = user_interface
-        self.domain = dict_to_operators(self.agent.env.get_actions())
+        self.domain, self.task_description = dict_to_operators(self.agent.env.get_actions())
 
 
     def get_tasks(self) -> List[Task]:
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        return list(set([(Task(operator.head[0], *[v for v in operator.head[1:]]), "")
-                         for ele in self.domain for operator in self.domain[ele]]))
+        return list(set([(Task(operator.head[0],
+                               *[v for v in operator.head[1:]]), self.task_description[key])
+                         for key in self.domain for operator in self.domain[key]]))
         # return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
         #                  for ele in self.domain for operator in self.domain[ele]]))
         
@@ -126,3 +129,4 @@ class PyHtnInterface(AbstractHtnInterface):
         
         key = f"{ task_name }/{ len(task_args)}"
         self.domain[key].append(new_method)
+        self.task_description[key] = ""

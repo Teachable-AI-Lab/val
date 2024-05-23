@@ -10,10 +10,9 @@ if __name__ == "__main__":
     openai_key = get_openai_key()
 
     env = OvercookedAIEnv(player_id=1)
-    # htn_interface = PyHtnInterface
     user_interface = ConsoleUserInterface
-    htn_interface = BasicHtnInterface
-    # htn_interface = PyHtnInterface
+    # htn_interface = BasicHtnInterface
+    htn_interface = PyHtnInterface
 
 
     agent = ValAgent(env, user_interface, htn_interface, openai_key)

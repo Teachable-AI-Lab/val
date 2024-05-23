@@ -63,7 +63,7 @@ class ValAgent:
                 # TODO consider how we convert tasks to strings and handle args
                 known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
                 # known_tasks = self.htn_interface.get_tasks()
-                str_known_tasks = [task_to_gpt_str(task) for task in known_tasks]
+                str_known_tasks = [task_to_gpt_str(task, "") for task in known_tasks]
                 task_ungrounded = known_tasks[self.user_interface.map_correction(user_task, str_known_tasks)]
 
             if task_ungrounded is None:
