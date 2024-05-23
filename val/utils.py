@@ -7,27 +7,26 @@ from typing import Tuple
 from typing import Union
 from shop2.domain import Task
 
-# @dataclass(eq=True, frozen=True)
-# class V:
-#     """
-#     A variable for pattern matching.
-#     """
-#     name: str
+@dataclass(eq=True, frozen=True)
+class V:
+    """
+    A variable for pattern matching.
+    """
+    name: str
 
-#     def to_unify_str(self):
-#         return f"?{ self.name }"
+    def to_unify_str(self):
+        return f"?{ self.name }"
 
-# @dataclass(eq=True, frozen=True)
-# class Task:
-#     name: str
-#     args: Tuple[Union[str, V], ...]
+@dataclass(eq=True, frozen=True)
+class Task:
+    name: str
+    args: Tuple[Union[str, V], ...]
 
-#     @property
-#     def head(self):
-#         return (self.name, *self.args)
+    @property
+    def head(self):
+        return (self.name, *self.args)
 
 def load_prompt(prompt_fn: str) -> str:
-    #__file__是Python中内置的变量,它表示当前文件的文件名
     new_fn = os.path.join(os.path.dirname(__file__), prompt_fn)
 
     try:

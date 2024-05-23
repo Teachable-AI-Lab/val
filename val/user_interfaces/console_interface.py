@@ -43,9 +43,7 @@ class ConsoleUserInterface(AbstractUserInterface):
 
     def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
         print(f"Which of these is the best choice for '{user_task}'?")
-        for i, task in enumerate(known_tasks):
-            print(f"({chr(ord('a')+i)}): {task}")
-
+        [print(task) for i, task in enumerate(known_tasks)]
         choices=[chr(ord('a')+i) for i in range(len(known_tasks))]
         while True:
             users_choice = input(f"Please enter {choices}:")
@@ -53,7 +51,7 @@ class ConsoleUserInterface(AbstractUserInterface):
                 break
             print(f"Invalid input. Please enter {choices}:")
         users_choice_int=ord(users_choice)-ord('a')
-        return users_choice_int if users_choice_int < len(known_tasks) else None
+        return users_choice_int+1 if users_choice_int < len(known_tasks)-1 else None
 
     def map_new_method_confirmation(self, user_task: str) -> bool:
         print(f"The task '{user_task}' is a new method. Is that right?")
@@ -125,15 +123,6 @@ class ConsoleUserInterface(AbstractUserInterface):
                 break
             print("Invalid input. Please enter 'y' or 'n'.")
         return users_choice == 'y'
-
-    def display_known_tasks(self, tasks: List[str]):
-        """
-        Displays the list of tasks that VAL knows how to do.
-        """
-        print("Known tasks:")
-        for i, task in enumerate(tasks):
-            print(f"({i}): {task}")
-
 
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface()
