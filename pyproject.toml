@@ -29,6 +29,7 @@ dependencies = [
     "python-socketio",
     "flask",
     "flask-socketio",
+    "requests",
     "tabulate",
     "openai",
     "PyYAML",
