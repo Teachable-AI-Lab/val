@@ -64,7 +64,11 @@ class ValAgent:
                 known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
                 # known_tasks = self.htn_interface.get_tasks()
                 str_known_tasks = [task_to_gpt_str(task, "") for task in known_tasks]
-                task_ungrounded = known_tasks[self.user_interface.map_correction(user_task, str_known_tasks)]
+                user_correction_index = self.user_interface.map_correction(user_task, str_known_tasks)
+                if user_correction_index is None:
+                    task_ungrounded = None
+                else:
+                    task_ungrounded = known_tasks[int(user_correction_index)]
 
             if task_ungrounded is None:
                 for subtask in self.add_method_from_user_task(user_task):
