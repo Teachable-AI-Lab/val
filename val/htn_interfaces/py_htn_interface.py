@@ -5,7 +5,7 @@ from shop2.domain import Operator
 from shop2.domain import Method
 from shop2.domain import flatten
 from shop2.planner import planner
-from shop2.planner import FailedPlanException
+from shop2.planner import FailedPlanException, StopException
 from shop2.fact import Fact
 from shop2.common import V
 # from shop2.common import FailedPlanException
@@ -69,8 +69,10 @@ class PyHtnInterface(AbstractHtnInterface):
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
+        return list(set([(Task(operator.head[0], *[v for v in operator.head[1:]]), "")
                          for ele in self.domain for operator in self.domain[ele]]))
+        # return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
+        #                  for ele in self.domain for operator in self.domain[ele]]))
         
     def execute_task(self, task: Task) -> bool:
         """
@@ -90,7 +92,7 @@ class PyHtnInterface(AbstractHtnInterface):
                 action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
                 # print(actio_name, action_args)
                 success = self.agent.env.execute_action(action_name, action_args)
-        except StopIteration as e: 
+        except StopException as e: 
             return True
         except FailedPlanException as e:
             print(e)
