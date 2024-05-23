@@ -31,5 +31,5 @@ def handle_message(data):
 
 
 if __name__ == '__main__':
-    socketio.run(app, port=5000)
+    socketio.run(app, port=4000)
     print("I opened it")
