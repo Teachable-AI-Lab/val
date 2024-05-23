@@ -19,7 +19,7 @@ def dict_to_operators(operator_dict_list: list) -> List[Operator]:
     for operator_dict in operator_dict_list:
         key = f"{ operator_dict['name'] }/{ len(operator_dict['args']) }"
         primitives[key] = (Task(operator_dict['name'],
-                               tuple([V(arg) for arg in operator_dict["args"]])),
+                               *[V(arg) for arg in operator_dict["args"]]),
                            operator_dict['description'])
 
     return primitives

@@ -7,6 +7,7 @@ from val.utils import Task
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 
 class WebInterface(AbstractUserInterface):
+
     def __init__(self, url="http://localhost:5000"):
         self.sio = socketio.SimpleClient()
         self.sio.connect(url)

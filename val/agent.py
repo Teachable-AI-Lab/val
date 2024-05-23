@@ -81,7 +81,7 @@ class ValAgent:
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield Task(task_ungrounded.name, tuple(task_args))
+                    yield Task(task_ungrounded.name, *task_args)
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
@@ -100,8 +100,8 @@ class ValAgent:
 
         task_args_v = [arg_map[arg] for arg in task.args]
         subtasks_v = [Task(subtask.name,
-                         tuple([arg_map[subarg] if subarg in arg_map else subarg
-                                for subarg in subtask.args]))
+                         *[arg_map[subarg] if subarg in arg_map else subarg
+                                for subarg in subtask.args])
                     for subtask in subtasks]
 
         preconditions = []
@@ -132,8 +132,8 @@ class ValAgent:
                    for i, arg in enumerate(task_args)}
 
         task_args_v = [arg_map[arg] for arg in task_args]
-        subtasks_v = [Task(task.name, tuple([arg_map[subarg] if subarg in arg_map else subarg
-                                    for subarg in task.args]))
+        subtasks_v = [Task(task.name, *[arg_map[subarg] if subarg in arg_map else subarg
+                                    for subarg in task.args])
                     for task in subtasks]
 
         preconditions = []
