@@ -176,17 +176,16 @@ class SpaceTransitEnv():
                                  for name in object_group])[0][1]
         return formatted_name
 
-    def goto_game(ws, game_id: str):
+    def goto_game(self, game_id: str):
         try:
             game_id_int = int(game_id.replace("Game", ""))
-            global active_game
             #TODO look up to make sure this is a valid game...
-            active_game = game_id_int
+            self.active_game = game_id_int
         except Exception as e:
             print("ERROR, trying to go to a game that doesn't exist: {}".format(game_id))
             pass
 
-    print("ACTIVE GAME: {}".format(active_game))
+        print("ACTIVE GAME: {}".format(self.active_game))
 
     def create_line(self, station1: str, station2: str):
         line_mapping, lines, stations = self.get_lines_and_stations()
