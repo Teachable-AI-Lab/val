@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
 from val.env_interfaces.tictactoe.tictactoe_env import TicTacToeEnv 
@@ -15,8 +12,8 @@ if __name__ == "__main__":
     env = TicTacToeEnv()
     # htn_interface = PyHtnInterface
     user_interface = ConsoleUserInterface
-    # htn_interface = BasicHtnInterface
-    htn_interface = PyHtnInterface
+    htn_interface = BasicHtnInterface
+    #htn_interface = PyHtnInterface
 
 
     agent = ValAgent(env, user_interface, htn_interface, openai_key)
