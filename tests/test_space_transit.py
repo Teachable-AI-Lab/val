@@ -1,6 +1,6 @@
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
-from val.user_interfaces.web_interface import WebUserInterface
+from val.user_interfaces.web_interface import WebInterface
 from val.env_interfaces.space_transit.space_transit_env import SpaceTransitEnv 
 from val.htn_interfaces.basic_htn_interface import BasicHtnInterface
 from val.utils import get_openai_key
