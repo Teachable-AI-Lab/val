@@ -8,10 +8,25 @@ from val.user_interfaces.abstract_interface import AbstractUserInterface
 
 class WebInterface(AbstractUserInterface):
 
-    def __init__(self, url="http://localhost:4000"):
+    def __init__(self, url="http://localhost:4000",
+                 disable_segment_confirmation: bool = False, disable_map_confirmation: bool = False,
+                 disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = False, 
+                 disable_ground_confirmation: bool = False, disable_ground_correction: bool = False,
+                 disable_gen_confirmation: bool = False, disable_gen_correction: bool = False,
+                 disable_confirm_task_decomposition: bool = False, disable_confirm_task_execution: bool = False):
         self.sio = socketio.SimpleClient()
         self.sio.connect(url)
-
+        self.disable_segment_confirmation = disable_segment_confirmation
+        self.disable_map_confirmation = disable_map_confirmation
+        self.disable_map_correction = disable_map_correction
+        self.disable_map_new_method_confirmation = disable_map_new_method_confirmation
+        self.disable_ground_confirmation = disable_ground_confirmation
+        self.disable_ground_correction = disable_ground_correction
+        self.disable_gen_confirmation = disable_gen_confirmation
+        self.disable_gen_correction = disable_gen_correction
+        self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
+        self.disable_confirm_task_execution = disable_confirm_task_execution
+        
     def display_known_tasks(self, tasks):
         pass
 
@@ -49,6 +64,8 @@ class WebInterface(AbstractUserInterface):
         return event[1]['response']
 
     def segment_confirmation(self, steps: List[str]) -> bool:
+        if self.disable_segment_confirmation:
+            return True 
         formatted_steps = ', '.join(steps)
         self.sio.emit('message', {'type': 'segment_confirmation', 
                                   'text': f"These are the individual steps of your command: '{formatted_steps}', right?",
@@ -58,6 +75,8 @@ class WebInterface(AbstractUserInterface):
         return 'yes' == event[1]['response']
 
     def map_confirmation(self, user_task: str, task_name: str) -> bool:
+        if self.disable_map_confirmation:
+            return True 
         self.sio.emit('message', {'type': 'map_confirmation', 
                                   'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"})
         event = self.sio.receive()
@@ -79,6 +98,8 @@ class WebInterface(AbstractUserInterface):
         return event[1]['response']
 
     def map_new_method_confirmation(self, user_task: str) -> bool:
+        if self.disable_map_new_method_confirmation:
+            return True
         self.sio.emit('message', {'type': 'map_new_method_confirmation',
                                   'text': f"The task '{user_task}' is a new method. Is that right?"})
         event = self.sio.receive()
@@ -86,6 +107,8 @@ class WebInterface(AbstractUserInterface):
         return 'yes' == event[1]['response']
 
     def ground_confirmation(self, task_name: str, task_args: List[str]) -> bool:
+        if self.disable_ground_confirmation:
+            return True 
         self.sio.emit('message', {'type': 'ground_confirmation',
                                   'text': f"The task is {task_name}({task_args}). Is that right?"})
         event = self.sio.receive()
@@ -103,6 +126,8 @@ class WebInterface(AbstractUserInterface):
         return event[1]['response']
 
     def gen_confirmation(self, user_task: str, task_name: str, task_args: List[str]) -> bool:
+        if self.disable_gen_confirmation:
+            return True
         formatted_args = ', '.join(task_args)
         self.sio.emit('message', {'type': 'gen_confirmation',
                                   'text': f"{user_task} is {task_name}({formatted_args}). Is that right?",
@@ -122,6 +147,8 @@ class WebInterface(AbstractUserInterface):
         return event[1]['response']
 
     def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
+        if self.disable_confirm_task_decomposition:
+            return True
         self.sio.emit('message', {'type': 'ground_confirmation',
                                   'text': f"Should I decompose { user_task } to { user_subtasks }?"})
         event = self.sio.receive()
@@ -129,11 +156,18 @@ class WebInterface(AbstractUserInterface):
         return 'yes' == event[1]['response']
 
     def confirm_task_execution(self, user_task: str) -> bool:
+        if self.disable_confirm_task_execution:
+            return True
         self.sio.emit('message', {'type': 'ground_confirmation',
                                   'text': f"Should I execute { user_task }?"})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
+    
+    def display_known_tasks(self, tasks: List[str]):
+        print("Known tasks:")
+        for i, task in enumerate(tasks):
+            print(f"({i}): {task}")
 
     
 if __name__ == '__main__':
