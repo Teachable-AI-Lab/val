@@ -13,9 +13,9 @@ class AbstractEnvInterface:
         """
         raise NotImplementedError("Not implemented yet")
 
-    def get_state(self) -> dict:
+    def get_state(self) -> list:
         """
-        Returns the state in a dict that can be converted into HTN representation.
+        Returns the state in a list that can be converted into HTN representation.
         """
         raise NotImplementedError("Not implemented yet")
 
