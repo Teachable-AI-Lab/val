@@ -38,9 +38,9 @@
             flex-flow: column nowrap;
             justify-content: space-between;
             width: 100%;
-            max-width: 1000px;
+            max-width: 867px;
             margin: 25px 10px;
-            height: 600px;
+            height: 450px;
             border: var(--border);
             border-radius: 5px;
             background: var(--msger-bg);
@@ -183,6 +183,7 @@
             color: #333;
         }
 
+        /* agent对话框样式 */
         .val-output {
             display: flex;
             justify-content: flex-start;
@@ -199,6 +200,7 @@
             color: #333;
         }
 
+        /* 按钮样式 */
         .buttons {
             display: flex;
             justify-content: flex-start;
@@ -265,8 +267,8 @@
         
         const BOT_IMG = "https://image.flaticon.com/icons/svg/327/327779.svg";
         const PERSON_IMG = "https://image.flaticon.com/icons/svg/145/145867.svg";
-        const BOT_NAME = "VAL";
-        const PERSON_NAME = "Me";
+        const BOT_NAME = "BOT";
+        const PERSON_NAME = "USER";
 
         $(function(){
             console.log('ready');
@@ -287,10 +289,6 @@
             });
             
             socket.on('message', function(data) {
-                if (data['type'] == 'display_known_tasks'){
-                    console.log('received display_known_tasks', data);
-                    buildDialog(data, socket)
-                }
                 if (data['type'] == 'request_user_task'){
                     console.log('received request_user_task', data);
                     buildDialog(data, socket)
