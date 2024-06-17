@@ -2,9 +2,9 @@ from copy import deepcopy
 from json import loads
 from os import listdir
 from time import time
-from game.classes.board import Board
-from game.classes.game_objects import *
-from game.classes.metrics_tracker import GameMetricsTracker
+from val.env_interfaces.dice_adventure.game.classes.board import Board
+from val.env_interfaces.dice_adventure.game.classes.game_objects import *
+from val.env_interfaces.dice_adventure.game.classes.metrics_tracker import GameMetricsTracker
 
 
 class DiceAdventure:

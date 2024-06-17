@@ -2,7 +2,7 @@
 [
     {
 	  "name": "up",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Increases the player's y position by one unit.",
 	  "preconditions": [
 	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
@@ -13,7 +13,7 @@
 	},
     {
 	  "name": "down",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Decreases the player's y position by one unit.",
 	  "preconditions": [
 	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
@@ -24,7 +24,7 @@
 	},
     {
 	  "name": "left",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Decreases the player's x position by one unit.",
 	  "preconditions": [
 	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
@@ -35,7 +35,7 @@
 	},
     {
 	  "name": "right",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Increases the player's x position by one unit.",
 	  "preconditions": [
 	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
@@ -46,7 +46,7 @@
 	},
   	{
 	  "name": "wait",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Keeps the player's x and y position the same.",
 	  "preconditions": [
 	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
@@ -57,21 +57,19 @@
 	},
 	{
 	  "name": "undo",
-	  "args": ["?player_obj_key"],
+	  "args": [],
 	  "description": "Undoes the previous action taken by the player.",
-	  "preconditions": [
-	  ]
+	  "preconditions": []
   },
   {
 	"name": "submit",
-	"args": ["?player_obj_key"],
+	"args": [],
 	"description": "Undoes the previous action taken by the player.",
-	"preconditions": [
-	]
+	"preconditions": []
   },
   {
 	"name": "pinga",
-	"args": ["?player_obj_key"],
+	"args": [],
 	"description": "Places a pin of type A on the game board.",
 	"preconditions": [
 	  {"type": "fact", "currentPhase": "Player_Pinning"},
@@ -81,7 +79,7 @@
   },
   {
 	"name": "pingb",
-	"args": ["?player_obj_key"],
+	"args": [],
 	"description": "Places a pin of type B on the game board.",
 	"preconditions": [
 	  {"type": "fact", "currentPhase": "Player_Pinning"},
@@ -91,7 +89,7 @@
   },
     {
 	"name": "pingc",
-	"args": ["?player_obj_key"],
+	"args": [],
 	"description": "Places a pin of type C on the game board.",
 	"preconditions": [
 	  {"type": "fact", "currentPhase": "Player_Pinning"},
@@ -101,7 +99,7 @@
   },
     {
 	"name": "pingd",
-	"args": ["?player_obj_key"],
+	"args": [],
 	"description": "Places a pin of type D on the game board.",
 	"preconditions": [
 	  {"type": "fact", "currentPhase": "Player_Pinning"},

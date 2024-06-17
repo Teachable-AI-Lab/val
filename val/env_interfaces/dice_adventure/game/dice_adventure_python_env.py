@@ -26,7 +26,7 @@ class DiceAdventurePythonEnv(Env):
         :param kwargs:      (dict) Additional keyword arguments to pass into Dice Adventure game. Only applies when
                                    'server' is 'local'.
         """
-        self.config = loads(open("game/config/main_config.json", "r").read())
+        self.config = loads(open("../val/env_interfaces/dice_adventure/game/config/main_config.json", "r").read())
         self.player = player
         self.id = id_
         self.kwargs = kwargs

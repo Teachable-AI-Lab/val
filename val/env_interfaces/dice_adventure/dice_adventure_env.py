@@ -1,14 +1,16 @@
 from json import loads
 from typing import List
 from typing import Tuple
-from game.dice_adventure_python_env import DiceAdventurePythonEnv
+from val.env_interfaces.abstract_interface import AbstractEnvInterface
+from val.env_interfaces.dice_adventure.game.dice_adventure_python_env import DiceAdventurePythonEnv
 
 
-class DiceAdventureEnv:
+class DiceAdventureEnv(AbstractEnvInterface):
 
-    def __init__(self, server="local"):
-        self.env = DiceAdventurePythonEnv(server=server)
-        self.actions = loads(open("game_actions_env.json").read())
+    def __init__(self, player="Dwarf", server="local"):
+        self.player = player
+        self.env = DiceAdventurePythonEnv(player=player, server=server)
+        self.actions = loads(open("../val/env_interfaces/dice_adventure/env_actions.json").read())
 
     def get_objects(self) -> List[str]:
         state = self.env.get_state()
@@ -31,5 +33,6 @@ class DiceAdventureEnv:
         """
         Takes an action and its arguments and executes it in the environment.
         """
-        self.env.execute_action(player=args[0], game_action=action_name)
-        return True
+        next_state = self.env.execute_action(player=self.player, game_action=action_name)
+        self.env.render()
+        return next_state["status"] != "ILLEGAL_ACTION"
