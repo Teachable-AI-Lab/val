@@ -26,10 +26,13 @@ class WebInterface(AbstractUserInterface):
         self.disable_gen_correction = disable_gen_correction
         self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
         self.disable_confirm_task_execution = disable_confirm_task_execution
+    
+    def display_known_tasks(self, tasks: List[str]):
+        text = "\n".join([f"({i}): {task}" for i, task in enumerate(tasks)])
+        self.sio.emit('message', {'type': 'display_known_tasks',
+                                  'text': "Those are the actions I know:" + text})
+        return
         
-    def display_known_tasks(self, tasks):
-        pass
-
     def request_user_task(self) -> str:
         self.sio.emit('message', {'type': 'request_user_task', 
                                   'text': 'How can I help you today?'})
@@ -164,10 +167,7 @@ class WebInterface(AbstractUserInterface):
         print('received event:', event)
         return 'yes' == event[1]['response']
     
-    def display_known_tasks(self, tasks: List[str]):
-        print("Known tasks:")
-        for i, task in enumerate(tasks):
-            print(f"({i}): {task}")
+
 
     
 if __name__ == '__main__':

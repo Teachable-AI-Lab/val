@@ -287,6 +287,10 @@
             });
             
             socket.on('message', function(data) {
+                if (data['type'] == 'display_known_tasks'){
+                    console.log('received request_user_task', data);
+                    buildDialog(data, socket)
+                }
                 if (data['type'] == 'request_user_task'){
                     console.log('received request_user_task', data);
                     buildDialog(data, socket)
