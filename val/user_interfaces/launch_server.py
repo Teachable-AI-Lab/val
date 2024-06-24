@@ -29,6 +29,13 @@ def handle_message(data):
     print(f'Received message: { data }')
     emit('message', data, broadcast=True, include_self=False)
 
+@socketio.event
+def on_log(message):
+    try:
+        with open('log.html', 'a') as log_file:
+            log_file.write(message + '\n')
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == '__main__':
     socketio.run(app, port=4000)
