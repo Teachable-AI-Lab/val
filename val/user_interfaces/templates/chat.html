@@ -104,7 +104,7 @@
             width: 50px;
             height: 50px;
             margin-right: 10px;
-            background: #ddd;
+            background: none;
             background-repeat: no-repeat;
             background-position: center;
             background-size: cover;
@@ -152,7 +152,6 @@
             margin: 0 0 0 10px;
         }
 
-        /* 用户输入的对话框样式 */
         .user-input {
             display: flex;
             justify-content: flex-end;
@@ -183,7 +182,6 @@
             color: #333;
         }
 
-        /* agent对话框样式 */
         .val-output {
             display: flex;
             justify-content: flex-start;
@@ -265,12 +263,10 @@
         const msgerInput = document.getElementsByClassName("msger-input");
         const msgerChat = document.getElementsByClassName("msger-chat");
         
-        const BOT_IMG = "https://image.flaticon.com/icons/svg/327/327779.svg";
-        const PERSON_IMG = "https://image.flaticon.com/icons/svg/145/145867.svg";
+        const BOT_IMG = "../static/images/val.pic.jpg";
+        const PERSON_IMG = "../static/images/user.pic.jpg";
         const BOT_NAME = "VAL";
         const PERSON_NAME = "Me";
-
-
 
         $(function(){
             console.log('ready');
@@ -284,7 +280,7 @@
                     socket.emit('message', {'response': message});
                     input.val('');
                 }
-                appendMessage(PERSON_NAME, PERSON_IMG, "right", message, null);
+                appendMessage(PERSON_NAME, PERSON_IMG, "right", message, null, null);
                 msgerInput.value = "";
 
                 //botResponse();
@@ -314,7 +310,7 @@
                 }
                 if (data['type'] == 'map_correction'){
                     console.log('received map_correction', data);
-                    map_correction(data)
+                    map_correction(data, socket)
                 }
                 if (data['type'] == 'map_new_method_confirmation'){
                     console.log('received map_new_method_confirmation', data);
@@ -363,7 +359,7 @@
                         container.scrollTop += 500;
             }*/
 
-            function appendMessage(name, img, side, text, buttons = null) {
+            function appendMessage(name, img, side, text, buttons = null, options = null) {
                 const container = document.getElementById('prompt-message');
                 const msgHTML = `
                     <div class="msg ${side}-msg">
@@ -384,7 +380,13 @@
                     const lastMsg = container.lastElementChild.querySelector(".msg-bubble");
                     lastMsg.appendChild(buttons);
                 }
-                socket.emit('on_log',msgHTML);
+
+                socket.emit('on log',msgHTML);
+
+                if (options) {
+                    const lastMsg = container.lastElementChild.querySelector(".msg-bubble");
+                    lastMsg.appendChild(options);
+                }
             }
 
             /*function botResponse() {
@@ -417,7 +419,7 @@
 
                 //dialog.appendChild(p);
                 //container.appendChild(dialog);
-                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, null);
             } 
             
             function confirmation(data) {
@@ -442,7 +444,7 @@
                 yesButton.textContent = 'Yes';
                 yesButton.onclick = () => {
                     socket.emit('message', { response: 'yes' });
-                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'yes', null);
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'yes', null, null);
                 };
 
                 const noButton = document.createElement('button');
@@ -450,7 +452,7 @@
                 noButton.textContent = 'No';
                 noButton.onclick = () => {
                     socket.emit('message', { response: 'no' });
-                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'no', null);
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'no', null, null);
                 };
 
                 // Append everything
@@ -463,146 +465,145 @@
             } 
 
             function map_correction(data) {
-            const container = document.getElementById('prompt-message');
-            container.innerHTML = '';  // Clear previous content
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
 
-            var known_tasks = data['known_tasks'];
+                var known_tasks = data['known_tasks'];
 
-            // Create dialog element
-            const dialog = document.createElement('div');
-            dialog.className = 'val-output';
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'val-output';
 
-            // Create paragraph for instructions
-            const p = document.createElement('p');
-            p.textContent = data['text'];
-            dialog.appendChild(p);
+                // Create paragraph for instructions
+                const p = document.createElement('p');
+                p.textContent = data['text'];
+                //dialog.appendChild(p);
 
-            // Create form for radio buttons
-            const form = document.createElement('form');
-            form.className = 'options-form';
+                // Create form for radio buttons
+                const form = document.createElement('form');
+                form.className = 'options-form';
 
-            known_tasks.forEach((task, index) => {
+                known_tasks.forEach((task, index) => {
+                    const label = document.createElement('label');
+                    label.className = 'option-label';
+
+                    const radioButton = document.createElement('input');
+                    radioButton.type = 'radio';
+                    radioButton.name = 'task-option';
+                    radioButton.value = index;  // Store the index or any identifier
+
+                    const span = document.createElement('span');
+                    span.textContent = task;
+                    label.appendChild(radioButton);
+                    label.appendChild(span);
+                    form.appendChild(label);
+                });
+
+                const submitButton = document.createElement('button');
+                submitButton.type = 'button';  // Prevent form submission
+                submitButton.textContent = 'Submit';
+                submitButton.onclick = () => {
+                    const selectedOption = form.querySelector('input[name="task-option"]:checked');
+                    if (selectedOption) {
+                        socket.emit('message', { response: selectedOption.value });
+                    }
+                };
+
+                form.appendChild(submitButton);
+                //dialog.appendChild(form);
+                //container.appendChild(dialog);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, form);
+            }
+
+
+            function ground_correction(data) {
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
+
+                var envObjects = data['env_Objects'];
+
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'val-output';
+
+                // Create paragraph for instructions
+                const p = document.createElement('p');
+                p.textContent = data.msg;
+                //dialog.appendChild(p);
+
+                // Create form for the dropdown
+                const form = document.createElement('form');
+                form.className = 'options-form';
+                const select = document.createElement('select');
+                select.id = 'obj-option';
+
+                envObjects.forEach((obj, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = obj;
+                    select.appendChild(option);
+                });
+
+                form.appendChild(select);
+
+                const submitButton = document.createElement('button');
+                submitButton.type = 'button'; // Prevent form submission
+                submitButton.textContent = 'Submit';
+                submitButton.onclick = () => {
+                    const selectedOption = document.getElementById('obj-option').value;
+                    socket.emit('ground_correction_response', { response: selectedOption });
+                };
+
+                form.appendChild(submitButton);
+                //dialog.appendChild(form);
+                //container.appendChild(dialog);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, form);
+            }
+
+            function gen_correction(data) {
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
+
+                var envObjects = data['env_Objects']; 
+
+                const form = document.createElement('form');
+                form.onsubmit = function(e) {
+                    e.preventDefault();
+                    const checkboxes = Array.from(document.querySelectorAll('.object-checkbox:checked'));
+                    const indices = checkboxes.map(checkbox => envObjects.indexOf(checkbox.value));
+                    socket.emit('gen_correction_response', { indices: indices });
+                };
+
                 const label = document.createElement('label');
-                label.className = 'option-label';
+                label.textContent = 'Select the correct objects:';
+                label.htmlFor = 'object-select';
 
-                const radioButton = document.createElement('input');
-                radioButton.type = 'radio';
-                radioButton.name = 'task-option';
-                radioButton.value = index;  // Store the index or any identifier
+                envObjects.forEach((obj, index) => {
+                    const checkboxLabel = document.createElement('label');
+                    checkboxLabel.className = 'checkbox-container';
 
-                const span = document.createElement('span');
-                span.textContent = task;
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'object-checkbox';
+                    checkbox.value = obj;
 
-                label.appendChild(radioButton);
-                label.appendChild(span);
-                form.appendChild(label);
-            });
+                    const span = document.createElement('span');
+                    span.textContent = obj;
+                    span.className = 'checkmark';
 
-            const submitButton = document.createElement('button');
-            submitButton.type = 'button';  // Prevent form submission
-            submitButton.textContent = 'Submit';
-            submitButton.onclick = () => {
-                const selectedOption = form.querySelector('input[name="task-option"]:checked');
-                if (selectedOption) {
-                    socket.emit('message', { response: selectedOption.value });
-                }
-            };
+                    checkboxLabel.appendChild(checkbox);
+                    checkboxLabel.appendChild(span);
+                    form.appendChild(checkboxLabel);
+                });
 
-            form.appendChild(submitButton);
-            dialog.appendChild(form);
-            container.appendChild(dialog);
-            appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], buttonsDiv);
-        }
+                const submitButton = document.createElement('button');
+                submitButton.type = 'submit';
+                submitButton.textContent = 'Submit';
 
-
-        function ground_correction(data) {
-            const container = document.getElementById('prompt-message');
-            container.innerHTML = '';  // Clear previous content
-
-            var envObjects = ["pot", "onion", "tomato"];
-
-            // Create dialog element
-            const dialog = document.createElement('div');
-            dialog.className = 'val-output';
-
-            // Create paragraph for instructions
-            const p = document.createElement('p');
-            p.textContent = data.msg;
-            dialog.appendChild(p);
-
-            // Create form for the dropdown
-            const form = document.createElement('form');
-            form.className = 'options-form';
-            const select = document.createElement('select');
-            select.id = 'obj-option';
-
-            envObjects.forEach((obj, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = obj;
-                select.appendChild(option);
-            });
-
-            form.appendChild(select);
-
-            const submitButton = document.createElement('button');
-            submitButton.type = 'button'; // Prevent form submission
-            submitButton.textContent = 'Submit';
-            submitButton.onclick = () => {
-                const selectedOption = document.getElementById('obj-option').value;
-                socket.emit('ground_correction_response', { response: selectedOption });
-            };
-
-            form.appendChild(submitButton);
-            dialog.appendChild(form);
-            container.appendChild(dialog);
-            appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], buttonsDiv);
-        }
-
-        function gen_correction(data) {
-            const container = document.getElementById('prompt-message');
-            container.innerHTML = '';  // Clear previous content
-
-            var envObjects = ['pot', 'onion', 'tomato'];  // Assuming these are the options
-
-            const form = document.createElement('form');
-            form.onsubmit = function(e) {
-                e.preventDefault();
-                const checkboxes = Array.from(document.querySelectorAll('.object-checkbox:checked'));
-                const indices = checkboxes.map(checkbox => envObjects.indexOf(checkbox.value));
-                socket.emit('gen_correction_response', { indices: indices });
-            };
-
-            const label = document.createElement('label');
-            label.textContent = 'Select the correct objects:';
-            label.htmlFor = 'object-select';
-
-            envObjects.forEach((obj, index) => {
-                const checkboxLabel = document.createElement('label');
-                checkboxLabel.className = 'checkbox-container';
-
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'object-checkbox';
-                checkbox.value = obj;
-
-                const span = document.createElement('span');
-                span.textContent = obj;
-                span.className = 'checkmark';
-
-                checkboxLabel.appendChild(checkbox);
-                checkboxLabel.appendChild(span);
-                form.appendChild(checkboxLabel);
-            });
-
-            const submitButton = document.createElement('button');
-            submitButton.type = 'submit';
-            submitButton.textContent = 'Submit';
-
-            form.appendChild(submitButton);
-            container.appendChild(form);
-            appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], buttonsDiv);
-        }
+                form.appendChild(submitButton);
+                container.appendChild(form);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, form);
+            }
         });
                         
     </script>    
