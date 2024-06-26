@@ -4,13 +4,19 @@ from typing import Tuple
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 from val.env_interfaces.dice_adventure.game.dice_adventure_python_env import DiceAdventurePythonEnv
 
+import os
+import json
 
 class DiceAdventureEnv(AbstractEnvInterface):
 
     def __init__(self, player="Dwarf", server="local"):
         self.player = player
         self.env = DiceAdventurePythonEnv(player=player, server=server)
-        self.actions = loads(open("../val/env_interfaces/dice_adventure/env_actions.json").read())
+        #self.actions = loads(open("../val/env_interfaces/dice_adventure/env_actions.json").read())
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        actions_path = os.path.join(base_dir, "env_actions.json")
+        with open(actions_path, "r") as file:
+            self.actions = json.load(file)
 
     def get_objects(self) -> List[str]:
         state = self.env.get_state()
@@ -27,7 +33,12 @@ class DiceAdventureEnv(AbstractEnvInterface):
         Returns the state in a list that can be converted into HTN representation.
         """
         state = self.env.get_state()
-        return state["content"]["gameData"] + state["content"]["scene"]
+        for ele in state["content"]["scene"]:
+            for k in ele:
+                if isinstance(ele[k], list):
+                    ele[k] = ",".join(ele[k])
+                    
+        return [state["content"]["gameData"]] + state["content"]["scene"]
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         """
