@@ -1,59 +1,33 @@
-
 [
     {
 	  "name": "up",
 	  "args": [],
 	  "description": "Increases the player's y position by one unit.",
-	  "preconditions": [
-	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
-	 	{"type": "fact", "objKey": "?player_obj_key", "x": "?px", "y": "?py", "actionPoints": "?points"},
-	 	{"type": "filter", "lambda": "lambda oy, py: py + 1 == oy"},
-		{"type": "filter", "lambda": "lambda points: points > 0"}
-	  ]
+	  "preconditions": []
 	},
     {
 	  "name": "down",
 	  "args": [],
 	  "description": "Decreases the player's y position by one unit.",
-	  "preconditions": [
-	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
-	 	{"type": "fact", "objKey": "?player_obj_key", "x": "?px", "y": "?py", "actionPoints": "?points"},
-	 	{"type": "filter", "lambda": "lambda oy, py: py - 1 == oy"},
-		{"type": "filter", "lambda": "lambda points: points > 0"}
-	  ]
+	  "preconditions": []
 	},
     {
 	  "name": "left",
 	  "args": [],
 	  "description": "Decreases the player's x position by one unit.",
-	  "preconditions": [
-	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
-	 	{"type": "fact", "objKey": "?player_obj_key", "x": "?px", "y": "?py", "actionPoints": "?points"},
-	 	{"type": "filter", "lambda": "lambda ox, px: px - 1 == ox"},
-		{"type": "filter", "lambda": "lambda points: points > 0"}
-	  ]
+	  "preconditions": []
 	},
     {
 	  "name": "right",
 	  "args": [],
 	  "description": "Increases the player's x position by one unit.",
-	  "preconditions": [
-	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
-	 	{"type": "fact", "objKey": "?player_obj_key", "x": "?px", "y": "?py", "actionPoints": "?points"},
-	 	{"type": "filter", "lambda": "lambda ox, px: px + 1 == ox"},
-		{"type": "filter", "lambda": "lambda points: points > 0"}
-	  ]
+	  "preconditions": []
 	},
   	{
 	  "name": "wait",
 	  "args": [],
 	  "description": "Keeps the player's x and y position the same.",
-	  "preconditions": [
-	 	{"type": "fact", "entityType": "Open", "x": "?ox", "y": "?oy"},
-	 	{"type": "fact", "objKey": "?player_obj_key", "x": "?px", "y": "?py", "actionPoints": "?points"},
-	 	{"type": "filter", "lambda": "lambda ox, px: px + 1 == ox"},
-		{"type": "filter", "lambda": "lambda points: points > 0"}
-	  ]
+	  "preconditions": []
 	},
 	{
 	  "name": "undo",
@@ -70,41 +44,25 @@
   {
 	"name": "pinga",
 	"args": [],
-	"description": "Places a pin of type A on the game board.",
-	"preconditions": [
-	  {"type": "fact", "currentPhase": "Player_Pinning"},
-	  {"type": "fact", "objKey": "?player_obj_key", "actionPoints": "?points"},
-	  {"type": "filter", "lambda": "lambda points: points > 0"}
-	]
+	"description": "Places a type 'A' pin on the game board.",
+	"preconditions": []
   },
   {
 	"name": "pingb",
 	"args": [],
-	"description": "Places a pin of type B on the game board.",
-	"preconditions": [
-	  {"type": "fact", "currentPhase": "Player_Pinning"},
-	  {"type": "fact", "objKey": "?player_obj_key", "actionPoints": "?points"},
-	  {"type": "filter", "lambda": "lambda points: points > 0"}
-	]
+	"description": "Places a type 'B' pin on the game board.",
+	"preconditions": []
   },
     {
 	"name": "pingc",
 	"args": [],
-	"description": "Places a pin of type C on the game board.",
-	"preconditions": [
-	  {"type": "fact", "currentPhase": "Player_Pinning"},
-	  {"type": "fact", "objKey": "?player_obj_key", "actionPoints": "?points"},
-	  {"type": "filter", "lambda": "lambda points: points > 0"}
-	]
+	"description": "Places a type 'C' pin on the game board.",
+	"preconditions": []
   },
     {
 	"name": "pingd",
 	"args": [],
-	"description": "Places a pin of type D on the game board.",
-	"preconditions": [
-	  {"type": "fact", "currentPhase": "Player_Pinning"},
-	  {"type": "fact", "objKey": "?player_obj_key", "actionPoints": "?points"},
-	  {"type": "filter", "lambda": "lambda points: points > 0"}
-	]
+	"description": "Places a type 'D' pin on the game board.",
+	"preconditions": []
   }
 ]
