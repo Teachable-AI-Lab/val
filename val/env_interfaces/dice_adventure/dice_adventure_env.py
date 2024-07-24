@@ -7,6 +7,7 @@ from val.env_interfaces.dice_adventure.game.dice_adventure_python_env import Dic
 import os
 import json
 
+
 class DiceAdventureEnv(AbstractEnvInterface):
 
     def __init__(self, player="Dwarf", server="local"):
@@ -20,7 +21,14 @@ class DiceAdventureEnv(AbstractEnvInterface):
 
     def get_objects(self) -> List[str]:
         state = self.env.get_state()
-        return [f'{ele["entityType"]}-{ele["id"]}' for ele in state["content"]["scene"]]
+        char_map = {"C11": "Dwarf", "C21": "Giant", "C31": "Human"}
+        objects = [f'{ele["entityType"]}-{ele["id"]}' for ele in state["content"]["scene"]]
+        for id_, char in char_map.items():
+            for i in range(len(objects)):
+                if objects[i].split("-")[1] == id_:
+                    objects[i] += f"-{char}"
+                    break
+        return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
         """
