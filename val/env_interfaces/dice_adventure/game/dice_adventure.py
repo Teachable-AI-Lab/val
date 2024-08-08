@@ -4,7 +4,7 @@ from os import listdir
 from time import time
 from val.env_interfaces.dice_adventure.game.classes.board import Board
 from val.env_interfaces.dice_adventure.game.classes.game_objects import *
-from val.env_interfaces.dice_adventure.game.classes.metrics_tracker import GameMetricsTracker
+# from val.env_interfaces.dice_adventure.game.classes.metrics_tracker import GameMetricsTracker
 
 
 class DiceAdventure:
@@ -97,11 +97,13 @@ class DiceAdventure:
         # Number of rounds completed
         self.num_rounds = 0
         # Metrics tracker
+        """
         if self.track_metrics:
             self.tracker = GameMetricsTracker(level=self.curr_level_num,
                                               metrics_config=self.config["GAMEPLAY"]["METRICS"],
                                               instance_id=model_number,
                                               model_number=model_number)
+        """
 
     #################
     # LEVEL CONTROL #

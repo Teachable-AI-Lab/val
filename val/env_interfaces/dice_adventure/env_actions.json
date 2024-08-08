@@ -29,6 +29,36 @@
 	  "description": "Keeps the player's x and y position the same.",
 	  "preconditions": []
 	},
+  	{
+	  "name": "move_to",
+	  "args": ["?target"],
+	  "description": "Moves the player from current location to the target.",
+	  "preconditions": [
+		{"type": "fact", "currentPhase": "Player_Planning"},
+		{"type": "fact", "actionPoints": "?ap"},
+		{"type": "filter", "lambda": "lambda ap: ap > 0"}
+	  ]
+  	},
+    {
+	  "name": "move_to",
+	  "args": ["?direction", "?num_steps"],
+	  "description": "Moves the player from current location in the given direction by the given number of steps.",
+	  "preconditions": [
+		{"type": "fact", "currentPhase": "Player_Planning"},
+		{"type": "fact", "actionPoints": "?ap"},
+		{"type": "filter", "lambda": "lambda ap: ap > 0"}
+	  ]
+  	},
+    {
+	  "name": "move_to",
+	  "args": ["?target", "?direction", "?num_steps"],
+	  "description": "Moves the player from current location to the position that is the given number of steps away from the given target.",
+	  "preconditions": [
+		{"type": "fact", "currentPhase": "Player_Planning"},
+		{"type": "fact", "actionPoints": "?ap"},
+		{"type": "filter", "lambda": "lambda ap: ap > 0"}
+	  ]
+  	},
 	{
 	  "name": "undo",
 	  "args": [],
@@ -45,24 +75,40 @@
 	"name": "pinga",
 	"args": [],
 	"description": "Places a type 'A' pin on the game board.",
-	"preconditions": []
+	"preconditions": [
+	  {"type": "fact", "currentPhase": "Player_Pinning"},
+	  {"type": "fact", "actionPoints": "?ap"},
+	  {"type": "filter", "lambda": "lambda ap: ap > 0"}
+	]
   },
   {
 	"name": "pingb",
 	"args": [],
 	"description": "Places a type 'B' pin on the game board.",
-	"preconditions": []
+	"preconditions": [
+	  {"type": "fact", "currentPhase": "Player_Pinning"},
+	  {"type": "fact", "actionPoints": "?ap"},
+	  {"type": "filter", "lambda": "lambda ap: ap > 0"}
+	]
   },
     {
 	"name": "pingc",
 	"args": [],
 	"description": "Places a type 'C' pin on the game board.",
-	"preconditions": []
+	"preconditions": [
+	  {"type": "fact", "currentPhase": "Player_Pinning"},
+	  {"type": "fact", "actionPoints": "?ap"},
+	  {"type": "filter", "lambda": "lambda ap: ap > 0"}
+	]
   },
     {
 	"name": "pingd",
 	"args": [],
 	"description": "Places a type 'D' pin on the game board.",
-	"preconditions": []
+	"preconditions": [
+	  {"type": "fact", "currentPhase": "Player_Pinning"},
+	  {"type": "fact", "actionPoints": "?ap"},
+	  {"type": "filter", "lambda": "lambda ap: ap > 0"}
+	]
   }
 ]

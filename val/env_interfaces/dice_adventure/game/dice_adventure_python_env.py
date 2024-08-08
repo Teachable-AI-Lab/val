@@ -1,5 +1,5 @@
 from val.env_interfaces.dice_adventure.game.dice_adventure import DiceAdventure
-import val.env_interfaces.dice_adventure.game.unity_socket as unity_socket
+from val.env_interfaces.dice_adventure.game.unity_socket import UnityWebSocket
 from gymnasium import Env
 from json import loads
 
@@ -48,6 +48,8 @@ class DiceAdventurePythonEnv(Env):
         ###################
         self.server = server
         self.unity_socket_url = self.config["GYM_ENVIRONMENT"]["UNITY"]["URL"]
+        self.unity_socket = UnityWebSocket(self.unity_socket_url.format(self.player.lower())) \
+            if self.server == "unity" else None
         self.game = DiceAdventure(**self.kwargs) if self.server == "local" else None
 
     def step(self, action):
@@ -140,9 +142,9 @@ class DiceAdventurePythonEnv(Env):
             self.game.execute_action(player, game_action)
             next_state = self.get_state()
         else:
-            url = self.unity_socket_url.format(player.lower())
             # TODO CAPTURE RESPONSE AND RETURN TO USER
-            unity_socket.execute_action(url, game_action)
+            resp = self.unity_socket.execute_action(game_action)
+            print(resp)
             next_state = self.get_state()
         return next_state
 
@@ -179,8 +181,7 @@ class DiceAdventurePythonEnv(Env):
         if server == "local":
             state = self.game.get_state(player, version)
         else:
-            url = self.unity_socket_url.format(player.lower())
-            state = unity_socket.get_state(url, version)
+            state = self.unity_socket.get_state(version)
 
         return state
 
@@ -194,6 +195,9 @@ class DiceAdventurePythonEnv(Env):
     def get_player_code(player):
         codes = {"Dwarf": "C1", "Giant": "C2", "Human": "C3"}
         return codes[player]
+
+    def register(self, player):
+        self.unity_socket.register(player)
 
     @staticmethod
     def _get_reward():
