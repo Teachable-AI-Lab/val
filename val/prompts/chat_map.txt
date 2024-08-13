@@ -6,5 +6,5 @@ Someone tells you to "%s". Which action corresponds to this?
 
 %s
 
-Please respond with a single letter, and start your answer with a "[" (e.g., "[a]").
+Please respond with a single number, and start your answer with a "[" (e.g., "[1]").
 
