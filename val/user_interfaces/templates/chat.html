@@ -468,7 +468,148 @@
                 appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], buttonsDiv);
             } 
 
+            function ground_confirmation(data) {
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
+
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'val-output' ;
+
+                //const taskName = data['task_name'] || '未提供任务名称';
+                const taskArgsText = data['task_args'] || '未提供参数';
+
+                const fullText = `(${taskArgsText})`;
+
+                const p = document.createElement('p');
+                p.textContent = fullText;
+
+                // Create paragraph for instructions
+                //const p = document.createElement('p');
+                //p.textContent = data['text'];
+
+                // Create buttons container
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'buttons';
+
+                // Create Yes and No buttons
+                const yesButton = document.createElement('button');
+                yesButton.className = 'yes';
+                yesButton.textContent = 'Yes';
+                yesButton.onclick = () => {
+                    socket.emit('message', { response: 'yes' });
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'yes', null, null);
+                };
+
+                const noButton = document.createElement('button');
+                noButton.className = 'no';
+                noButton.textContent = 'No';
+                noButton.onclick = () => {
+                    socket.emit('message', { response: 'no' });
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'no', null, null);
+                };
+
+                // Append everything
+                buttonsDiv.appendChild(yesButton);
+                buttonsDiv.appendChild(noButton);
+                dialog.appendChild(p);
+                //dialog.appendChild(buttonsDiv);
+                //container.appendChild(dialog);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], dialog, buttonsDiv);
+            } 
+
+            function gen_confirmation(data) {
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
+
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'val-output' ;
+
+                // Create paragraph for instructions
+                const p = document.createElement('p');
+                p.textContent = data['text'];
+
+                // Create buttons container
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'buttons';
+
+                // Create Yes and No buttons
+                const yesButton = document.createElement('button');
+                yesButton.className = 'yes';
+                yesButton.textContent = 'Yes';
+                yesButton.onclick = () => {
+                    socket.emit('message', { response: 'yes' });
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'yes', null, null);
+                };
+
+                const noButton = document.createElement('button');
+                noButton.className = 'no';
+                noButton.textContent = 'No';
+                noButton.onclick = () => {
+                    socket.emit('message', { response: 'no' });
+                    appendMessage(PERSON_NAME, PERSON_IMG, "right", 'no', null, null);
+                };
+
+                // Append everything
+                buttonsDiv.appendChild(yesButton);
+                buttonsDiv.appendChild(noButton);
+                //dialog.appendChild(p);
+                //dialog.appendChild(buttonsDiv);
+                //container.appendChild(dialog);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], buttonsDiv);
+            } 
+
             function map_correction(data) {
+          
+                const container = document.getElementById('prompt-message');
+                //container.innerHTML = '';  // Clear previous content
+
+                var known_tasks = data['known_tasks'];
+
+                // Create dialog element
+                const dialog = document.createElement('div');
+                dialog.className = 'val-output';
+
+                // Create paragraph for instructions
+                const p = document.createElement('p');
+                p.textContent = data['text'];
+                //dialog.appendChild(p);
+
+                // Create form for radio buttons
+                const form = document.createElement('form');
+                form.className = 'options-form';
+
+                //Create dropdown menu
+                const select = document.createElement('select');
+                select.name = 'task-options';
+
+                known_tasks.forEach((task, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = task;
+                    select.appendChild(option);
+                });
+
+                form.appendChild(select);
+
+                const submitButton = document.createElement('button');
+                submitButton.type = 'button'; 
+                submitButton.textContent = 'Submit';
+                submitButton.onclick = () => {
+                    const selectedOption = select.value;
+                    socket.emit('message', {response: selectedOption});
+                };
+
+                form.appendChild(submitButton);
+                //dialog.appendChild(p);
+                dialog.appendChild(form);
+                //dialog.appendChild(form);
+                //container.appendChild(dialog);
+                appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, dialog);
+            }
+
+            /*function map_correction(data) {
                 const container = document.getElementById('prompt-message');
                 //container.innerHTML = '';  // Clear previous content
 
@@ -517,7 +658,7 @@
                 //dialog.appendChild(form);
                 //container.appendChild(dialog);
                 appendMessage(BOT_NAME, BOT_IMG, "left", data['text'], null, form);
-            }
+            }*/
 
 
             function ground_correction(data) {

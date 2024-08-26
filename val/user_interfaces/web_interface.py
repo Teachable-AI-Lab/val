@@ -113,14 +113,16 @@ class WebInterface(AbstractUserInterface):
         if self.disable_ground_confirmation:
             return True 
         self.sio.emit('message', {'type': 'ground_confirmation',
-                                  'text': f"The task is {task_name}({task_args}). Is that right?"})
+                                  'task_name': task_name,
+                                  'task_args': ', '.join(task_args),
+                                  'text': f"The task is {task_name}({task_args}). Is that right? <br>place"})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
 
     def ground_correction(self, task_name: str, task_args: List[str],
                           env_objects: List[str]) -> List[str]:
-        self.sio.emit('message', {'type': 'ground_confirmation',
+        self.sio.emit('message', {'type': 'ground_correction',
                                   'text': f"Could you help me pick the actual object? {task_name}",
                                   'task_args': task_args,
                                   'env_objects': env_objects})
@@ -141,7 +143,7 @@ class WebInterface(AbstractUserInterface):
 
     def gen_correction(self, task_name: str, task_args: List[str],
                        env_objects: List[str]) -> List[str]:
-        self.sio.emit('message', {'type': 'gen_confirmation',
+        self.sio.emit('message', {'type': 'gen_correction',
                                   'text': f"Could you help me pick the actual object? {task_name}:",
                                   'task_args': task_args,
                                   'env_objects': env_objects})
@@ -152,7 +154,7 @@ class WebInterface(AbstractUserInterface):
     def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
         if self.disable_confirm_task_decomposition:
             return True
-        self.sio.emit('message', {'type': 'ground_confirmation',
+        self.sio.emit('message', {'type': 'confirm_task_decomposition',
                                   'text': f"Should I decompose { user_task } to { user_subtasks }?"})
         event = self.sio.receive()
         print('received event:', event)
@@ -161,7 +163,7 @@ class WebInterface(AbstractUserInterface):
     def confirm_task_execution(self, user_task: str) -> bool:
         if self.disable_confirm_task_execution:
             return True
-        self.sio.emit('message', {'type': 'ground_confirmation',
+        self.sio.emit('message', {'type': 'confirm_task_execution',
                                   'text': f"Should I execute { user_task }?"})
         event = self.sio.receive()
         print('received event:', event)
