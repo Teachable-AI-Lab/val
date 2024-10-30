@@ -1,18 +1,18 @@
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
 from val.user_interfaces.web_interface import WebInterface
-from val.env_interfaces.space_transit.space_transit_env import SpaceTransitEnv 
-from val.htn_interfaces.basic_htn_interface import BasicHtnInterface
+from val.env_interfaces.space_transit.space_transit_env_htn import SpaceTransitEnvHTN 
+from val.htn_interfaces.py_htn_interface_methods import PyHtnInterface
 from val.utils import get_openai_key
 
 if __name__ == "__main__":
     
     openai_key = get_openai_key()
 
-    env = SpaceTransitEnv()
+    env = SpaceTransitEnvHTN()
     user_interface = ConsoleUserInterface
     # user_interface = WebInterface
-    htn_interface = BasicHtnInterface
+    htn_interface = PyHtnInterface
     # htn_interface = PyHtnInterface
 
 
