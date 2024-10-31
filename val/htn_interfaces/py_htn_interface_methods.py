@@ -122,18 +122,34 @@ class PyHtnInterface(AbstractHtnInterface):
         # TODO implement planner coroutine functionality
         plan_coroutine = planner(dict_to_facts(self.agent.env.get_state()),
                                  [task], self.domain)
+        
+        with open("out.txt", 'a') as f:
+            f.write(str(self.agent.env.get_state())+"\n")
 
         try: 
             action_name, action_args = plan_coroutine.send(None)
+            with open("out.txt", 'a') as f:
+                f.write(str(action_name)+" "+str(action_args)+"\n")
             success = self.agent.env.execute_action(action_name, action_args)
+            with open("out.txt", 'a') as f:
+                f.write("Yay!\n")
             while True:
                 action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
-                # print(actio_name, action_args)
+                with open("out.txt", 'a') as f:
+                    f.write(str(action_name)+" "+str(action_args)+"\n")
+                    
+
                 success = self.agent.env.execute_action(action_name, action_args)
-        except StopException as e: 
+                with open("out.txt", 'a') as f:
+                    f.write("Yay!\n")
+        except StopException as e:
+            with open("out.txt", 'a') as f:
+                f.write("Nay!\n") 
             return True
         except FailedPlanException as e:
             print(e)
+            with open("out.txt", 'a') as f:
+                f.write(str(e)+"\n") 
             return False
         # this should return an action (name and args) for the env to execute
         # print("EXECUTING TASK", task)

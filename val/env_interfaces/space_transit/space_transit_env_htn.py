@@ -86,17 +86,19 @@ class SpaceTransitEnvHTN():
         domain["connect_stations/0"] = [
             #no lines
             Method(head=('connect_stations',),
-                   preconditions=Fact(station=V('station1'))&
-                   Fact(station=V('station2'))&
-                   Filter(lambda station1, station2: station1 != station2)&
+                   preconditions=Fact(station=V('station1'), unique_id=V("uid1"))&
+                   (~Fact(to_station=V("uid1")) | ~Fact(from_station=V("uid1")))&
+                   Fact(line=V("line"))&
                    Fact(any_lines=False),
-                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]
                    ),
             Method(head=('connect_stations',),
-                   preconditions=Fact(station=V('station1'))&
-                   (~Fact(to_station=V('station1')) | ~Fact(from_station=V('station1')))&
-                   Fact(station=V('station2'))&
-                   Filter(lambda station1, station2: station1 != station2),
+                   preconditions=Fact(station=V('station1'), unique_id=V("uid1"))&
+                   (~Fact(to_station=V("uid1")) | ~Fact(from_station=V("uid1")))&
+                   Fact(station=V('station2'), unique_id=V("uid2"))&
+                   (~Fact(to_station=V("uid2")) | ~Fact(from_station=V("uid2")))&
+                   Fact(any_lines=True)&
+                   Filter(lambda uid1, uid2: uid1 != uid2),
                    subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]
                    ),
         ]
