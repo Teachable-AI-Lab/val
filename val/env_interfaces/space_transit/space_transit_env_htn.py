@@ -124,10 +124,10 @@ class SpaceTransitEnvHTN():
         cur_state = self.get_state_from_game()
 
         # line_mapping = {}
-        any_lines = False
+        lines = set()
         for line in cur_state['lines']:
-            any_lines = True
             val_state.append({'line': self.line_names[line['id']], 'id': line['unique_id']})
+            lines.add(line['unique_id'])
 
         for station in cur_state['stations']:
             val_state.append({'station': station['human_name'],
@@ -138,7 +138,9 @@ class SpaceTransitEnvHTN():
                 val_state.append({'from_station': segment['from_station'],
                                   'to_station': segment['to_station'],
                                   'segment_line': segment['which_line']})
-        val_state.append({'any_lines': any_lines})
+                if segment['which_line'] in lines:
+                    lines.remove(segment['which_line'])
+        val_state.append({'any_lines': len(lines)!=0})
 
         return val_state
 

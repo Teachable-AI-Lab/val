@@ -1,0 +1,42 @@
+[{'line': 'redline', 'id': -1074}, {'line': 'blueline', 'id': -1110}, {'line': 'yellowline', 'id': -1146}, {'station': '0', 'unique_id': -170}, {'station': '1', 'unique_id': -472}, {'station': '2', 'unique_id': -778}, {'station': '3', 'unique_id': -1430}, {'any_lines': True}]
+create_line ('3', '2')
+Yay!
+create_line ('0', '1')
+Yay!
+None -> No valid plan found
+[{'line': 'redline', 'id': -1074}, {'line': 'blueline', 'id': -1110}, {'line': 'yellowline', 'id': -1146}, {'station': '0', 'unique_id': -170}, {'station': '1', 'unique_id': -472}, {'station': '2', 'unique_id': -778}, {'station': '3', 'unique_id': -1430}, {'from_station': -778, 'to_station': -1430, 'segment_line': -1074}, {'from_station': -472, 'to_station': -170, 'segment_line': -1110}, {'any_lines': True}]
+create_line ('1', '2')
+Yay!
+insert_station ('2', 'redline')
+Yay!
+insert_station ('0', 'redline')
+Yay!
+insert_station ('2', 'blueline')
+Yay!
+insert_station ('2', 'yellowline')
+Yay!
+insert_station ('0', 'yellowline')
+Yay!
+insert_station ('3', 'yellowline')
+Yay!
+None -> No valid plan found
+[{'line': 'redline', 'id': -1074}, {'line': 'blueline', 'id': -1110}, {'line': 'yellowline', 'id': -1146}, {'station': '0', 'unique_id': -170}, {'station': '1', 'unique_id': -472}, {'station': '2', 'unique_id': -778}, {'station': '3', 'unique_id': -1430}, {'station': '4', 'unique_id': -2246}, {'from_station': -778, 'to_station': -1430, 'segment_line': -1074}, {'from_station': -1430, 'to_station': -170, 'segment_line': -1074}, {'from_station': -472, 'to_station': -170, 'segment_line': -1110}, {'from_station': -170, 'to_station': -778, 'segment_line': -1110}, {'from_station': -778, 'to_station': -472, 'segment_line': -1146}, {'from_station': -472, 'to_station': -1430, 'segment_line': -1146}, {'from_station': -1430, 'to_station': -170, 'segment_line': -1146}, {'any_lines': False}]
+insert_station ('4', 'blueline')
+Yay!
+insert_station ('4', 'yellowline')
+Yay!
+insert_station ('4', 'blueline')
+Yay!
+insert_station ('4', 'yellowline')
+Yay!
+None -> No valid plan found
+[{'line': 'redline', 'id': -1074}, {'line': 'blueline', 'id': -1110}, {'line': 'yellowline', 'id': -1146}, {'station': '0', 'unique_id': -170}, {'station': '1', 'unique_id': -472}, {'station': '2', 'unique_id': -778}, {'station': '3', 'unique_id': -1430}, {'station': '4', 'unique_id': -2246}, {'station': '5', 'unique_id': -2636}, {'from_station': -778, 'to_station': -1430, 'segment_line': -1074}, {'from_station': -1430, 'to_station': -170, 'segment_line': -1074}, {'from_station': -2246, 'to_station': -472, 'segment_line': -1110}, {'from_station': -472, 'to_station': -170, 'segment_line': -1110}, {'from_station': -170, 'to_station': -778, 'segment_line': -1110}, {'from_station': -778, 'to_station': -472, 'segment_line': -1146}, {'from_station': -472, 'to_station': -2246, 'segment_line': -1146}, {'from_station': -2246, 'to_station': -1430, 'segment_line': -1146}, {'from_station': -1430, 'to_station': -170, 'segment_line': -1146}, {'any_lines': False}]
+insert_station ('5', 'blueline')
+Yay!
+insert_station ('5', 'yellowline')
+Yay!
+insert_station ('5', 'redline')
+Yay!
+insert_station ('5', 'yellowline')
+Yay!
+None -> No valid plan found
