@@ -106,7 +106,8 @@ class SpaceTransitEnvHTN():
 
         domain["remove_lines/0"] = [
             Method(head=('remove_lines',),
-                   preconditions=Fact(line=V('line')),
+                   preconditions=Fact(line=V('line'), id=V('uid'))&
+                   Fact(segment_line=V('uid')),
                    subtasks=[Task('delete_line', V('line')), Task('remove_lines')]
                    )
         ]

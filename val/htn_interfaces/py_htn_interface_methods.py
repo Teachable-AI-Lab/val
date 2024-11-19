@@ -131,17 +131,15 @@ class PyHtnInterface(AbstractHtnInterface):
             with open("out.txt", 'a') as f:
                 f.write(str(action_name)+" "+str(action_args)+"\n")
             success = self.agent.env.execute_action(action_name, action_args)
-            with open("out.txt", 'a') as f:
-                f.write("Yay!\n")
             while True:
+                with open("out.txt", 'a') as f:
+                    f.write(str(self.agent.env.get_state())+"\n")
                 action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
                 with open("out.txt", 'a') as f:
                     f.write(str(action_name)+" "+str(action_args)+"\n")
                     
 
                 success = self.agent.env.execute_action(action_name, action_args)
-                with open("out.txt", 'a') as f:
-                    f.write("Yay!\n")
         except StopException as e:
             with open("out.txt", 'a') as f:
                 f.write("Nay!\n") 
