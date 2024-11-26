@@ -29,8 +29,8 @@ class GPTCompleter:
             annotated_msgs = [{'role': role, 'content': msg.strip()}] + annotated_msgs
             (role, other_role) = (other_role, role)
 
-        print('RAW MSGS:')
-        print(annotated_msgs)
+        # print('RAW MSGS:')
+        # print(annotated_msgs)
 
         if temp == 0:
             key = hash(('chat', prompt, rep_pen, max_length, stop))

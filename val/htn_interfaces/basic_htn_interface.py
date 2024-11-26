@@ -61,6 +61,9 @@ class BasicHtnInterface(AbstractHtnInterface):
             print(f"Primitives: { self.primitives }")
             print(f"Methods: { self.methods }")
 
+            
+            print(self.agent.env.get_state())
+
             if key in self.primitives and self.agent.confirm_task_execution(task):
                 success = self.agent.env.execute_action(task.name, task.args)
 
