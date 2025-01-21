@@ -124,7 +124,7 @@ class PyHtnInterface(AbstractHtnInterface):
                                  [task], self.domain)
         
         with open("out.txt", 'a') as f:
-            f.write(str(self.agent.env.get_state())+"\n")
+            f.write(task.name+"\n"+str(self.agent.env.get_state())+"\n")
 
         try: 
             action_name, action_args = plan_coroutine.send(None)

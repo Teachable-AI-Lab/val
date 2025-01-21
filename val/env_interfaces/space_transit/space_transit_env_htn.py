@@ -83,6 +83,13 @@ class SpaceTransitEnvHTN():
         ]
         descriptions["remove_train/1"] = "remove train to the given line"
 
+        domain["wait_small/0"] = [
+            Operator(head=('wait',),
+                     preconditions=Fact(line=V("line")),
+                     effects=[]),
+        ]
+        descriptions["wait_small/0"] = "waits for 1 sec"
+
         domain["connect_stations/0"] = [
             #no lines
             Method(head=('connect_stations',),
@@ -90,7 +97,7 @@ class SpaceTransitEnvHTN():
                    (~Fact(to_station=V("uid1")) | ~Fact(from_station=V("uid1")))&
                    Fact(line=V("line"))&
                    Fact(any_lines=False),
-                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('wait_small'), Task('connect_stations')]
                    ),
             Method(head=('connect_stations',),
                    preconditions=Fact(station=V('station1'), unique_id=V("uid1"))&
@@ -99,7 +106,12 @@ class SpaceTransitEnvHTN():
                    (~Fact(to_station=V("uid2")) | ~Fact(from_station=V("uid2")))&
                    Fact(any_lines=True)&
                    Filter(lambda uid1, uid2: uid1 != uid2),
-                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]
+                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('wait_small'), Task('connect_stations')]
+                   ),
+            Method(head=('connect_stations',),
+                   preconditions=Fact(agent_on=V('agent_on'))&
+                   Filter(lambda agent_on: agent_on==True),
+                   subtasks=[Task('wait_small'), Task('connect_stations')]
                    ),
         ]
         descriptions["connect_stations/0"] = "connect all unconnected stations"
@@ -113,6 +125,17 @@ class SpaceTransitEnvHTN():
         ]
         descriptions["remove_lines/0"] = "delete all the lines"
 
+        domain["connect_station_to_lines/1"] = [
+            Method(head=('connect_station_to_lines', V('station'),),
+                   preconditions=Fact(line=V('line'), id=V('uid'))&
+                   Fact(station=V('station'), unique_id=V("uid1"))&
+                   Fact(any_lines=False)&
+                   (~Fact(segment_line=V('uid'), to_station=V("uid1")) | ~Fact(segment_line=V('uid'), from_station=V("uid1"))),
+                   subtasks=[Task('insert_station', V('station'), V('line')), Task('connect_station_to_lines')]
+                   )
+        ]
+        descriptions["connect_station_to_lines/1"] = "Connects a station to all lines"
+
         
 
         return domain, descriptions
@@ -123,6 +146,10 @@ class SpaceTransitEnvHTN():
         """
         val_state = []
         cur_state = self.get_state_from_game()
+
+        with open('val\htn_interfaces\start.json', 'r') as f:
+            data = json.load(f)
+            val_state.append({'agent_on': data['start']})
 
         # line_mapping = {}
         lines = set()
@@ -160,6 +187,8 @@ class SpaceTransitEnvHTN():
             return self.add_train(*args)
         elif action_name == "remove_train":
             return self.remove_train(*args)
+        elif action_name == "wait_small":
+            return self.wait_small(*args)
 
     def send_and_recv(self, message: dict):
         message = json.dumps(message)
@@ -338,6 +367,13 @@ class SpaceTransitEnvHTN():
         print("Result of deleting line: ", result)
 
         return result["Status"] == "Success"
+    
+    def wait_small(self):
+        """
+        waits for 1 seconds
+        """
+        sleep(1)
+        return True
     
     def insert_station(self, station, line):
         """
