@@ -84,8 +84,8 @@ class SpaceTransitEnvHTN():
         descriptions["remove_train/1"] = "remove train to the given line"
 
         domain["wait_small/0"] = [
-            Operator(head=('wait',),
-                     preconditions=Fact(line=V("line")),
+            Operator(head=('wait_small',),
+                     preconditions=[],
                      effects=[]),
         ]
         descriptions["wait_small/0"] = "waits for 1 sec"
@@ -94,23 +94,22 @@ class SpaceTransitEnvHTN():
             #no lines
             Method(head=('connect_stations',),
                    preconditions=Fact(station=V('station1'), unique_id=V("uid1"))&
-                   (~Fact(to_station=V("uid1")) | ~Fact(from_station=V("uid1")))&
+                   (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1")))&
                    Fact(line=V("line"))&
                    Fact(any_lines=False),
-                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('wait_small'), Task('connect_stations')]
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]
                    ),
             Method(head=('connect_stations',),
                    preconditions=Fact(station=V('station1'), unique_id=V("uid1"))&
-                   (~Fact(to_station=V("uid1")) | ~Fact(from_station=V("uid1")))&
+                   (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1")))&
                    Fact(station=V('station2'), unique_id=V("uid2"))&
-                   (~Fact(to_station=V("uid2")) | ~Fact(from_station=V("uid2")))&
+                   #(~Fact(to_station=V("uid2")) & ~Fact(from_station=V("uid2")))&
                    Fact(any_lines=True)&
                    Filter(lambda uid1, uid2: uid1 != uid2),
-                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('wait_small'), Task('connect_stations')]
+                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]
                    ),
             Method(head=('connect_stations',),
-                   preconditions=Fact(agent_on=V('agent_on'))&
-                   Filter(lambda agent_on: agent_on==True),
+                   preconditions=Fact(agent_on=True),
                    subtasks=[Task('wait_small'), Task('connect_stations')]
                    ),
         ]
@@ -189,6 +188,7 @@ class SpaceTransitEnvHTN():
             return self.remove_train(*args)
         elif action_name == "wait_small":
             return self.wait_small(*args)
+        raise Exception("No action matches. Please check action heads")
 
     def send_and_recv(self, message: dict):
         message = json.dumps(message)
