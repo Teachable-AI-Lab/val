@@ -115,6 +115,31 @@ class SpaceTransitEnvHTN():
         ]
         descriptions["connect_stations/0"] = "connect all unconnected stations"
 
+        domain["connect_nearest_stations/0"] = [
+            #no lines
+            Method(head=('connect_nearest_stations',),
+                   preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id"))&
+                   Fact(station=V('station1'), unique_id=V("station1id"))&
+                   Fact(station=V('station2'), unique_id=V("station2id"))&
+                   Fact(any_lines=True),
+                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_nearest_stations')]
+                   ),
+            Method(head=('connect_nearest_stations',),
+                   preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id"))&
+                   Fact(station=V('station1'), unique_id=V("station1id"))&
+                   Fact(station=V('station2'), unique_id=V("station2id"))&
+                   Fact(line=V("line"), id=V('lineId'))&
+                   (Fact(to_station=V("station2id"), segment_line=V('lineId')) | Fact(from_station=V("station2id"), segment_line=V('lineId')))&
+                   Fact(any_lines=False),
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]
+                   ),
+            Method(head=('connect_nearest_stations',),
+                   preconditions=Fact(agent_on=True),
+                   subtasks=[Task('wait_small'), Task('connect_stations')]
+                   ),
+        ]
+        descriptions["connect_nearest_stations/0"] = "connect all unconnected stations to nearest unconnected"
+
         domain["remove_lines/0"] = [
             Method(head=('remove_lines',),
                    preconditions=Fact(line=V('line'), id=V('uid'))&
@@ -128,9 +153,8 @@ class SpaceTransitEnvHTN():
             Method(head=('connect_station_to_lines', V('station'),),
                    preconditions=Fact(line=V('line'), id=V('uid'))&
                    Fact(station=V('station'), unique_id=V("uid1"))&
-                   Fact(any_lines=False)&
-                   (~Fact(segment_line=V('uid'), to_station=V("uid1")) | ~Fact(segment_line=V('uid'), from_station=V("uid1"))),
-                   subtasks=[Task('insert_station', V('station'), V('line')), Task('connect_station_to_lines')]
+                   (~Fact(to_station=V("uid1"), segment_line=V('uid')) & ~Fact(from_station=V("uid1"), segment_line=V('uid'))),
+                   subtasks=[Task('insert_station', V('station'), V('line')), Task('connect_station_to_lines', V('station'))]
                    )
         ]
         descriptions["connect_station_to_lines/1"] = "Connects a station to all lines"
@@ -155,21 +179,46 @@ class SpaceTransitEnvHTN():
         for line in cur_state['lines']:
             val_state.append({'line': self.line_names[line['id']], 'id': line['unique_id']})
             lines.add(line['unique_id'])
-
-        for station in cur_state['stations']:
-            val_state.append({'station': station['human_name'],
-                              'unique_id': station['unique_id']})
+        
+        seen_stations = set()
 
         for segment in cur_state['segments']:
             if segment['which_line'] not in val_state: #TODO debug
                 val_state.append({'from_station': segment['from_station'],
                                   'to_station': segment['to_station'],
                                   'segment_line': segment['which_line']})
+                seen_stations.add(segment['from_station'])
+                seen_stations.add(segment['to_station'])
                 if segment['which_line'] in lines:
                     lines.remove(segment['which_line'])
+
+        for station in cur_state['stations']:
+            val_state.append({'station': station['human_name'],
+                              'unique_id': station['unique_id']})
+            if station['unique_id'] not in seen_stations:
+                closest_station = self.find_closest_station(cur_state['stations'], station)
+                val_state.append({'station_id': station['unique_id'],
+                                  'nearest_station_id': closest_station})
+
+
+        
         val_state.append({'any_lines': len(lines)!=0})
 
         return val_state
+    
+    def find_closest_station(self, station_list, comparison_station):
+        min_dist = None
+        id = -1
+        for station in station_list:
+            if station['unique_id'] == comparison_station['unique_id']:
+                continue
+            distance = math.sqrt(((station['x']-comparison_station['x'])**2)+((station['y']-comparison_station['y'])**2)+((station['z']-comparison_station['z'])**2))
+            if min_dist is None or (distance<min_dist):
+                min_dist = distance
+                id = station['unique_id']
+        
+        return id
+                
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         if action_name == "create_line":
@@ -191,6 +240,7 @@ class SpaceTransitEnvHTN():
         raise Exception("No action matches. Please check action heads")
 
     def send_and_recv(self, message: dict):
+        sleep(0.25)
         message = json.dumps(message)
         attempts = 0
         while attempts < 3:
