@@ -1,6 +1,9 @@
 from typing import List
 from collections import defaultdict
 
+from pynput import keyboard
+import json
+
 from shop2.domain import Operator
 from shop2.domain import Method
 from shop2.domain import flatten
@@ -17,6 +20,21 @@ from shop2.domain import Task
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 # from user_interfaces.abstract_interface import AbstractUserInterface
+
+should_run = True
+with open('start.json', 'w') as f:
+    json.dump({"start": True}, f)
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        return False  # stop listener
+    try:
+        k = key.char  # single-char keys
+    except:
+        k = key.name  # other keys
+    if k in ['q']:  # keys of interest
+        with open('start.json', 'w') as f:
+            json.dump({"start": False}, f)
 
 
 def dict_to_facts(fact_dict_list: list) -> Fact:
@@ -127,11 +145,17 @@ class PyHtnInterface(AbstractHtnInterface):
             f.write(task.name+"\n"+str(self.agent.env.get_state())+"\n")
 
         try: 
+            listener = keyboard.Listener(on_press=on_press)
+            listener.start()
             action_name, action_args = plan_coroutine.send(None)
             with open("out.txt", 'a') as f:
                 f.write(str(action_name)+" "+str(action_args)+"\n")
             success = self.agent.env.execute_action(action_name, action_args)
             while True:
+                with open('start.json', 'r') as f:
+                    data = json.load(f)
+                    if not data["start"]:
+                        break
                 with open("out.txt", 'a') as f:
                     f.write(str(self.agent.env.get_state())+"\n")
                 action_name, action_args = plan_coroutine.send((success, dict_to_facts(self.agent.env.get_state())))
@@ -140,9 +164,14 @@ class PyHtnInterface(AbstractHtnInterface):
                     
 
                 success = self.agent.env.execute_action(action_name, action_args)
+            with open('start.json', 'w') as f:
+                json.dump({"start": True}, f)
+            return True
         except StopException as e:
             with open("out.txt", 'a') as f:
                 f.write("Nay!\n") 
+            listener.stop()
+            listener.join()
             return True
         except FailedPlanException as e:
             print(e)
