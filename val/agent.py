@@ -35,6 +35,9 @@ class ValAgent:
 
     def start(self):
         while True:
+
+            # Get current task node from planner and pass this to the user interface
+
             tasks = [self.verbalize_gpt(t, [arg.name for arg in t.args])
                                         for t, _ in self.htn_interface.get_tasks()]
             self.user_interface.display_known_tasks(tasks)
@@ -43,7 +46,16 @@ class ValAgent:
 
             for task in self.interpret(user_tasks):
                 # TODO do we need to maintain any state across tasks?
-                self.htn_interface.execute_task(task)
+                list_of_plan_trajectories = self.htn_interface.get_plan_trajectories(task, number=5)
+                # list of PlanTrajectory Objects, we need to define what these look like.
+                    # Need instantiated methods, plan trajectories, details neeeded for explanation?
+                
+                user_choice = self.user_interface.present_decomposition(list_of_plan_trajectories)
+
+                if user_choice is None:
+                    self.add_method_from_task(task)
+                else:
+                    self.htn_interface.select_decomposition(list_of_plan_trajectories[user_choice])
 
     def interpret(self, user_tasks: str):
         segmented_tasks = self.segment_gpt(user_tasks)
@@ -70,6 +82,7 @@ class ValAgent:
                 else:
                     task_ungrounded = known_tasks[int(user_correction_index)]
 
+            # Modify to remove add_method so that it doesn't call interpret recursively
             if task_ungrounded is None:
                 for subtask in self.add_method_from_user_task(user_task):
                     yield subtask
