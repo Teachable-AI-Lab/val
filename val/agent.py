@@ -43,19 +43,38 @@ class ValAgent:
             self.user_interface.display_known_tasks(tasks)
 
             user_tasks = self.user_interface.request_user_task()
+            tasks = [task for task in self.interpret(user_tasks)]
+            planner = self.htn_interface.get_planner(tasks)
 
-            for task in self.interpret(user_tasks):
-                # TODO do we need to maintain any state across tasks?
-                list_of_plan_trajectories = self.htn_interface.get_plan_trajectories(task, number=5)
-                # list of PlanTrajectory Objects, we need to define what these look like.
-                    # Need instantiated methods, plan trajectories, details neeeded for explanation?
-                
-                user_choice = self.user_interface.present_decomposition(list_of_plan_trajectories)
+            user_choice = None
 
-                if user_choice is None:
-                    self.add_method_from_task(task)
-                else:
-                    self.htn_interface.select_decomposition(list_of_plan_trajectories[user_choice])
+            try:
+                while True:
+                    if self.user_interface.check_for_break():
+                        break
+
+                    task, method_application = planner.get_next_decomposition()
+                    if method_application is None:
+                        method_application = self.add_method_from_task(task)
+                        planner.apply(method_application)
+                        # planner.apply(method, task, subtasks)
+                        continue
+
+                    user_choice = self.user_interface.confirm_task_decomposition(task, method_application.subtasks)
+
+                    if user_choice is None:
+                        method_application = self.add_method_from_task(task)
+                        planner.apply(method_application)
+                    else:
+                        method.ifit(method_application, user_choice)
+                        if user_choice:
+                            planner.apply(method_application)
+                        #else:
+                        #    planner.mark_incorrect(method, task, subtasks)
+
+            except FailedPlanException:
+                # Signify Failure
+                pass
 
     def interpret(self, user_tasks: str) -> List[Task]:
         """
@@ -110,6 +129,9 @@ class ValAgent:
                         yield subtask
 
     def add_method_from_task(self, task: Task):
+        """
+        Returns an HTN method
+        """
         verbalized_task = self.verbalize_gpt(task, task.args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
         subtasks = []
@@ -128,7 +150,7 @@ class ValAgent:
                     for subtask in subtasks]
 
         preconditions = []
-        self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v)
+        return self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v)
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
