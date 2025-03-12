@@ -57,7 +57,10 @@ class ValAgent:
                 else:
                     self.htn_interface.select_decomposition(list_of_plan_trajectories[user_choice])
 
-    def interpret(self, user_tasks: str):
+    def interpret(self, user_tasks: str) -> List[Task]:
+        """
+        Takes a string of natural language from the user and returns a list of Tasks
+        """
         segmented_tasks = self.segment_gpt(user_tasks)
         while not self.user_interface.segment_confirmation(segmented_tasks):
             # TODO consider adding/editing steps here.
@@ -82,10 +85,13 @@ class ValAgent:
                 else:
                     task_ungrounded = known_tasks[int(user_correction_index)]
 
-            # Modify to remove add_method so that it doesn't call interpret recursively
             if task_ungrounded is None:
-                for subtask in self.add_method_from_user_task(user_task):
-                    yield subtask
+                task_name = self.name_gpt(user_task)
+                task_args = self.gen_gpt(user_task, task_name)
+                if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
+                    task_args = self.user_interface.gen_correction(task_name, task_args,
+                                                           self.env.get_objects())
+                yield Task(task_name, task_args)
 
             else:
                 task_args = self.ground_gpt(user_task, task_ungrounded)
@@ -123,38 +129,6 @@ class ValAgent:
 
         preconditions = []
         self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v)
-
-    def add_method_from_user_task(self, user_task: str) -> Task:
-        """
-        Creates a new HTN method and adds it to self.htn_knowledge.
-        Returns a task name with args that will match the added method.
-
-        This is only called if the HTN method does not already exist.
-        """
-        task_name = self.name_gpt(user_task)
-        user_subtasks = self.user_interface.ask_subtasks(user_task)
-
-        subtasks = []
-        for subtask in self.interpret(user_subtasks):
-            yield subtask
-            subtasks.append(subtask)
-
-        task_args = self.gen_gpt(user_task, task_name, subtasks)
-        if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
-            task_args = self.user_interface.gen_correction(task_name, task_args,
-                                                           self.env.get_objects())
-
-        # TODO maybe consider a gpt module that names these better...
-        arg_map = {arg: V(chr(ord('A')+i))
-                   for i, arg in enumerate(task_args)}
-
-        task_args_v = [arg_map[arg] for arg in task_args]
-        subtasks_v = [Task(task.name, *[arg_map[subarg] if subarg in arg_map else subarg
-                                    for subarg in task.args])
-                    for task in subtasks]
-
-        preconditions = []
-        self.htn_interface.add_method(task_name, task_args_v, preconditions, subtasks_v)
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
@@ -251,10 +225,11 @@ class ValAgent:
 
         return resp
 
-    def gen_gpt(self, user_task: str, task_name: str, subtasks: List[Task]) -> List[str]:
+    def gen_gpt(self, user_task: str, task_name: str) -> List[str]:
 
-        objects = set(arg for task in subtasks for arg in task.args)
-        
+        # objects = set(arg for task in subtasks for arg in task.args)
+        objects = self.env.get_objects()
+
         obj_str = ", ".join(objects)
         prompt = self.gen_prompt % (obj_str, user_task, task_name)
         resp = self.gpt.get_chat_gpt_completion(prompt).strip()
