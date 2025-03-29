@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "shop2@git+https://github.com/Teachable-AI-Lab-TAIL/shop2.git@val",
+    "pyhtn@git+https://github.com/Teachable-AI-Lab/pyHTN.git@planner_updates",
     "py_search@git+https://github.com/cmaclell/py_search@master",
     "pygame",
     "overcooked-ai",
