@@ -53,7 +53,7 @@ class ValAgent:
                     if self.user_interface.check_for_break():
                         break
 
-                    task, method_application = planner.get_next_decomposition()
+                    task, method_application = planner.get_next_method_application()
                     if method_application is None:
                         method_application = self.add_method_from_task(task)
                         self.user_interface.display_added_method(task, method_application.subtasks)
@@ -66,7 +66,7 @@ class ValAgent:
                     if user_choice is None:
                         method_application = self.add_method_from_task(task)
                         self.user_interface.display_added_method(task, method_application.subtasks)
-                        planner.apply(method_application)
+                        planner.apply(task, method_application)
                     else:
                         method = method_application.method
                         method.cond_lrn.ifit(method_application, user_choice)
