@@ -81,19 +81,19 @@ class AbstractUserInterface:
         """
         raise NotImplementedError("Not implemented yet")
    
-    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+    def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
         """
         Takes a user_task and the user_subtasks it decomposes into and asks the
         user if this is the right thing to do, returns bool.
         """
         raise NotImplementedError("Not implemented yet")
+    
+    def display_added_method(self, task: Task, subtasks: List[Task]) -> bool:
+        """
+        Takes a user_task and the user_subtasks. No return value, just displays.
+        """
+        raise NotImplementedError("Not implemented yet")
 
-    #def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
-    #    """
-    #    Takes a user_task and the user_subtasks it decomposes into and asks the
-    #    user if this is the right thing to do, returns bool.
-    #    """
-    #    raise NotImplementedError("Not implemented yet")
 
     def confirm_task_execution(self, user_task: str) -> bool:
         """
