@@ -3,8 +3,9 @@ from typing import Optional
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
-from shop2.domain import Task
-from shop2.common import V
+from pyhtn.domain.task import NetworkTask
+from pyhtn.domain.variable import V
+from pyhtn.exceptions import FailedPlanException
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
@@ -31,7 +32,7 @@ class ValAgent:
 
         self.user_interface = user_interface_class()
         self.env = env
-        self.htn_interface = htn_interface_class(self)
+        self.htn_interface = htn_interface_class(self, self.env)
 
     def start(self):
         while True:
@@ -44,7 +45,8 @@ class ValAgent:
 
             user_tasks = self.user_interface.request_user_task()
             tasks = [task for task in self.interpret(user_tasks)]
-            planner = self.htn_interface.get_planner(tasks)
+            # planner = self.htn_interface.get_planner(tasks)
+            self.htn_interface.add_tasks(tasks)
 
             user_choice = None
 
@@ -53,11 +55,11 @@ class ValAgent:
                     if self.user_interface.check_for_break():
                         break
 
-                    task, method_application = planner.get_next_method_application()
+                    task, method_application = self.htn_interface.get_next_method_application(all_methods=False)
                     if method_application is None:
                         method_application = self.add_method_from_task(task)
-                        self.user_interface.display_added_method(task, method_application.subtasks)
-                        planner.apply(task, method_application)
+                        self.user_interface.display_added_method(task, method_application.method.subtasks)
+                        self.htn_interface.apply_method_application(task, method_application)
                         # planner.apply(method, task, subtasks)
                         continue
 
@@ -65,13 +67,13 @@ class ValAgent:
 
                     if user_choice is None:
                         method_application = self.add_method_from_task(task)
-                        self.user_interface.display_added_method(task, method_application.subtasks)
-                        planner.apply(task, method_application)
+                        self.user_interface.display_added_method(task, method_application.method.subtasks)
+                        self.htn_interface.apply_method_application(method_application)
                     else:
                         method = method_application.method
                         method.cond_lrn.ifit(method_application, user_choice)
                         if user_choice:
-                            planner.apply(task, method_application)
+                            self.htn_interface.apply_method_application(task, method_application)
                         #else:
                         #    planner.mark_incorrect(method, task, subtasks)
 
@@ -79,7 +81,7 @@ class ValAgent:
                 # Signify Failure
                 pass
 
-    def interpret(self, user_tasks: str) -> List[Task]:
+    def interpret(self, user_tasks: str) -> List[NetworkTask]:
         """
         Takes a string of natural language from the user and returns a list of Tasks
         """
@@ -113,7 +115,7 @@ class ValAgent:
                 if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
                     task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env.get_objects())
-                yield Task(task_name, task_args)
+                yield NetworkTask(task_name, task_args)
 
             else:
                 task_args = self.ground_gpt(user_task, task_ungrounded)
@@ -126,15 +128,16 @@ class ValAgent:
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield Task(task_ungrounded.name, *task_args)
+                    yield NetworkTask(task_ungrounded.name, *task_args)
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
 
-    def add_method_from_task(self, task: Task):
+    def add_method_from_task(self, task: NetworkTask):
         """
         Returns an HTN method
         """
+        state = self.env.get_state()
         verbalized_task = self.verbalize_gpt(task, task.args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
         subtasks = []
@@ -147,13 +150,13 @@ class ValAgent:
                    for i, arg in enumerate(task.args)}
 
         task_args_v = [arg_map[arg] for arg in task.args]
-        subtasks_v = [Task(subtask.name,
+        subtasks_v = [NetworkTask(subtask.name,
                          *[arg_map[subarg] if subarg in arg_map else subarg
                                 for subarg in subtask.args])
                     for subtask in subtasks]
 
         preconditions = []
-        return self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v)
+        return self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v, state)
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
@@ -173,11 +176,11 @@ class ValAgent:
         resp = self.gpt.get_chat_gpt_completion(f'{self.name_prompt}"{user_task}"')
         return resp.split('(')[0]
 
-    def map_gpt(self, user_task: str) -> Optional[Task]:
+    def map_gpt(self, user_task: str) -> Optional[NetworkTask]:
         """
         Takes user input and htn_methods and maps to a method.
 
-        Might return... Task("moveTo", V("X"))
+        Might return... NetworkTask("moveTo", V("X"))
         """
 
         # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
@@ -213,7 +216,7 @@ class ValAgent:
 
         return chosen_task
 
-    def ground_gpt(self, user_task: str, task_ungrounded: Task) -> List[str]:
+    def ground_gpt(self, user_task: str, task_ungrounded: NetworkTask) -> List[str]:
         """
         Takes the user task,
         the name from map
@@ -271,7 +274,7 @@ class ValAgent:
         resp = resp.split(",")
         return resp
 
-    def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
+    def verbalize_gpt(self, task_ungrounded: NetworkTask, task_args: List[str]) -> str:
         """
         Takes the task_ungrounded and its args and converts it into an English
         formatted verbalization that can be compared with the user_task.
@@ -288,7 +291,7 @@ class ValAgent:
                 self.para_prompt % (user_task, verbalized_task))
         return res == 'yes'
 
-    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+    def confirm_task_decomposition(self, task: NetworkTask, subtasks: List[NetworkTask]) -> bool:
         # convert task and subtasks into english using GPT prompt.
         # use user interface to confirm with user
         # return bool based on confirmation
@@ -296,7 +299,7 @@ class ValAgent:
         verbalized_subtasks = [self.verbalize_gpt(subtask, subtask.args) for subtask in subtasks]
         return self.user_interface.confirm_task_decomposition(verbalized_task, verbalized_subtasks)
 
-    def confirm_task_execution(self, task: Task) -> bool:
+    def confirm_task_execution(self, task: NetworkTask) -> bool:
         # convert task into english using GPT prompt.
         # use user interface to confirm with user
         # return bool based on confirmation
