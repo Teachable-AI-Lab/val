@@ -56,19 +56,22 @@ class ValAgent:
                     task, method_application = planner.get_next_decomposition()
                     if method_application is None:
                         method_application = self.add_method_from_task(task)
-                        planner.apply(method_application)
+                        self.user_interface.display_added_method(task, method_application.subtasks)
+                        planner.apply(task, method_application)
                         # planner.apply(method, task, subtasks)
                         continue
 
-                    user_choice = self.user_interface.confirm_task_decomposition(task, method_application.subtasks)
+                    user_choice = self.user_interface.select_task_decomposition(task, method_application.subtasks)
 
                     if user_choice is None:
                         method_application = self.add_method_from_task(task)
+                        self.user_interface.display_added_method(task, method_application.subtasks)
                         planner.apply(method_application)
                     else:
-                        method.ifit(method_application, user_choice)
+                        method = method_application.method
+                        method.cond_lrn.ifit(method_application, user_choice)
                         if user_choice:
-                            planner.apply(method_application)
+                            planner.apply(task, method_application)
                         #else:
                         #    planner.mark_incorrect(method, task, subtasks)
 
