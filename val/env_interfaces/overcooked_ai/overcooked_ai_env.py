@@ -20,6 +20,12 @@ from py_search.informed import best_first_search
 
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 
+from shop2.domain import Operator
+from shop2.domain import Method
+from shop2.domain import Task
+from shop2.domain import Filter
+from shop2.fact import Fact
+from shop2.common import V
 
 class OvercookedRouteProblem(Problem):
 
@@ -125,40 +131,137 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
-        return [
-                {"name": "go_to",
-                 "args": ['?object'],
-                 "description": "goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc.",
-                 "preconditions": [{"type": "fact", "object": "?location"} ]
-                 },
-                {"name": "wait20",
-                 "args": [],
-                 "description": "waits for 20 time steps",
-                 "preconditions": []
-                 },
-                {"name": "left",
-                 "args": [],
-                 "description": "Moves one unit left",
-                 "preconditions": []
-                 },
-                {"name": "right",
-                 "args": [],
-                 "description": "Moves one unit right",
-                 "preconditions": []
-                 },
-                {"name": "up",
-                 "args": [],
-                 "description": "Moves one unit up",
-                 "preconditions": []},
-                {"name": "down",
-                 "args": [],
-                 "description": "Moves one unit down",
-                 "preconditions": []},
-                {"name": "interact",
-                 "args": [],
-                 "description": "interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc.",
-                 "preconditions": []}
+        domain= {}
+        descriptions = {}
+        
+        domain["cook/1"] = [
+            Method(
+                head=('cook',V('tomato')),
+                preconditions=(),
+                subtasks=[
+                    Task('get',V('tomato')),
+                    Task('boil',V('tomato')),
                 ]
+            ),
+            Method(
+                head=('cook',V('onion')),
+                preconditions=(),
+                subtasks=[
+                    Task('get',V('onion')),
+                    Task('boil',V('onion')),
+                ]
+            ),
+        ]
+        descriptions["cook/1"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
+
+        domain["get/1"] = [
+            Method(
+                head=('get',V('?object')),
+                preconditions=(),
+                subtasks=[
+                    Task('interact'),
+                    Task('move_to', V('?object')),
+                ]
+            )
+            # Method(
+            #     head=('get',),
+            #     preconditions=(),
+            #     subtasks=[
+            #         Task('move_to', V('?object'))
+            #     ]
+            # )
+        ]
+        descriptions["get/1"] = "Get an object by interacting with and moving to the object's location."
+
+        # domain["boil/1"] = [
+        #     Method(
+        #         head=('boil',V('?object')),
+        #         preconditions=(),
+        #         subtasks=[
+        #             Task('move_to_pot'),
+        #             Task('interact')
+        #         ]
+        #     ),
+        # ]
+        # descriptions["boil/1"] = "Boil the onion by moving to the pot and interacting with it."
+
+        # domain["plate/0"] = [
+        #     Method(
+        #         head=('plate',),
+        #         preconditions=(),
+        #         subtasks=[
+        #             Task('go_to_plate'),
+        #             Task('interact')
+        #         ]
+        #     ),
+        # ]
+        # descriptions["plate/0"] = "Plate the soup by going to the plate area and interacting with it."
+        
+        ####### operators #######
+        domain["move_to/1"] = [
+            Operator(
+                head=('move_to', V('?object')),
+                preconditions=[Fact(type='fact', object=V('?location'))],
+                effects=[]
+            ),
+        ]
+        descriptions["move_to/1"] = "Goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc."
+            
+        domain["wait20/0"] = [
+            Operator(
+                head=('wait20',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["wait20/0"] = "Waits for 20 time steps."
+
+        domain["left/0"] = [
+            Operator(
+                head=('left',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["left/0"] = "Moves one unit left."
+
+        domain["right/0"] = [
+            Operator(
+                head=('right',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["right/0"] = "Moves one unit right."
+
+        domain["up/0"] = [
+            Operator(
+                head=('up',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["up/0"] = "Moves one unit up."
+
+        domain["down/0"] = [
+            Operator(
+                head=('down',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["down/0"] = "Moves one unit down."
+
+        domain["interact/0"] = [
+            Operator(
+                head=('interact',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["interact/0"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc."
+   
+        return domain, descriptions
 
     def get_player_pos_and_or(self):
         return (self.base_env.state.players[self.player_id].position,

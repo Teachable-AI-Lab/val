@@ -8,6 +8,7 @@ from val.utils import get_openai_key
 import threading
 import pygame
 
+
 def render_pygame(env):
     while True:
         env.render_state()
