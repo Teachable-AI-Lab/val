@@ -45,8 +45,10 @@ class ValAgent:
 
             user_tasks = self.user_interface.request_user_task()
             tasks = [task for task in self.interpret(user_tasks)]
+            print(f"Tasks: {tasks}")
             # planner = self.htn_interface.get_planner(tasks)
             self.htn_interface.add_tasks(tasks)
+            #task here is a list of dicts. eg [{'name': 'moveTo', 'arguments': ['onion']}] 
 
             user_choice = None
 
@@ -56,6 +58,7 @@ class ValAgent:
                         break
 
                     task, method_application = self.htn_interface.get_next_method_application(all_methods=False)
+                    print(f"Task: {task}, Method Application: {method_application}")
                     if method_application is None:
                         method_application = self.add_method_from_task(task)
                         self.user_interface.display_added_method(task, method_application.method.subtasks)
@@ -63,7 +66,7 @@ class ValAgent:
                         # planner.apply(method, task, subtasks)
                         continue
 
-                    user_choice = self.user_interface.select_task_decomposition(task, method_application.subtasks)
+                    user_choice = self.user_interface.select_task_decomposition(task, method_application.method.subtasks)
 
                     if user_choice is None:
                         method_application = self.add_method_from_task(task)
@@ -71,9 +74,8 @@ class ValAgent:
                         self.htn_interface.apply_method_application(method_application)
                     else:
                         method = method_application.method
-                        method.cond_lrn.ifit(method_application, user_choice)
-                        if user_choice:
-                            self.htn_interface.apply_method_application(task, method_application)
+                        #method.cond_lrn.ifit(method_application, user_choice)
+                        self.htn_interface.apply_method_application(task, method_application)
                         #else:
                         #    planner.mark_incorrect(method, task, subtasks)
 
@@ -87,17 +89,19 @@ class ValAgent:
         """
         segmented_tasks = self.segment_gpt(user_tasks)
         while not self.user_interface.segment_confirmation(segmented_tasks):
+            #not segment correctly
             # TODO consider adding/editing steps here.
             user_tasks = self.user_interface.ask_rephrase(user_tasks)
             segmented_tasks = self.segment_gpt(user_tasks)
 
         for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
-
+            # map_gpt: go to map to moveTo, map the action(predicate)
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
                   (task_ungrounded is not None and
                    not self.user_interface.map_confirmation(user_task, task_ungrounded.name))):
+                #correct the map result
                 # TODO add to htn interface
                 # TODO consider how we convert tasks to strings and handle args
                 known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
@@ -115,10 +119,12 @@ class ValAgent:
                 if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
                     task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env.get_objects())
-                yield NetworkTask(task_name, task_args)
+                yield {'name': str(task_ungrounded.name), 'arguments':list(task_args)}
 
             else:
+            # ground task objects
                 task_args = self.ground_gpt(user_task, task_ungrounded)
+                # if pick the wrong object
                 if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
                     task_args = self.user_interface.ground_correction(task_ungrounded.name,
                                                                       task_args,
@@ -128,7 +134,8 @@ class ValAgent:
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield NetworkTask(task_ungrounded.name, *task_args)
+                    yield {'name': str(task_ungrounded.name), 'arguments':list(task_args)}
+                # returns the mapped task name and the arguments
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
