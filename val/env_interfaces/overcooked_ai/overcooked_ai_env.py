@@ -20,12 +20,18 @@ from py_search.informed import best_first_search
 
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 
-from shop2.domain import Operator
-from shop2.domain import Method
-from shop2.domain import Task
-from shop2.domain import Filter
-from shop2.fact import Fact
-from shop2.common import V
+from pyhtn.domain.method import NetworkMethod
+from pyhtn.domain.operators import NetworkOperator
+from pyhtn.domain.variable import V
+from pyhtn.conditions.fact import Fact
+from pyhtn.domain.task import GroundedTask, NetworkTask
+
+# from shop2.domain import Operator
+# from shop2.domain import Method
+# from shop2.domain import Task
+# from shop2.domain import Filter
+# from shop2.fact import Fact
+# from shop2.common import V
 
 class OvercookedRouteProblem(Problem):
 
@@ -135,36 +141,30 @@ class OvercookedAIEnv(AbstractEnvInterface):
         descriptions = {}
         
         domain["cook/1"] = [
-            Method(
-                head=('cook',V('tomato')),
+            NetworkMethod(
+                name='cook',
+                args=(V('onion'),),
                 preconditions=(),
                 subtasks=[
-                    Task('get',V('tomato')),
-                    Task('boil',V('tomato')),
-                ]
-            ),
-            Method(
-                head=('cook',V('onion')),
-                preconditions=(),
-                subtasks=[
-                    Task('get',V('onion')),
-                    Task('boil',V('onion')),
+                    NetworkTask(name='get',args=(V('onion'),))
+                    #NetworkTask('boil',V('onion')),
                 ]
             ),
         ]
         descriptions["cook/1"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
 
         domain["get/1"] = [
-            Method(
-                head=('get',V('?object')),
+            NetworkMethod(
+                name='get',
+                args=(V('?object'),),
                 preconditions=(),
                 subtasks=[
-                    Task('interact'),
-                    Task('move_to', V('?object')),
+                    NetworkOperator(name='interact',effects=[]),
+                    NetworkOperator(name='move_to', effects=[],args=(V('?object'),)),
                 ]
             )
             # Method(
-            #     head=('get',),
+            #     name=('get',),
             #     preconditions=(),
             #     subtasks=[
             #         Task('move_to', V('?object'))
@@ -175,7 +175,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         # domain["boil/1"] = [
         #     Method(
-        #         head=('boil',V('?object')),
+        #         name=('boil',V('?object')),
         #         preconditions=(),
         #         subtasks=[
         #             Task('move_to_pot'),
@@ -187,7 +187,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         # domain["plate/0"] = [
         #     Method(
-        #         head=('plate',),
+        #         name=('plate',),
         #         preconditions=(),
         #         subtasks=[
         #             Task('go_to_plate'),
@@ -199,67 +199,71 @@ class OvercookedAIEnv(AbstractEnvInterface):
         
         ####### operators #######
         domain["move_to/1"] = [
-            Operator(
-                head=('move_to', V('?object')),
+            NetworkOperator(
+                name='move_to', 
+                args=(V('?object'),),
                 preconditions=[Fact(type='fact', object=V('?location'))],
                 effects=[]
             ),
         ]
         descriptions["move_to/1"] = "Goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc."
-            
-        domain["wait20/0"] = [
-            Operator(
-                head=('wait20',),
-                preconditions=(),
-                effects=[]
-            ),
-        ]
-        descriptions["wait20/0"] = "Waits for 20 time steps."
-
-        domain["left/0"] = [
-            Operator(
-                head=('left',),
-                preconditions=(),
-                effects=[]
-            ),
-        ]
-        descriptions["left/0"] = "Moves one unit left."
-
-        domain["right/0"] = [
-            Operator(
-                head=('right',),
-                preconditions=(),
-                effects=[]
-            ),
-        ]
-        descriptions["right/0"] = "Moves one unit right."
-
-        domain["up/0"] = [
-            Operator(
-                head=('up',),
-                preconditions=(),
-                effects=[]
-            ),
-        ]
-        descriptions["up/0"] = "Moves one unit up."
-
-        domain["down/0"] = [
-            Operator(
-                head=('down',),
-                preconditions=(),
-                effects=[]
-            ),
-        ]
-        descriptions["down/0"] = "Moves one unit down."
-
+        
         domain["interact/0"] = [
-            Operator(
-                head=('interact',),
+            NetworkOperator(
+                name='interact',
+                args=(),
                 preconditions=(),
                 effects=[]
             ),
         ]
         descriptions["interact/0"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc."
+            
+        # domain["wait20/0"] = [
+        #     NetworkOperator(
+        #         name=('wait20',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["wait20/0"] = "Waits for 20 time steps."
+
+        # domain["left/0"] = [
+        #     NetworkOperator(
+        #         name=('left',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["left/0"] = "Moves one unit left."
+
+        # domain["right/0"] = [
+        #     NetworkOperator(
+        #         name=('right',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["right/0"] = "Moves one unit right."
+
+        # domain["up/0"] = [
+        #     NetworkOperator(
+        #         name=('up',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["up/0"] = "Moves one unit up."
+
+        # domain["down/0"] = [
+        #     NetworkOperator(
+        #         name=('down',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["down/0"] = "Moves one unit down."
+
+        
    
         return domain, descriptions
 
@@ -270,6 +274,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
     def get_state(self) -> dict:
         state = []
 
+        # Players
         for i, player in enumerate(self.base_env.state.players):
             orientation = None
             if player.orientation[0] == -1:
@@ -281,67 +286,66 @@ class OvercookedAIEnv(AbstractEnvInterface):
             elif player.orientation[1] == 1:
                 orientation = "up"
 
-            state.append({'object': 'player',
-                          'player_index': i,
-                          'x': player.position[0],
-                          'y': player.position[1],
-                          'orientation': orientation,
-                          'is_me': str(i == self.player_id),
-                          'holding': player.held_object})
+            state.append({
+                'id': f'player_{i}',
+                'object': 'player',
+                'player_index': i,
+                'x': player.position[0],
+                'y': player.position[1],
+                'orientation': orientation,
+                'is_me': str(i == self.player_id),
+                'holding': player.held_object
+            })
 
+        # Static environment objects
         for x, y in self.base_env.mdp.get_dish_dispenser_locations():
-            state.append({'object': 'dish_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'dish_{x}_{y}', 'object': 'dish_dispenser', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_onion_dispenser_locations():
-            state.append({'object': 'onion_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'onion_{x}_{y}', 'object': 'onion_dispenser', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_tomato_dispenser_locations():
-            state.append({'object': 'tomato_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'tomato_{x}_{y}', 'object': 'tomato_dispenser', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_serving_locations():
-            state.append({'object': 'serving_pad', 'x': x, 'y': y})
+            state.append({'id': f'serving_{x}_{y}', 'object': 'serving_pad', 'x': x, 'y': y})
 
+        # Pots
         pots = self.base_env.mdp.get_pot_states(self.base_env.state)
 
         for x, y in pots['empty']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'empty',
-                          'onion': 0, 'tomato': 0})
-        for x, y in pots['1_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '1_items'})
-        for x, y in pots['2_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '2_items'})
-        for x, y in pots['3_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '3_items'})
-        for x, y in pots['ready']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'ready'})
-        for x, y in pots['cooking']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'cooking'})
+            state.append({'id': f'pot_{x}_{y}', 'object': 'pot', 'x': x, 'y': y, 'status': 'empty',
+                        'onion': 0, 'tomato': 0})
+        for status in ['1_items', '2_items', '3_items', 'ready', 'cooking']:
+            for x, y in pots[status]:
+                state.append({'id': f'pot_{x}_{y}', 'object': 'pot', 'x': x, 'y': y, 'status': status})
 
+        # Counter objects
         counter_objects = self.base_env.mdp.get_counter_objects_dict(self.base_env.state)
         for obj_type in counter_objects:
             for x, y in counter_objects[obj_type]:
-                state.append({'object': obj_type, 'x': x, 'y': y})
+                state.append({'id': f'{obj_type}_{x}_{y}', 'object': obj_type, 'x': x, 'y': y})
 
-        # print(self.base_env.mdp.terrain_mtx)
-        # print()
-        # for row in self.base_env.mdp.terrain_mtx:
-        #     print(row)
-        # print(self.base_env)
+        # Terrain
         for x in range(self.base_env.mdp.width):
             for y in range(self.base_env.mdp.height):
-                state.append({'terrain': self.base_env.mdp.terrain_mtx[y][x],
-                              'x': x,
-                              'y': y})
+                state.append({'id': f'terrain_{x}_{y}',
+                            'terrain': self.base_env.mdp.terrain_mtx[y][x],
+                            'x': x,
+                            'y': y})
 
-        for order in self.base_env.state.all_orders:
-            state.append({'order': str(order),
-                          'onion': order._ingredients.count('onion'),
-                          'tomato': order._ingredients.count('tomato')})
+        # Orders
+        for i, order in enumerate(self.base_env.state.all_orders):
+            state.append({'id': f'order_{i}',
+                        'order': str(order),
+                        'onion': order._ingredients.count('onion'),
+                        'tomato': order._ingredients.count('tomato')})
 
-        state.append({'timestep': self.base_env.state.timestep})        
+        # Timestep (wrap it in a dict with id)
+        state.append({'id': 'timestep', 'timestep': self.base_env.state.timestep})
 
-        # pprint(state) 
         return state
+
 
     def get_route_plan(self, target):
         pos, orr = self.get_player_pos_and_or()
