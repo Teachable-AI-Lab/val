@@ -52,6 +52,9 @@ class WebInterface:
         self.sio.emit('message', {'type': 'display_added_method', 
                                   'text': subtasks})
         return
+    
+    def check_for_break(self) -> bool:
+        return False
         
     def edit_decomposition(self,best_match_decomposition):
         """

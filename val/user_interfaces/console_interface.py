@@ -23,6 +23,35 @@ class ConsoleUserInterface(AbstractUserInterface):
         self.disable_gen_correction = disable_gen_correction
         self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
         self.disable_confirm_task_execution = disable_confirm_task_execution
+        
+        
+    def check_for_break(self) -> bool:
+        return False
+    
+    def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> Optional[int]:
+        print(f"\nMain Task: {task}\n")
+        print("Choose a task decomposition method:")
+        for idx, subtask in enumerate(subtasks):
+            option = chr(ord('a') + idx)
+            print(f"  {option}) {subtask}")
+
+        print("\nEnter the letter of the decomposition to select it (e.g., a, b, c), or type 'NA' to skip:")
+        while True:
+            user_input = input("Your choice: ").strip().lower()
+            if user_input == 'na':
+                return None
+            elif len(user_input) == 1 and 'a' <= user_input <= chr(ord('a') + len(subtasks) - 1):
+                return ord(user_input) - ord('a')
+            else:
+                print("Invalid input. Please enter a valid option (a, b, ...) or 'NA'.")
+    
+    def display_added_method(self, task: Task, subtasks: List[Task]) -> None: 
+        print("Added Decomposition Method:")
+        print(f"Main Task: {task.name}")
+        print("Subtasks:")
+        for i, subtask in enumerate(subtasks, start=1):
+            print(f"  {i}. {subtask.name}")
+
                
     def request_user_task(self) -> str:
         user_task = input(f"How can I help you today? ")
