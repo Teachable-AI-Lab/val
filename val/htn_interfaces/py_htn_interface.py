@@ -32,7 +32,8 @@ class PyHtnInterface(AbstractHtnInterface):
         # TODO consider how and in what way we need the user interface
         # self.user_interface = user_interface
         self.task_description = {}
-        self.domain, self.task_descriptions = dict_to_operators(self.agent.env.get_actions())
+        self.domain, self.task_descriptions = self.agent.env.get_actions()
+        # initial state, authored HTN is passed to the planner
         self.planner = HtnPlanner(domain=self.domain, env=self.env)
 
 
@@ -40,17 +41,19 @@ class PyHtnInterface(AbstractHtnInterface):
         """
         Return a list of ungrounded tasks (no repeats).
         """
+        # return self.domain, self.task_descriptions
         return list(
                     set(
                         [
                          (
-                             NetworkTask(method.head[0],
-                            *[v for v in method.head[1:]]), self.task_descriptions[key]
+                            NetworkTask(method.head[0],
+                            list(method.head[1:])), self.task_descriptions[key]
                          )
                          for key in self.domain for method in self.domain[key]
                         ]
                     )
         )
+        # head is defined in pyHTN, self.head = (self.name, *self.args)
         # return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
         #                  for ele in self.domain for operator in self.domain[ele]]))
 
@@ -118,8 +121,12 @@ class PyHtnInterface(AbstractHtnInterface):
     def get_next_method_application(self, all_methods: bool = False):
         state = self.agent.env.get_state()
         task, methods = self.planner.get_next_method_application(all_methods)
-        return [MethodApplication(method=method, match=task.args, state=state) for method in methods]
-
+        #generate hash by deal methodAapplication.id in web interface
+        return task, MethodApplication(method=methods[0], match=task.args, state=state)
+        return task, [MethodApplication(method=method, match=task.args, state=state) for method in methods]
+    
+    def apply_method_application(self, task, method_to_apply: Any):
+        self.planner.apply_method_application(task, method_to_apply)
 
 def dict_to_facts(fact_dict_list: list) -> AND:
     state = []
