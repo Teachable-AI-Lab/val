@@ -3,9 +3,14 @@ from typing import Optional
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
-from pyhtn.domain.task import NetworkTask
+
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
 from pyhtn.domain.variable import V
 from pyhtn.exceptions import FailedPlanException
+
+
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
@@ -38,7 +43,6 @@ class ValAgent:
         while True:
 
             # Get current task node from planner and pass this to the user interface
-
             tasks = [self.verbalize_gpt(t, [arg.name for arg in t.args])
                                         for t, _ in self.htn_interface.get_tasks()]
             self.user_interface.display_known_tasks(tasks)
@@ -57,33 +61,56 @@ class ValAgent:
                     if self.user_interface.check_for_break():
                         break
 
-                    task, method_application = self.htn_interface.get_next_method_application(all_methods=False)
-                    print(f"Task: {task}, Method Application: {method_application}")
-                    if method_application is None:
-                        method_application = self.add_method_from_task(task)
-                        self.user_interface.display_added_method(task, method_application.method.subtasks)
-                        self.htn_interface.apply_method_application(task, method_application)
-                        # planner.apply(method, task, subtasks)
-                        continue
+                    # Plan through HTN until next non-primitive task.
+                    trace = self.htn_interface.plan_to_next_decomposition()
+                    print("TRACE")
+                    trace.print_trace()
 
-                    user_choice = self.user_interface.select_task_decomposition(task, method_application.method.subtasks)
+                    # Get the method executions considered by the planner
+                    task_exec, method_execs = self.htn_interface.get_next_method_execs()
+                    print(f"TaskEx: {task_exec}, MethodExs: {method_execs}")
 
-                    if user_choice is None:
-                        method_application = self.add_method_from_task(task)
-                        self.user_interface.display_added_method(task, method_application.method.subtasks)
-                        self.htn_interface.apply_method_application(method_application)
-                    else:
-                        method = method_application.method
-                        #method.cond_lrn.ifit(method_application, user_choice)
-                        self.htn_interface.apply_method_application(task, method_application)
-                        #else:
-                        #    planner.mark_incorrect(method, task, subtasks)
+                    # Update the HTN plan visualization in the user interface
+                    root = trace.get_prev_root()
+                    self.user_interface.update_graph_vis(root)
+
+                    # If there are any MethodExs, wait for the user to assign them
+                    #  with a reward label: 1, -1 (or not: None) and have the 
+                    #  user_interface decide which method_exec will be applied
+                    next_method_exec = None
+                    if(method_execs):
+                        next_method_exec, rewards = \
+                            self.user_interface.query_next_decomposition_and_rewards(
+                                task_exec, method_execs
+                            )
+
+                    # If there is no next_method_exec because:
+                    #  1. Matching in the planner failed or 
+                    #  2. The user decided to describe their own method
+                    #  Then query the user to describe the grounded subtasks of the 
+                    #  decomposition. This creates the next method execution.
+                    if(next_method_exec is None):
+                        next_method_exec = self.query_new_method_exec(task_exec)
+                        sel_method = next_method_exec.method
+                        self.user_interface.display_added_method(task, sel_method.subtasks)
+                        rewards.append(1)
+                        method_execs.append(next_method_exec)
+                        
+                    # Stage next_method_exec so that it is applied when 
+                    #  planning continues in the next loop 
+                    self.htn_interface.stage_method_exec(next_method_exec)
+
+                    # Apply any rewards that were assigned 
+                    for method_exec, reward in zip(method_execs, rewards):
+                        method = method_exec.method
+                        # method.cond_lrn.ifit(method_exec, 1)
+                    
 
             except FailedPlanException:
                 # Signify Failure
                 pass
 
-    def interpret(self, user_tasks: str) -> List[NetworkTask]:
+    def interpret(self, user_tasks: str) -> List[Task]:
         """
         Takes a string of natural language from the user and returns a list of Tasks
         """
@@ -96,6 +123,8 @@ class ValAgent:
 
         for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
+            print("task_ungrounded", task_ungrounded)
+
             # map_gpt: go to map to moveTo, map the action(predicate)
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
@@ -119,7 +148,7 @@ class ValAgent:
                 if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
                     task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env.get_objects())
-                yield {'name': str(task_ungrounded.name), 'arguments':list(task_args)}
+                yield Task(str(task_ungrounded.name), args=list(task_args))
 
             else:
             # ground task objects
@@ -134,36 +163,52 @@ class ValAgent:
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield {'name': str(task_ungrounded.name), 'arguments':list(task_args)}
+                    yield Task(str(task_ungrounded.name), args=list(task_args))
                 # returns the mapped task name and the arguments
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
 
-    def add_method_from_task(self, task: NetworkTask):
+    def query_new_method_exec(self, task_exec: TaskEx):
         """
         Returns an HTN method
         """
         state = self.env.get_state()
-        verbalized_task = self.verbalize_gpt(task, task.args)
+        task = task_exec.task 
+        task_args = task_exec.match 
+        verbalized_task = self.verbalize_gpt(task, task_args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
         subtasks = []
         for subtask in self.interpret(user_subtasks):
-            yield subtask
             subtasks.append(subtask)
 
         # TODO maybe consider a gpt module that names these better...
         arg_map = {arg: V(chr(ord('A')+i))
-                   for i, arg in enumerate(task.args)}
+                   for i, arg in enumerate(task_args)}
 
-        task_args_v = [arg_map[arg] for arg in task.args]
-        subtasks_v = [NetworkTask(subtask.name,
-                         *[arg_map[subarg] if subarg in arg_map else subarg
-                                for subarg in subtask.args])
-                    for subtask in subtasks]
+        task_args_v = [arg_map[arg] for arg in task_args]
 
-        preconditions = []
-        return self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v, state)
+        subtasks_v = []
+        subtask_execs = []
+        for subtask in subtasks:
+            v_args = [arg_map[subarg] if subarg in arg_map else subarg
+                        for subarg in subtask.args]
+            subtask_v = Task(subtask.name, args=v_args)
+            subtask_exec = TaskEx(subtask_v, state, match=subtask.args)
+            subtasks_v.append(subtask_v)
+            subtask_execs.append(subtask_exec)
+
+        method = Method(task.name, args=task_args_v, subtasks=subtasks_v)
+        method_exec = MethodEx(method, state,
+            match=task_args,
+            parent_task_exec=task_exec,
+            subtask_execs=subtask_execs
+        )
+        for subtask_exec in subtask_execs:
+            subtask_exec.parent_exec = method_exec
+
+        self.htn_interface.add_method_exec(method_exec)
+        return method_exec
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
@@ -183,11 +228,11 @@ class ValAgent:
         resp = self.gpt.get_chat_gpt_completion(f'{self.name_prompt}"{user_task}"')
         return resp.split('(')[0]
 
-    def map_gpt(self, user_task: str) -> Optional[NetworkTask]:
+    def map_gpt(self, user_task: str) -> Optional[Task]:
         """
         Takes user input and htn_methods and maps to a method.
 
-        Might return... NetworkTask("moveTo", V("X"))
+        Might return... Task("moveTo", V("X"))
         """
 
         # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
@@ -223,7 +268,7 @@ class ValAgent:
 
         return chosen_task
 
-    def ground_gpt(self, user_task: str, task_ungrounded: NetworkTask) -> List[str]:
+    def ground_gpt(self, user_task: str, task_ungrounded: Task) -> List[str]:
         """
         Takes the user task,
         the name from map
@@ -281,7 +326,7 @@ class ValAgent:
         resp = resp.split(",")
         return resp
 
-    def verbalize_gpt(self, task_ungrounded: NetworkTask, task_args: List[str]) -> str:
+    def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
         """
         Takes the task_ungrounded and its args and converts it into an English
         formatted verbalization that can be compared with the user_task.
@@ -298,7 +343,7 @@ class ValAgent:
                 self.para_prompt % (user_task, verbalized_task))
         return res == 'yes'
 
-    def confirm_task_decomposition(self, task: NetworkTask, subtasks: List[NetworkTask]) -> bool:
+    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
         # convert task and subtasks into english using GPT prompt.
         # use user interface to confirm with user
         # return bool based on confirmation
@@ -306,7 +351,7 @@ class ValAgent:
         verbalized_subtasks = [self.verbalize_gpt(subtask, subtask.args) for subtask in subtasks]
         return self.user_interface.confirm_task_decomposition(verbalized_task, verbalized_subtasks)
 
-    def confirm_task_execution(self, task: NetworkTask) -> bool:
+    def confirm_task_execution(self, task: Task) -> bool:
         # convert task into english using GPT prompt.
         # use user interface to confirm with user
         # return bool based on confirmation

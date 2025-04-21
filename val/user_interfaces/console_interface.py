@@ -1,8 +1,8 @@
-from typing import List
-from typing import Optional
+from typing import List, Sequence, Optional, Tuple
 
 from val.utils import Task
 from val.user_interfaces.abstract_interface import AbstractUserInterface
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
 
 
 class ConsoleUserInterface(AbstractUserInterface):
@@ -12,6 +12,8 @@ class ConsoleUserInterface(AbstractUserInterface):
                  disable_ground_confirmation: bool = False, disable_ground_correction: bool = False,
                  disable_gen_confirmation: bool = False, disable_gen_correction: bool = False,
                  disable_confirm_task_decomposition: bool = False, disable_confirm_task_execution: bool = False, 
+                 next_select_kind = "one at a time"
+
                  ):
         self.disable_segment_confirmation = disable_segment_confirmation
         self.disable_map_confirmation = disable_map_confirmation
@@ -23,18 +25,36 @@ class ConsoleUserInterface(AbstractUserInterface):
         self.disable_gen_correction = disable_gen_correction
         self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
         self.disable_confirm_task_execution = disable_confirm_task_execution
+        self.next_select_kind = next_select_kind
         
         
     def check_for_break(self) -> bool:
         return False
-    
-    def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> Optional[int]:
+
+    def _confirm_task_decomposition(self, task_exec, method_exec):
+        if self.disable_confirm_task_decomposition:
+            return True
+        subtask_execs =  method_exec.subtask_execs
+
+        subtasks_str = f"[{', '.join([x.fn_str() for x in subtask_execs])}]"
+
+        while True:
+            print(f"Should I decompose { task_exec.fn_str() } to { subtasks_str }?")
+            users_choice = input("Please enter 'y' or 'n': ").strip().lower()
+            if users_choice in ['y', 'n']:
+                break
+            print("Invalid input. Please enter 'y' or 'n'.")
+        return users_choice == 'y'
+
+    def _select_task_decomposition(self, task_exec, method_execs):
         print(f"\nMain Task: {task}\n")
         print("Choose a task decomposition method:")
-        for idx, subtask in enumerate(subtasks):
-            option = chr(ord('a') + idx)
-            print(f"  {option}) {subtask}")
 
+        for i, method_exec in enumerate(method_execs):
+            subtask_execs =  method_exec.subtask_execs
+            option = chr(ord('a') + i)
+            print(f"  {option}) {subtask_execs}")
+            
         print("\nEnter the letter of the decomposition to select it (e.g., a, b, c), or type 'NA' to skip:")
         while True:
             user_input = input("Your choice: ").strip().lower()
@@ -44,6 +64,26 @@ class ConsoleUserInterface(AbstractUserInterface):
                 return ord(user_input) - ord('a')
             else:
                 print("Invalid input. Please enter a valid option (a, b, ...) or 'NA'.")
+
+    
+    def query_next_decomposition_and_rewards(self, 
+        task_exec: TaskEx, 
+        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+
+        rewards = [None]*len(method_execs)
+        if(self.next_select_kind == "one at a time"):
+            for i, method_exec in enumerate(method_execs):
+                confirmed = self._confirm_task_decomposition(task_exec, method_exec)
+                if(not confirmed):
+                    rewards[i] = -1.0
+                else:
+                    rewards[i] = 1.0
+                    return method_exec, rewards 
+        else:
+            index = self._select_task_decomposition(task_exec, method_execs)
+            rewards[index] = 1.0
+            return method_execs[index], rewards 
+        
     
     def display_added_method(self, task: Task, subtasks: List[Task]) -> None: 
         print("Added Decomposition Method:")
@@ -190,6 +230,13 @@ class ConsoleUserInterface(AbstractUserInterface):
         print("Known tasks:")
         for i, task in enumerate(tasks):
             print(f"({i}): {task}")
+
+    def update_graph_vis(self, root_task_exec):
+        tree_dict = root_task_exec.tree_to_dict()
+        # pprint(tree_dict, sort_dicts=False)
+        print('---- HTN Graph Visualization ----')
+        print(tree_dict_to_str(tree_dict, show_methods=False, show_operators=False))
+        print('----          end            ----')
 
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface(disable_segment_confirmation=True)

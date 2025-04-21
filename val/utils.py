@@ -5,7 +5,7 @@ from dataclasses import field
 from typing import Any
 from typing import Tuple
 from typing import Union
-from shop2.domain import Task
+from pyhtn.htn import Task
 
 
 def load_prompt(prompt_fn: str) -> str:

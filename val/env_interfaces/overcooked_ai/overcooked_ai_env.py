@@ -20,11 +20,11 @@ from py_search.informed import best_first_search
 
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 
-from pyhtn.domain.method import NetworkMethod
-from pyhtn.domain.operators import NetworkOperator
-from pyhtn.domain.variable import V
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
 from pyhtn.conditions.fact import Fact
-from pyhtn.domain.task import GroundedTask, NetworkTask
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
+
 
 # from shop2.domain import Operator
 # from shop2.domain import Method
@@ -122,7 +122,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             self.screen = pygame.display.set_mode((rendered_width, rendered_height), pygame.RESIZABLE)
 
         self.screen.blit(surface, (0, 0))
-        pygame.display.flip()
+        # pygame.display.flip()
         self.clock.tick(10)
 
     def get_objects(self) -> List[str]:
@@ -140,27 +140,27 @@ class OvercookedAIEnv(AbstractEnvInterface):
         domain= {}
         descriptions = {}
         
-        domain["cook/1"] = [
-            NetworkMethod(
+        domain["cook"] = [
+            Method(
                 name='cook',
-                args=(V('onion'),),
-                preconditions=(),
+                args=(V('object'),),
+                preconditions=[],
                 subtasks=[
-                    NetworkTask(name='get',args=(V('onion'),))
-                    #NetworkTask('boil',V('onion')),
+                    Task('get', V('object')),
+                    Task('boil',V('object')),
                 ]
             ),
         ]
-        descriptions["cook/1"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
+        descriptions["cook"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
 
-        domain["get/1"] = [
-            NetworkMethod(
+        domain["get"] = [
+            Method(
                 name='get',
-                args=(V('?object'),),
-                preconditions=(),
+                args=(V('object'),),
+                preconditions=[],
                 subtasks=[
-                    NetworkOperator(name='interact',effects=[]),
-                    NetworkOperator(name='move_to', effects=[],args=(V('?object'),)),
+                    Task('move_to', V('object')),
+                    Task('interact'),   
                 ]
             )
             # Method(
@@ -171,19 +171,20 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ]
             # )
         ]
-        descriptions["get/1"] = "Get an object by interacting with and moving to the object's location."
+        descriptions["get"] = "Get an object by interacting with and moving to the object's location."
 
-        # domain["boil/1"] = [
-        #     Method(
-        #         name=('boil',V('?object')),
-        #         preconditions=(),
-        #         subtasks=[
-        #             Task('move_to_pot'),
-        #             Task('interact')
-        #         ]
-        #     ),
-        # ]
-        # descriptions["boil/1"] = "Boil the onion by moving to the pot and interacting with it."
+        domain["boil"] = [
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('move_to', 'pot'),
+                    Task('interact')
+                ]
+            ),
+        ]
+        descriptions["boil"] = "Boil the onion by moving to the pot and interacting with it."
 
         # domain["plate/0"] = [
         #     Method(
@@ -198,28 +199,28 @@ class OvercookedAIEnv(AbstractEnvInterface):
         # descriptions["plate/0"] = "Plate the soup by going to the plate area and interacting with it."
         
         ####### operators #######
-        domain["move_to/1"] = [
-            NetworkOperator(
+        domain["move_to"] = [
+            Operator(
                 name='move_to', 
-                args=(V('?object'),),
-                preconditions=[Fact(type='fact', object=V('?location'))],
+                args=(V('location'),),
+                # preconditions=[Fact(type='fact', object=V('location'))],
                 effects=[]
             ),
         ]
-        descriptions["move_to/1"] = "Goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc."
+        descriptions["move_to"] = "Goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc."
         
-        domain["interact/0"] = [
-            NetworkOperator(
+        domain["interact"] = [
+            Operator(
                 name='interact',
                 args=(),
-                preconditions=(),
+                preconditions=[],
                 effects=[]
             ),
         ]
-        descriptions["interact/0"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc."
+        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc."
             
         # domain["wait20/0"] = [
-        #     NetworkOperator(
+        #     Operator(
         #         name=('wait20',),
         #         preconditions=(),
         #         effects=[]
@@ -228,7 +229,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         # descriptions["wait20/0"] = "Waits for 20 time steps."
 
         # domain["left/0"] = [
-        #     NetworkOperator(
+        #     Operator(
         #         name=('left',),
         #         preconditions=(),
         #         effects=[]
@@ -237,7 +238,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         # descriptions["left/0"] = "Moves one unit left."
 
         # domain["right/0"] = [
-        #     NetworkOperator(
+        #     Operator(
         #         name=('right',),
         #         preconditions=(),
         #         effects=[]
@@ -246,7 +247,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         # descriptions["right/0"] = "Moves one unit right."
 
         # domain["up/0"] = [
-        #     NetworkOperator(
+        #     Operator(
         #         name=('up',),
         #         preconditions=(),
         #         effects=[]
@@ -255,7 +256,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         # descriptions["up/0"] = "Moves one unit up."
 
         # domain["down/0"] = [
-        #     NetworkOperator(
+        #     Operator(
         #         name=('down',),
         #         preconditions=(),
         #         effects=[]

@@ -6,10 +6,17 @@ from pyhtn.conditions.fact import Fact
 from pyhtn.conditions.pattern_matching import AND
 from pyhtn.conditions.pattern_matching import Filter
 from pyhtn.conditions.pattern_matching import flatten
-from pyhtn.domain.operators import NetworkOperator
-from pyhtn.domain.task import NetworkTask
+
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
 from pyhtn.domain.variable import V
-from pyhtn.planner.planner import HtnPlanner
+
+
+# from pyhtn.domain.operators import Operator
+# from pyhtn.domain.task import Task
+# from pyhtn.domain.variable import V
+from pyhtn.htn.planner2 import HtnPlanner2
 
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
@@ -34,10 +41,10 @@ class PyHtnInterface(AbstractHtnInterface):
         self.task_description = {}
         self.domain, self.task_descriptions = self.agent.env.get_actions()
         # initial state, authored HTN is passed to the planner
-        self.planner = HtnPlanner(domain=self.domain, env=self.env)
+        self.planner = HtnPlanner2(domain=self.domain, env=self.env)
 
 
-    def get_tasks(self) -> list[tuple[NetworkTask, Any]]:
+    def get_tasks(self) -> list[tuple[Task, Any]]:
         """
         Return a list of ungrounded tasks (no repeats).
         """
@@ -46,13 +53,21 @@ class PyHtnInterface(AbstractHtnInterface):
                     set(
                         [
                          (
-                            NetworkTask(method.head[0],
-                            list(method.head[1:])), self.task_descriptions[key]
+                            Task(method.name, args=method.args),
+                            self.task_descriptions[key]
                          )
                          for key in self.domain for method in self.domain[key]
                         ]
                     )
         )
+
+    def plan_to_next_decomposition(self):
+        self.planner.print_network()
+        return self.planner.plan_to_next_decomposition()        
+
+    def stage_method_exec(self, method_exec):
+        return self.planner.stage_method_exec(method_exec)
+
         # head is defined in pyHTN, self.head = (self.name, *self.args)
         # return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
         #                  for ele in self.domain for operator in self.domain[ele]]))
@@ -94,39 +109,33 @@ class PyHtnInterface(AbstractHtnInterface):
         #     return False
     """
 
-    def add_method(self,
-                   task_name: str,
-                   task_args: List[V],
-                   preconditions: Fact,
-                   subtasks: List[NetworkTask],
-                   state: List[dict]):
+    def add_method_exec(self, method_exec):
         """
-        Creates a new HTN method and adds to domain.
-        """
-        # head = (task_name, *task_args)
-        # TODO if we want to support it we have to convert all variables to SV
-        if preconditions is None:
-            raise NotImplementedError("Preconditions not supported")
+        Takes a MethodEx, adds its underlying Method to domain and 
+            forces the method execution into the planner's current frame.
+        """        
         
         # TODO make a method a single precondition subtask pair.
-        task_args = tuple(V(x.name) if isinstance(x, V) else x for x in task_args)
-        new_method = self.planner.add_method(task_name, task_args, preconditions, subtasks)
-        self.domain = self.planner.domain_network
+        # task_args = tuple(V(x.name) if isinstance(x, V) else x for x in task_args)
+        self.planner.add_method(method_exec.method)
+        self.planner.cursor.add_method_exec(method_exec)
+        return method_exec
 
-        return MethodApplication(method=new_method, match=task_args, state=state)
 
     def add_tasks(self, tasks):
         self.planner.add_tasks(tasks)
 
-    def get_next_method_application(self, all_methods: bool = False):
-        state = self.agent.env.get_state()
-        task, methods = self.planner.get_next_method_application(all_methods)
-        #generate hash by deal methodAapplication.id in web interface
-        return task, MethodApplication(method=methods[0], match=task.args, state=state)
-        return task, [MethodApplication(method=method, match=task.args, state=state) for method in methods]
+    def get_next_method_execs(self):#all_methods: bool = False):
+
+        return self.planner.get_next_method_execs()
+        # state = self.agent.env.get_state()
+        # task, methods = self.planner.get_next_method_application(all_methods)
+        # #generate hash by deal methodAapplication.id in web interface
+        # return task, MethodApplication(method=methods[0], match=task.args, state=state)
+        # return task, [MethodApplication(method=method, match=task.args, state=state) for method in methods]
     
-    def apply_method_application(self, task, method_to_apply: Any):
-        self.planner.apply_method_application(task, method_to_apply)
+    # def apply_method_application(self, task, method_to_apply: Any):
+    #     self.planner.apply_method_application(task, method_to_apply)
 
 def dict_to_facts(fact_dict_list: list) -> AND:
     state = []
@@ -135,7 +144,7 @@ def dict_to_facts(fact_dict_list: list) -> AND:
 
     return AND(*state)
 
-def dict_to_operators(operator_dict_list: list) -> List[NetworkOperator]:
+def dict_to_operators(operator_dict_list: list) -> List[Operator]:
     domain = defaultdict(list)
     task_descriptions = {}
 
@@ -155,10 +164,10 @@ def dict_to_operators(operator_dict_list: list) -> List[NetworkOperator]:
                 raise NotImplementedError("Not implemented yet")
 
         # TODO remove effects from operator, it will just return the operator name and args
-        new_operator = NetworkOperator(name=head[0],
-                                       args=head[1:],
-                                       preconditions=AND(*flatten(preconditions)),
-                                       effects=[])
+        new_operator = Operator(name=head[0],
+                               args=head[1:],
+                               preconditions=AND(*flatten(preconditions)),
+                               effects=[])
         key = f"{ new_operator.name }/{ len(new_operator.args) }"
         domain[key].append(new_operator)
         task_descriptions[key] = operator_dict['description']

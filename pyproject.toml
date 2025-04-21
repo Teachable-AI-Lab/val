@@ -2,6 +2,9 @@
 requires = ["setuptools>=61.0", "wheel", "setuptools-git-versioning<2"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+py-modules = ["val"]
+
 [tool.setuptools-git-versioning]
 enabled = true
 

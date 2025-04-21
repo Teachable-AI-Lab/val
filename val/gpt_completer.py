@@ -29,8 +29,8 @@ class GPTCompleter:
             annotated_msgs = [{'role': role, 'content': msg.strip()}] + annotated_msgs
             (role, other_role) = (other_role, role)
 
-        print('RAW MSGS:')
-        print(annotated_msgs)
+        # print('RAW MSGS:')
+        # print(annotated_msgs)
 
         if temp == 0:
             key = hash(('chat', prompt, rep_pen, max_length, stop))
@@ -46,8 +46,8 @@ class GPTCompleter:
                         ).choices[0].message.content
                 with open('api_cache/%d' % key, 'w') as f:
                     f.write(self.cache[key])
-            print('RESP:')
-            print(self.cache[key])
+            # print('RESP:')
+            # print(self.cache[key])
             return self.cache[key]
         else:
             res = self.client.chat.completions.create(
@@ -58,6 +58,6 @@ class GPTCompleter:
                     frequency_penalty=rep_pen,
                     stop=stop,
                     ).choices[0].message.content
-            print('RESP:')
-            print(res)
+            # print('RESP:')
+            # print(res)
             return res

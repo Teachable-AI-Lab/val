@@ -12,12 +12,17 @@ class AbstractUserInterface:
         """
         raise NotImplementedError("Not implemented yet")
     
-    def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
-        """
-        Takes a user_task and the user_subtasks it decomposes into and asks the
-        user if this is the right thing to do, returns bool.
-        """
-        raise NotImplementedError("Not implemented yet")
+    # def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+    #     """
+    #     Takes a user_task and the user_subtasks it decomposes into and asks the
+    #     user if this is the right thing to do, returns bool.
+    #     """
+    #     raise NotImplementedError("Not implemented yet")
+
+    def query_next_decomposition_and_rewards(self):
+        raise NotImplementedError("Not implemented yet")        
+
+
     
     def display_added_method(self, task: Task, subtasks: List[Task]) -> None:
         """
@@ -113,4 +118,11 @@ class AbstractUserInterface:
         Displays the list of tasks that VAL knows how to do.
         """
         raise NotImplementedError("Not implemented yet")
+
+    def update_graph_vis(self, root_task_exec):
+        pass
+
+    
+
+
 
