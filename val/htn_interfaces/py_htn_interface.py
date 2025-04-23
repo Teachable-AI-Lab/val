@@ -61,6 +61,9 @@ class PyHtnInterface(AbstractHtnInterface):
                     )
         )
 
+    def is_exhausted(self):
+        return self.planner.is_exhausted()
+
     def plan_to_next_decomposition(self):
         self.planner.print_network()
         return self.planner.plan_to_next_decomposition()        

@@ -66,6 +66,9 @@ class ValAgent:
                     print("TRACE")
                     trace.print_trace()
 
+                    if(self.htn_interface.is_exhausted()):
+                        break
+
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
                     print(f"TaskEx: {task_exec}, MethodExs: {method_execs}")
