@@ -63,11 +63,11 @@ class OvercookedRouteProblem(Problem):
         facing = (pos[0] + orr[0], pos[1] + orr[1])
         target = state_node.extra.mdp.terrain_mtx[facing[1]][facing[0]]
 
-        if goal == "onion_dispenser":
+        if goal == "onion":
             return target == 'O'
-        if goal == "dish_dispenser":
+        if goal == "dish":
             return target == 'D'
-        if goal == "tomato_dispenser":
+        if goal == "tomato":
             return target == 'T'
         if goal == "serving_pad":
             return target == 'S'
@@ -148,6 +148,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 subtasks=[
                     Task('get', V('object')),
                     Task('boil',V('object')),
+                    Task('plate')
                 ]
             ),
         ]
@@ -160,7 +161,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 preconditions=[],
                 subtasks=[
                     Task('move_to', V('object')),
-                    Task('interact'),   
+                    Task('interact'),
                 ]
             )
             # Method(
@@ -183,20 +184,40 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('interact')
                 ]
             ),
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('interact')
+                ]
+            ),
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('move_to', 'pot'),
+                    Task('interact'),
+                    Task('interact')
+                ]
+            )
+            
         ]
         descriptions["boil"] = "Boil the onion by moving to the pot and interacting with it."
 
-        # domain["plate/0"] = [
-        #     Method(
-        #         name=('plate',),
-        #         preconditions=(),
-        #         subtasks=[
-        #             Task('go_to_plate'),
-        #             Task('interact')
-        #         ]
-        #     ),
-        # ]
-        # descriptions["plate/0"] = "Plate the soup by going to the plate area and interacting with it."
+        domain["plate"] = [
+            Method(
+                name='plate',
+                preconditions=(),
+                subtasks=[
+                    Task('get', 'dish'),
+                    Task('move_to', 'pot'),
+                    Task('interact')
+                ]
+            ),
+        ]
+        descriptions["plate"] = "Plate the soup by going to the plate area and interacting with it."
         
         ####### operators #######
         domain["move_to"] = [
@@ -207,7 +228,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 effects=[]
             ),
         ]
-        descriptions["move_to"] = "Goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc."
+        descriptions["move_to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
         
         domain["interact"] = [
             Operator(
@@ -217,7 +238,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 effects=[]
             ),
         ]
-        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc."
+        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
             
         # domain["wait20/0"] = [
         #     Operator(
@@ -300,13 +321,13 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         # Static environment objects
         for x, y in self.base_env.mdp.get_dish_dispenser_locations():
-            state.append({'id': f'dish_{x}_{y}', 'object': 'dish_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'dish_{x}_{y}', 'object': 'dish', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_onion_dispenser_locations():
-            state.append({'id': f'onion_{x}_{y}', 'object': 'onion_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'onion_{x}_{y}', 'object': 'onion', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_tomato_dispenser_locations():
-            state.append({'id': f'tomato_{x}_{y}', 'object': 'tomato_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'tomato_{x}_{y}', 'object': 'tomato', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_serving_locations():
             state.append({'id': f'serving_{x}_{y}', 'object': 'serving_pad', 'x': x, 'y': y})

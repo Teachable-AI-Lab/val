@@ -71,11 +71,13 @@ class ValAgent:
 
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
-                    print(f"TaskEx: {task_exec}, MethodExs: {method_execs}")
 
-                    # Update the HTN plan visualization in the user interface
-                    root = trace.get_prev_root()
-                    self.user_interface.update_graph_vis(root)
+                    # # Update the HTN plan visualization in the user interface
+                    # root = trace.get_prev_root()
+                    
+                    # # consider go back to previous code, if the task_exec is None
+                    # # then the user should create a new method. 
+                    # self.user_interface.update_graph_vis(root)
 
                     # If there are any MethodExs, wait for the user to assign them
                     #  with a reward label: 1, -1 (or not: None) and have the 
@@ -95,7 +97,7 @@ class ValAgent:
                     if(next_method_exec is None):
                         next_method_exec = self.query_new_method_exec(task_exec)
                         sel_method = next_method_exec.method
-                        self.user_interface.display_added_method(task, sel_method.subtasks)
+                        self.user_interface.display_added_method(task_exec, sel_method.subtasks)
                         rewards.append(1)
                         method_execs.append(next_method_exec)
                         
@@ -174,7 +176,7 @@ class ValAgent:
 
     def query_new_method_exec(self, task_exec: TaskEx):
         """
-        Returns an HTN method
+        This is previous "add method" function. Returns an HTN method
         """
         state = self.env.get_state()
         task = task_exec.task 

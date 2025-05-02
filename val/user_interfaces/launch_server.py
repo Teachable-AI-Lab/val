@@ -1,33 +1,23 @@
 from flask import Flask
-from flask import render_template
-from flask_socketio import SocketIO
-from flask_socketio import emit
-from flask import send_from_directory
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
-
-@app.route('/')
-def index():
-    return render_template('chat.html')
-
-@app.route('/static/<path:path>')
-def send_static(path):
-    return send_from_directory('static', path)
+app.config['SECRET_KEY'] = 'your_secret_key'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 @socketio.on('connect')
 def handle_connect():
-    print('Client connected')
+    print("Client connected")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected')
+    print("Client disconnected")
 
 @socketio.on('message')
 def handle_message(data):
+    """ Runs when a client sends a 'message' event """
     print(f'Received message: { data }')
-    emit('message', data, broadcast=True, include_self=False)
+    emit('message', data, broadcast=True)
 
 @socketio.event
 def on_log(message):
@@ -38,5 +28,4 @@ def on_log(message):
         return {"error": str(e)}
 
 if __name__ == '__main__':
-    socketio.run(app, port=4000)
-    print("I opened it")
+    socketio.run(app, debug=True, host="localhost", port=4002)

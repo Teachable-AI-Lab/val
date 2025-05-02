@@ -2,16 +2,18 @@ import socketio
 from socketio.exceptions import TimeoutError
 from typing import List
 from typing import Optional
-
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
+from typing import List, Sequence, Optional, Tuple
 
 class WebInterface:
             
     def __init__(self, url="http://localhost:4002",
-                 disable_segment_confirmation: bool = False, disable_map_confirmation: bool = True,
-                 disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = True, 
-                 disable_ground_confirmation: bool = True, disable_ground_correction: bool = True,
-                 disable_gen_confirmation: bool = True, disable_gen_correction: bool = True,
-                 disable_confirm_task_decomposition: bool = True, disable_confirm_task_execution: bool = True):
+                 disable_segment_confirmation: bool = False, disable_map_confirmation: bool = False,
+                 disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = False, 
+                 disable_ground_confirmation: bool = False, disable_ground_correction: bool = False,
+                 disable_gen_confirmation: bool = False, disable_gen_correction: bool = False,
+                 disable_confirm_task_decomposition: bool = True, disable_confirm_task_execution: bool = True,
+                 next_select_kind = "all at once"):
         self.sio = socketio.Client()
         self.sio.connect(url)
         self.user_response = None
@@ -27,6 +29,7 @@ class WebInterface:
         self.disable_gen_correction = disable_gen_correction
         self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
         self.disable_confirm_task_execution = disable_confirm_task_execution
+        self.next_select_kind = next_select_kind
 
     # This function is called when the client receives a message from the server 
     # change from previous version: event = self.sio.receive(), which is synchronous blocking call to wait for a server event 
@@ -47,6 +50,78 @@ class WebInterface:
         if self.user_response == "add method":
             return None
         return self.user_response
+    
+    def query_next_decomposition_and_rewards(self, 
+        task_exec: TaskEx, 
+        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+        # result =  {'head': {'name': 'boil', 'V': 'onion', 'hash': 'TE_tr2Mf7K8RZNu411Hxuds6XSEBAA'}, 
+        #            'subtasks': [[{'Task': 'move_to pot', 'hash': 'TE_nIdIHwZwmWYBnRYpod9KKbiVB0I'}, 
+        #                          {'Task': 'interact', 'hash': 'TE_tW9426QYbCEYcK4BZ3sNg3LaVOY'}], 
+        #                         [{'Task': 'interact', 'hash': 'TE_wWX9sT4cfwK4xLDtqvU0tBxHS7w'}], 
+        #                         [{'Task': 'move_to pot', 'hash': 'TE_cTeHTQwMEauiYqNGQ2BzWhUji1k'}, 
+        #                          {'Task': 'interact', 'hash': 'TE_DKNYUrrFf0ioIq9eoApbsJTcPYo'}, 
+        #                          {'Task': 'interact', 'hash': 'TE_BdlWMJo5UCwG9gMC4zxweSn50dU'}]]}
+        # self.user_response = None  
+        # self.response_received = False
+
+        # self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
+        # print("The message is emitted")
+        # while not self.response_received:
+        #     self.sio.sleep(0.1)
+            
+        # index = self.user_response 
+        # return index
+        ##### convert to the format we want ##### 
+        # Step 1: get head
+        head = task_exec.as_dict()
+
+        # Step 2: build subtasks
+        subtasks = []
+        for method_exec in method_execs:
+            method_dict = method_exec.as_dict()
+            child_list = method_dict.get("child_ids", [])
+            
+            # Convert each child dict to the desired format
+            formatted_children = [
+                {
+                    "Task": child["task"],
+                    "hash": child["id"]
+                }
+                for child in child_list
+            ]
+            subtasks.append(formatted_children)
+
+        # Step 3: combine everything into one dict
+        result = {
+            "head": {
+                "name": head["name"],
+                "V": head["match"],  # Or use a cleaner version if needed
+                "hash": head["id"]
+            },
+            "subtasks": subtasks
+        }
+
+        self.user_response = None  
+        self.response_received = False
+
+        self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
+        print("The message is emitted")
+        while not self.response_received:
+            self.sio.sleep(0.1)
+            
+        index = self.user_response 
+        rewards = [None]*len(method_execs)
+        if(self.next_select_kind == "one at a time"):
+            for i, method_exec in enumerate(method_execs):
+                confirmed = self._confirm_task_decomposition(task_exec, method_exec)
+                if(not confirmed):
+                    rewards[i] = -1.0
+                else:
+                    rewards[i] = 1.0
+                    return method_exec, rewards 
+        else:
+            rewards[0] = 1.0
+            return method_execs[0], rewards 
     
     def display_added_method(self, task: str, subtasks: List[str]):
         self.sio.emit('message', {'type': 'display_added_method', 
@@ -178,7 +253,7 @@ class WebInterface:
             'type': 'ground_confirmation',
             'task_name': task_name,
             'task_args': ', '.join(task_args),
-            'text': f"The task is {task_name}({task_args}). Is that right? <br>place"
+            'text': f"The task is {task_name}({task_args}). Is that right? "
         })
         while not self.response_received:
             self.sio.sleep(0.1)
@@ -242,3 +317,11 @@ class WebInterface:
             self.sio.sleep(0.1)
         print('received response:', self.user_response)
         return 'yes' == self.user_response
+    
+if __name__ == "__main__":
+    web_interface = WebInterface()
+    print(web_interface.query_next_decomposition_and_rewards(
+        TaskEx("task1", "arg1"),
+        [MethodEx("method1", "arg1"), MethodEx("method2", "arg2")]
+    ))
+    

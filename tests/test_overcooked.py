@@ -1,5 +1,6 @@
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
+from val.user_interfaces.web_interface import WebInterface
 from val.env_interfaces.overcooked_ai.overcooked_ai_env import OvercookedAIEnv
 from val.htn_interfaces.basic_htn_interface import BasicHtnInterface
 from val.htn_interfaces.py_htn_interface import PyHtnInterface
@@ -19,7 +20,8 @@ if __name__ == "__main__":
     openai_key = get_openai_key()
 
     env = OvercookedAIEnv(player_id=1)
-    user_interface = ConsoleUserInterface
+    # user_interface = ConsoleUserInterface
+    user_interface = WebInterface
     # htn_interface = BasicHtnInterface
     htn_interface = PyHtnInterface
 
@@ -34,3 +36,4 @@ if __name__ == "__main__":
 
     rendering_thread.join()
     agent_thread.join()
+

@@ -30,6 +30,13 @@ class ConsoleUserInterface(AbstractUserInterface):
         
     def check_for_break(self) -> bool:
         return False
+    
+    def update_graph_vis(self, root_task_exec):
+        tree_dict = root_task_exec.tree_to_dict()
+        # pprint(tree_dict, sort_dicts=False)
+        print('---- HTN Graph Visualization ----')
+        print(tree_dict)
+        print('----          end            ----')
 
     def _confirm_task_decomposition(self, task_exec, method_exec):
         if self.disable_confirm_task_decomposition:
@@ -47,7 +54,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         return users_choice == 'y'
 
     def _select_task_decomposition(self, task_exec, method_execs):
-        print(f"\nMain Task: {task}\n")
+        print(f"\nMain Task: {task_exec}\n")
         print("Choose a task decomposition method:")
 
         for i, method_exec in enumerate(method_execs):
@@ -60,7 +67,7 @@ class ConsoleUserInterface(AbstractUserInterface):
             user_input = input("Your choice: ").strip().lower()
             if user_input == 'na':
                 return None
-            elif len(user_input) == 1 and 'a' <= user_input <= chr(ord('a') + len(subtasks) - 1):
+            elif len(user_input) == 1 and 'a' <= user_input <= chr(ord('a') + len(subtask_execs) - 1):
                 return ord(user_input) - ord('a')
             else:
                 print("Invalid input. Please enter a valid option (a, b, ...) or 'NA'.")
@@ -230,13 +237,6 @@ class ConsoleUserInterface(AbstractUserInterface):
         print("Known tasks:")
         for i, task in enumerate(tasks):
             print(f"({i}): {task}")
-
-    def update_graph_vis(self, root_task_exec):
-        tree_dict = root_task_exec.tree_to_dict()
-        # pprint(tree_dict, sort_dicts=False)
-        print('---- HTN Graph Visualization ----')
-        print(tree_dict_to_str(tree_dict, show_methods=False, show_operators=False))
-        print('----          end            ----')
 
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface(disable_segment_confirmation=True)
