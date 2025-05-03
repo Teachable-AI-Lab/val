@@ -122,7 +122,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             self.screen = pygame.display.set_mode((rendered_width, rendered_height), pygame.RESIZABLE)
 
         self.screen.blit(surface, (0, 0))
-        # pygame.display.flip()
+        pygame.display.flip()
         self.clock.tick(10)
 
     def get_objects(self) -> List[str]:
@@ -160,7 +160,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('move_to', V('object')),
+                    Task('go_to', V('object')),
                     Task('interact'),
                 ]
             )
@@ -168,7 +168,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     name=('get',),
             #     preconditions=(),
             #     subtasks=[
-            #         Task('move_to', V('?object'))
+            #         Task('go_to', V('?object'))
             #     ]
             # )
         ]
@@ -180,7 +180,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('move_to', 'pot'),
+                    Task('go_to', 'pot'),
                     Task('interact')
                 ]
             ),
@@ -197,7 +197,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('move_to', 'pot'),
+                    Task('go_to', 'pot'),
                     Task('interact'),
                     Task('interact')
                 ]
@@ -212,7 +212,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 preconditions=(),
                 subtasks=[
                     Task('get', 'dish'),
-                    Task('move_to', 'pot'),
+                    Task('go_to', 'pot'),
                     Task('interact')
                 ]
             ),
@@ -220,15 +220,15 @@ class OvercookedAIEnv(AbstractEnvInterface):
         descriptions["plate"] = "Plate the soup by going to the plate area and interacting with it."
         
         ####### operators #######
-        domain["move_to"] = [
+        domain["go_to"] = [
             Operator(
-                name='move_to', 
+                name='go_to', 
                 args=(V('location'),),
                 # preconditions=[Fact(type='fact', object=V('location'))],
                 effects=[]
             ),
         ]
-        descriptions["move_to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
+        descriptions["go_to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
         
         domain["interact"] = [
             Operator(
@@ -380,6 +380,9 @@ class OvercookedAIEnv(AbstractEnvInterface):
             return None
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
+        if isinstance(args, tuple):
+            args = list(args)
+        print(f"[ENV] Executing: {action_name}({args})")
 
         if action_name == "go_to" and len(args) == 1:
             action_plan = self.get_route_plan(args[0])
@@ -413,12 +416,30 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return True
 
 if __name__ == "__main__":
+    horizon = 100
+    env = OvercookedAIEnv(player_id=0, horizon=horizon)
+    #for i in range(horizon):
+    env.get_state()
+    actions = env.get_actions()
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    
+    env.execute_action(action_name="go_to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    env.execute_action(action_name="interact", args=['pot'])
 
-    horizon = 500
-    env = OvercookedAIEnv(player_id=1, horizon=horizon)
-    for i in range(horizon):
-        env.get_state()
-        actions = env.get_actions()
-        action = choice(actions)
-        env.execute_action(action_name=action['name'], args=[])
-        env.render_state()
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    env.execute_action(action_name="go_to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go_to", args=['serving_pad'])
+    env.execute_action(action_name="interact", args=['serving_pad'])
