@@ -63,8 +63,8 @@ class ValAgent:
 
                     # Plan through HTN until next non-primitive task.
                     trace = self.htn_interface.plan_to_next_decomposition()
-                    print("TRACE")
-                    trace.print_trace()
+                    # print("TRACE")
+                    # trace.print_trace()
 
                     if(self.htn_interface.is_exhausted()):
                         break
@@ -72,29 +72,32 @@ class ValAgent:
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
 
-                    # # Update the HTN plan visualization in the user interface
-                    # root = trace.get_prev_root()
                     
-                    # # consider go back to previous code, if the task_exec is None
-                    # # then the user should create a new method. 
-                    # self.user_interface.update_graph_vis(root)
+                    # if the task_exec is None
+                    # then the user should create a new method. 
+                    if method_execs is None:
+                        next_method_exec = self.query_new_method_exec(task_exec)
+                        sel_method = next_method_exec.method
+                        self.user_interface.display_added_method(task_exec, sel_method.subtasks)
+                        rewards.append(1)
+                        method_execs.append(next_method_exec)
+                        continue
+   
 
                     # If there are any MethodExs, wait for the user to assign them
                     #  with a reward label: 1, -1 (or not: None) and have the 
                     #  user_interface decide which method_exec will be applied
-                    next_method_exec = None
-                    if(method_execs):
-                        next_method_exec, rewards = \
-                            self.user_interface.query_next_decomposition_and_rewards(
-                                task_exec, method_execs
-                            )
+
+                    next_method_exec, rewards = \
+                        self.user_interface.query_next_decomposition_and_rewards(
+                            task_exec, method_execs)
 
                     # If there is no next_method_exec because:
                     #  1. Matching in the planner failed or 
                     #  2. The user decided to describe their own method
                     #  Then query the user to describe the grounded subtasks of the 
                     #  decomposition. This creates the next method execution.
-                    if(next_method_exec is None):
+                    if (next_method_exec is None):
                         next_method_exec = self.query_new_method_exec(task_exec)
                         sel_method = next_method_exec.method
                         self.user_interface.display_added_method(task_exec, sel_method.subtasks)
@@ -129,8 +132,10 @@ class ValAgent:
         for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
             print("task_ungrounded", task_ungrounded)
-
+            # task ungrounded is None means the agent is not sure what the user means
+            # can not map to a task in the domain
             # map_gpt: go to map to moveTo, map the action(predicate)
+            
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
                   (task_ungrounded is not None and
@@ -153,7 +158,7 @@ class ValAgent:
                 if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
                     task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env.get_objects())
-                yield Task(str(task_ungrounded.name), args=list(task_args))
+                yield Task(str(task_name), args=list(task_args))
 
             else:
             # ground task objects
