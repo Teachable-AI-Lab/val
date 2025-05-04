@@ -74,17 +74,18 @@ class WebInterface:
         ##### convert to the format we want ##### 
         # Step 1: get head
         head = task_exec.as_dict()
+        match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
 
         # Step 2: build subtasks
         subtasks = []
         for method_exec in method_execs:
             method_dict = method_exec.as_dict()
-            child_list = method_dict.get("child_ids", [])
+            child_list = method_dict.get("child_data", [])
             
             # Convert each child dict to the desired format
             formatted_children = [
                 {
-                    "Task": child["task"],
+                      "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
                     "hash": child["id"]
                 }
                 for child in child_list
@@ -95,7 +96,7 @@ class WebInterface:
         result = {
             "head": {
                 "name": head["name"],
-                "V": head["match"],  # Or use a cleaner version if needed
+                "V": match,  # Or use a cleaner version if needed
                 "hash": head["id"]
             },
             "subtasks": subtasks
