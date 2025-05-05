@@ -77,6 +77,9 @@ class ConsoleUserInterface(AbstractUserInterface):
         task_exec: TaskEx, 
         method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
 
+        if(method_execs is None or len(method_execs) == 0):
+            return None, []
+
         rewards = [None]*len(method_execs)
         if(self.next_select_kind == "one at a time"):
             for i, method_exec in enumerate(method_execs):
@@ -92,9 +95,9 @@ class ConsoleUserInterface(AbstractUserInterface):
             return method_execs[index], rewards 
         
     
-    def display_added_method(self, task: Task, subtasks: List[Task]) -> None: 
+    def display_added_method(self, task_exec: TaskEx, subtasks: List[Task]) -> None: 
         print("Added Decomposition Method:")
-        print(f"Main Task: {task.name}")
+        print(f"Main Task: {task_exec.task.name}")
         print("Subtasks:")
         for i, subtask in enumerate(subtasks, start=1):
             print(f"  {i}. {subtask.name}")

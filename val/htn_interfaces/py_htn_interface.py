@@ -54,7 +54,7 @@ class PyHtnInterface(AbstractHtnInterface):
                         [
                          (
                             Task(method.name, args=method.args),
-                            self.task_descriptions[key]
+                            self.task_descriptions.get(key,"")
                          )
                          for key in self.domain for method in self.domain[key]
                         ]
@@ -109,7 +109,7 @@ class PyHtnInterface(AbstractHtnInterface):
         #     return True
         # except FailedPlanException as e:
         #     print(e)
-        #     return False
+    #     return False
     """
 
     def add_method_exec(self, method_exec):
@@ -117,11 +117,10 @@ class PyHtnInterface(AbstractHtnInterface):
         Takes a MethodEx, adds its underlying Method to domain and 
             forces the method execution into the planner's current frame.
         """        
-        
         # TODO make a method a single precondition subtask pair.
         # task_args = tuple(V(x.name) if isinstance(x, V) else x for x in task_args)
         self.planner.add_method(method_exec.method)
-        self.planner.cursor.add_method_exec(method_exec)
+        self.planner.add_method_exec(method_exec)
         return method_exec
 
 

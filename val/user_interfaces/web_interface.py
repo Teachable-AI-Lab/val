@@ -68,6 +68,10 @@ class WebInterface:
         # print("The message is emitted")
         # while not self.response_received:
         #     self.sio.sleep(0.1)
+
+        # Skip if there are no method_execs 
+        if(method_execs is None or len(method_execs) == 0):
+            return None, []
             
         # index = self.user_response 
         # return index

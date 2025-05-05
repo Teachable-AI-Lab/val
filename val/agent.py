@@ -63,8 +63,8 @@ class ValAgent:
 
                     # Plan through HTN until next non-primitive task.
                     trace = self.htn_interface.plan_to_next_decomposition()
-                    # print("TRACE")
-                    # trace.print_trace()
+                    print("TRACE")
+                    trace.print_trace()
 
                     if(self.htn_interface.is_exhausted()):
                         break
@@ -73,15 +73,15 @@ class ValAgent:
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
 
                     
-                    # if the task_exec is None
-                    # then the user should create a new method. 
+                    
                     if method_execs is None:
-                        next_method_exec = self.query_new_method_exec(task_exec)
-                        sel_method = next_method_exec.method
-                        self.user_interface.display_added_method(task_exec, sel_method.subtasks)
-                        rewards.append(1)
-                        method_execs.append(next_method_exec)
-                        continue
+                        method_execs = []
+                    #     next_method_exec = self.query_new_method_exec(task_exec)
+                    #     sel_method = next_method_exec.method
+                    #     self.user_interface.display_added_method(task_exec, sel_method.subtasks)
+                    #     rewards = [1]
+                    #     method_execs = [next_method_exec]
+                    #     continue
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -203,11 +203,13 @@ class ValAgent:
         for subtask in subtasks:
             v_args = [arg_map[subarg] if subarg in arg_map else subarg
                         for subarg in subtask.args]
+            print("v_args", v_args)
             subtask_v = Task(subtask.name, args=v_args)
             subtask_exec = TaskEx(subtask_v, state, match=subtask.args)
             subtasks_v.append(subtask_v)
             subtask_execs.append(subtask_exec)
 
+        print("task_args_v", task_args_v)
         method = Method(task.name, args=task_args_v, subtasks=subtasks_v)
         method_exec = MethodEx(method, state,
             match=task_args,
