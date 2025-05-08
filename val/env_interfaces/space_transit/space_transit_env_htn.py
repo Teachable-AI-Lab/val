@@ -5,6 +5,7 @@ import websocket
 import random
 import json
 import math
+import time
 
 from nltk import edit_distance
 from time import sleep
@@ -25,6 +26,8 @@ class SpaceTransitEnvHTN():
         self.ws = websocket.create_connection(self.url)
         self.line_names = ["redline", "blueline", "yellowline", "greenline", "purpleline"]
         self.active_game = 0
+        # idk where to put this and might be worth discussing on where this should be long term.
+        self.alerted_stations = dict()
 
     def get_objects(self) -> List[str]:
         line_mapping, lines, stations = self.get_lines_and_stations()
@@ -68,6 +71,13 @@ class SpaceTransitEnvHTN():
                      effects=[]),
         ]
         descriptions["goto_game/1"] = "go to a specific game with a given id"
+
+        domain["alert_station/1"] = [
+            Operator(head=('alert_station', V('station_id')),
+                     preconditions=Fact(station=V('station_id')),
+                     effects=[]),
+        ]
+        descriptions["alert_station/1"] = "alerts the user that a specific station is timing out"
 
         domain["add_train/1"] = [
             Operator(head=('add_train', V('line1')),
@@ -159,6 +169,20 @@ class SpaceTransitEnvHTN():
         ]
         descriptions["connect_station_to_lines/1"] = "Connects a station to all lines"
 
+        domain["monitor_stations/0"] = [
+            Method(head=('monitor_stations',),
+                   preconditions=Fact(station=V('station'), timer=V('timer'))&
+                   Filter(lambda timer: timer != 0)&
+                   Filter(lambda station: self.is_valid_alert(station)),
+                   subtasks=[Task('alert_station', V('station')), Task('monitor_stations')]
+                   ),
+            Method(head=('monitor_stations',),
+                   preconditions=Fact(agent_on=True),
+                   subtasks=[Task('wait_small'), Task('monitor_stations')]
+                   )
+        ]
+        descriptions["monitor_stations/0"] = "checks all stations to see if any needs to be alerted."
+
         
 
         return domain, descriptions
@@ -194,7 +218,10 @@ class SpaceTransitEnvHTN():
 
         for station in cur_state['stations']:
             val_state.append({'station': station['human_name'],
-                              'unique_id': station['unique_id']})
+                              'unique_id': station['unique_id'],
+                              'timer': station['timer']})
+            if station['timer'] == 0 and station['human_name'] in self.alerted_stations.keys():
+                self.alerted_stations[station['human_name']] = 0
             if station['unique_id'] not in seen_stations:
                 closest_station = self.find_closest_station(cur_state['stations'], station)
                 val_state.append({'station_id': station['unique_id'],
@@ -205,6 +232,16 @@ class SpaceTransitEnvHTN():
         val_state.append({'any_lines': len(lines)!=0})
 
         return val_state
+    
+    def is_valid_alert(self, station):
+        curr_time = time.time()
+        if station not in self.alerted_stations.keys():
+            self.alerted_stations[station] = curr_time
+            return True
+        if curr_time - self.alerted_stations[station] >= 30: #Number of seconds between alerts
+            self.alerted_stations[station] = curr_time
+            return True
+        return False 
     
     def find_closest_station(self, station_list, comparison_station):
         min_dist = None
@@ -237,6 +274,8 @@ class SpaceTransitEnvHTN():
             return self.remove_train(*args)
         elif action_name == "wait_small":
             return self.wait_small(*args)
+        elif action_name == "alert_station":
+            return self.alert_station(*args)
         raise Exception("No action matches. Please check action heads")
 
     def send_and_recv(self, message: dict):
@@ -258,6 +297,8 @@ class SpaceTransitEnvHTN():
 
     def get_state_from_game(self):
         state = self.send_and_recv({"command":"get_state", "game_id": 0})
+        #print("FIND ME")
+        #print(state)
         return state
 
     def get_lines_and_stations(self):
@@ -384,6 +425,16 @@ class SpaceTransitEnvHTN():
         result2 = self.send_and_recv(command2)
         print("Result of creating second station: ", result2)
 
+        if result2["Status"] != "Success":
+            return False
+
+        return True
+    
+    def alert_station(self, station):
+        alert_msg = f"station {station} is timing out"
+        print("WARNING " + alert_msg)
+        alert_command = {"command":"speak", "response": alert_msg}
+        result2 = self.send_and_recv(alert_command)
         if result2["Status"] != "Success":
             return False
 
