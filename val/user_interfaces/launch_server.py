@@ -16,7 +16,6 @@ def handle_disconnect():
 @socketio.on('message')
 def handle_message(data):
     """ Runs when a client sends a 'message' event """
-    print(f'Received message: { data }')
     emit('message', data, broadcast=True)
 
 @socketio.event

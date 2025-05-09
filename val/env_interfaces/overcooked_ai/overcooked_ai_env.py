@@ -69,7 +69,7 @@ class OvercookedRouteProblem(Problem):
             return target == 'D'
         if goal == "tomato":
             return target == 'T'
-        if goal == "serving_pad":
+        if goal == "serving pad":
             return target == 'S'
         if goal == "pot":
             return target == 'P'
@@ -148,7 +148,8 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 subtasks=[
                     Task('get', V('object')),
                     Task('boil',V('object')),
-                    Task('plate')
+                    Task('plate'),
+                    Task('deliver')
                 ]
             ),
         ]
@@ -160,17 +161,10 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('go_to', V('object')),
+                    Task('go to', V('object')),
                     Task('interact'),
                 ]
             )
-            # Method(
-            #     name=('get',),
-            #     preconditions=(),
-            #     subtasks=[
-            #         Task('go_to', V('?object'))
-            #     ]
-            # )
         ]
         descriptions["get"] = "Get an object by interacting with and moving to the object's location."
 
@@ -180,7 +174,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('go_to', 'pot'),
+                    Task('go to', 'pot'),
                     Task('interact')
                 ]
             ),
@@ -197,38 +191,51 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
-                    Task('go_to', 'pot'),
+                    Task('go to', 'pot'),
                     Task('interact'),
-                    Task('interact')
+                    Task('interact'),
+                    Task('wait 20min')
                 ]
             )
             
         ]
         descriptions["boil"] = "Boil the onion by moving to the pot and interacting with it."
 
-        domain["plate"] = [
+        # domain["plate"] = [
+        #     Method(
+        #         name='plate',
+        #         preconditions=(),
+        #         subtasks=[
+        #             Task('get', 'dish'),
+        #             Task('go to', 'pot'),
+        #             Task('interact')
+        #         ]
+        #     ),
+        # ]
+        # descriptions["plate"] = "Plate the soup by going to the plate area and interacting with it."
+        
+        domain["deliver"] = [
             Method(
                 name='plate',
                 preconditions=(),
                 subtasks=[
-                    Task('get', 'dish'),
-                    Task('go_to', 'pot'),
+                    Task('go to', 'serving pad'),
                     Task('interact')
                 ]
             ),
         ]
-        descriptions["plate"] = "Plate the soup by going to the plate area and interacting with it."
+        descriptions["deliver"] = "Go to the serving pad and interact with it to deliver the soup."
         
         ####### operators #######
-        domain["go_to"] = [
+        domain["go to"] = [
             Operator(
-                name='go_to', 
+                name='go to', 
                 args=(V('location'),),
                 # preconditions=[Fact(type='fact', object=V('location'))],
                 effects=[]
             ),
         ]
-        descriptions["go_to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
+        descriptions["go to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
         
         domain["interact"] = [
             Operator(
@@ -240,14 +247,15 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
             
-        # domain["wait20/0"] = [
-        #     Operator(
-        #         name=('wait20',),
-        #         preconditions=(),
-        #         effects=[]
-        #     ),
-        # ]
-        # descriptions["wait20/0"] = "Waits for 20 time steps."
+        domain["wait 20min"] = [
+            Operator(
+                name='wait 20min',
+                args=(),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["wait 20min"] = "Waits for 20 time steps."
 
         # domain["left/0"] = [
         #     Operator(
@@ -330,7 +338,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             state.append({'id': f'tomato_{x}_{y}', 'object': 'tomato', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_serving_locations():
-            state.append({'id': f'serving_{x}_{y}', 'object': 'serving_pad', 'x': x, 'y': y})
+            state.append({'id': f'serving_{x}_{y}', 'object': 'serving pad', 'x': x, 'y': y})
 
         # Pots
         pots = self.base_env.mdp.get_pot_states(self.base_env.state)
@@ -384,13 +392,13 @@ class OvercookedAIEnv(AbstractEnvInterface):
             args = list(args)
         print(f"[ENV] Executing: {action_name}({args})")
 
-        if action_name == "go_to" and len(args) == 1:
+        if action_name == "go to" and len(args) == 1:
             action_plan = self.get_route_plan(args[0])
             for action in action_plan:
                 command = [(0, 0) for _ in self.base_env.state.players]
                 command[self.player_id] = action
                 self.base_env.step(command)
-        elif action_name == "wait20":
+        elif action_name == "wait 20min":
             for i in range(20):
                 command = [(0, 0) for _ in self.base_env.state.players]
                 self.base_env.step(command)
@@ -421,14 +429,14 @@ if __name__ == "__main__":
     #for i in range(horizon):
     env.get_state()
     actions = env.get_actions()
-    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
     env.execute_action(action_name="interact", args=['pot'])
     env.execute_action(action_name="interact", args=['pot'])
     env.execute_action(action_name="wait20", args=[])
     
-    env.execute_action(action_name="go_to", args=['onion'])
+    env.execute_action(action_name="go to", args=['onion'])
     env.execute_action(action_name="interact", args=['onion'])
-    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
     env.execute_action(action_name="interact", args=['pot'])
     
     env.execute_action(action_name="interact", args=['pot'])
@@ -437,9 +445,9 @@ if __name__ == "__main__":
 
     env.execute_action(action_name="interact", args=['pot'])
     env.execute_action(action_name="wait20", args=[])
-    env.execute_action(action_name="go_to", args=['dish'])
+    env.execute_action(action_name="go to", args=['dish'])
     env.execute_action(action_name="interact", args=['dish'])
-    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
     env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="go_to", args=['serving_pad'])
-    env.execute_action(action_name="interact", args=['serving_pad'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
