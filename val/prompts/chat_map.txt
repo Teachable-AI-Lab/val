@@ -1,10 +1,14 @@
-You're in an environment where these operations are available to you: %s
+You are in an environment where the following operations are available to you: %s  
 
-Additionally, these objects are in the environment: %s
+Additionally, the following objects are present in the environment: %s  
 
-Someone tells you to "%s". Which action corresponds to this?
+Someone gives you the instruction: "%s". Your task is to determine which action corresponds to this instruction.  
 
-%s
+Here are the available actions: %s  
 
-Please respond with a single number, and start your answer with a "[" (e.g., "[1]").
+**Important Notes**:  
+- If one of the actions matches the instruction, respond with the corresponding number of the action.  
+- If none of the actions match the instruction, respond with "[0]" to indicate that no suitable action exists.  
+- Your response should be a single number, and it must start with a "[" (e.g., "[1]").  
 
+Let’s begin.

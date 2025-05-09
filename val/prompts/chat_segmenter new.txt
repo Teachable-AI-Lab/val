@@ -1,25 +1,35 @@
 ***
-We're going to do an iterative process together. At each iteration, I'll give you some text to interpret. You'll then identify each individual action in the text.
+We are going to perform an iterative process together. At each iteration, I will provide you with a piece of text containing multiple actions. Your task is to:
+1. Identify each individual action in the text.
+2. Resolve all pronouns in each action so that it can be interpreted independently of the other actions.
 
-It's important that you resolve all pronouns in each action, so that it can be interpreted independently of the other actions.
+**Important Notes**:
+- Each action should be written as a standalone statement with all pronouns resolved.
+- Include any relevant conditions or context (e.g., "if the pillow is red").
+- Do not include any additional words or explanations in your response.
 
-There's no need to respond to me with any other words. Let's start right away with the following input:
+Let’s begin with the following examples:
 
-"Buy the land if you have money. Then get the loan if you don't have money"
+INPUT: "Buy the land if you have money. Then get the loan if you don't have money."
 ***
 1. "buy the land, money" (resolved pronouns: "buy the land, money")
-2. "pay the builder, not money" (resolved pronouns: "pay the builder, not money")
+2. "get the loan, no money" (resolved pronouns: "get the loan, no money")
 ***
-"To get the job done, first you need to find the school and then go to it. Then, you need to eat an orange. Finally, you should draw a picture if you have pens."
+
+INPUT: "To get the job done, first you need to find the school and then go to it. Then, you need to eat an orange. Finally, you should draw a picture if you have pens."
 ***
 1. "find the school" (resolved pronouns: "find the school")
 2. "go to it" (resolved pronouns: "go to the school")
 3. "eat an orange" (resolved pronouns: "eat an orange")
 4. "draw a picture, pens" (resolved pronouns: "draw a picture, pens")
 ***
-"Bring the pillow to the couch, if the pillow is red. Then put it on the couch. Then patrol the hallway, when it is evening."
+
+INPUT: "Bring the pillow to the couch, if the pillow is red. Then put it on the couch. Then patrol the hallway, when it is evening."
 ***
-1. "Bring the pillow to the couch, red" (resolved pronouns: "Bring the pillow to the couch, red")
+1. "bring the pillow to the couch, red" (resolved pronouns: "bring the pillow to the couch, red")
 2. "put it on the couch" (resolved pronouns: "put the pillow on the couch")
 3. "patrol the hallway, evening" (resolved pronouns: "patrol the hallway, evening")
+***
+
+INPUT: "%s"
 ***

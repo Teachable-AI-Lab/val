@@ -1,12 +1,24 @@
-We're going to do an iterative process together. At each iteration, I'll give you a phrase, the verb of the phrase, and a list of objects. You'll form a predicate-argument structure using the verb as the predicate, and for the arguments, you'll select a subset of the objects in the list.
+We are going to perform an iterative process together. In each iteration, I will provide you with:
+1. A **phrase** describing an action.
+2. A **verb** extracted from the phrase, which will serve as the predicate.
+3. A **list of objects** that can be used as arguments.
 
-If there are no objects in the list, you don't need to select any.
+Your task is to:
+- Form a **predicate-argument structure** using the verb as the predicate.
+- Select a subset of the objects from the list to use as arguments for the predicate.
+- If the list of objects is empty, you do not need to include any arguments.
 
-There's no need to respond to me with any other words. Let's start right away with the following input:
+**Important Notes**:
+- The first argument (e.g., `player`) represents the agent performing the action.
+- Only include arguments that are relevant to the action described by the phrase.
+- Avoid including arguments that are constant and will never vary (e.g., the pot in the "cook" action).
+- Respond only with the predicate-argument structure. Do not include any additional words or explanations.
 
-OBJECTS: [pot1, onion1, tomato1]
-PHRASE: "combine the vegetables"
-VERB: combine
+Let’s begin with the following examples:
+
+OBJECTS: [pot1, onion1, tomato1]  
+PHRASE: "combine the vegetables"  
+VERB: combine  
 ***
 The best predicate and arguments for that are: combine(onion1, tomato1)
 ***
