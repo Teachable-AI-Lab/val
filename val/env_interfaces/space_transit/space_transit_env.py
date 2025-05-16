@@ -27,6 +27,7 @@ class SpaceTransitEnv():
         self.active_game = 0
         # idk where to put this and might be worth discussing on where this should be long term.
         self.alerted_stations = dict()
+        self.agent_id = random.randint(100000, 999999)
 
     def get_objects(self) -> List[str]:
         line_mapping, lines, stations = self.get_lines_and_stations()
@@ -226,7 +227,7 @@ class SpaceTransitEnv():
         domain["remove_lines"] = [
             Method(name='remove_lines', # Changed from head=
                 args=[],            # Added args
-                preconditions=Fact(line=V('line'), id=V('uid')) &
+                preconditions=Fact(line=V('line'), line_id=V('uid')) &
                                 Fact(segment_line=V('uid')),
                 subtasks=[Task('delete_line', V('line')), Task('remove_lines')])
         ]
@@ -235,7 +236,7 @@ class SpaceTransitEnv():
         domain["connect_station_to_lines"] = [
             Method(name='connect_station_to_lines', # Changed from head=
                 args=[V('station')],             # Added args (extracted from original head)
-                preconditions=Fact(line=V('line'), id=V('uid')) &
+                preconditions=Fact(line=V('line'), line_id=V('uid')) &
                                 Fact(station=V('station'), unique_id=V("uid1")) &
                                 (~Fact(to_station=V("uid1"), segment_line=V('uid')) & ~Fact(from_station=V("uid1"), segment_line=V('uid'))),
                 subtasks=[Task('insert_station', V('station'), V('line')), Task('connect_station_to_lines', V('station'))])
@@ -272,7 +273,7 @@ class SpaceTransitEnv():
         # line_mapping = {}
         lines = set()
         for line in cur_state['lines']:
-            val_state.append({'line': self.line_names[line['id']], 'id': line['unique_id']})
+            val_state.append({'line': self.line_names[line['id']], 'line_id': line['unique_id']})
             lines.add(line['unique_id'])
         
         seen_stations = set()
@@ -301,6 +302,10 @@ class SpaceTransitEnv():
 
         
         val_state.append({'any_lines': len(lines)!=0})
+
+        for i in range(len(val_state)):
+            val_state[i]['id'] = self.agent_id
+
 
         return val_state
     
