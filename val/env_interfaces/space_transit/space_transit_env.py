@@ -27,7 +27,8 @@ class SpaceTransitEnv():
         self.active_game = 0
         # idk where to put this and might be worth discussing on where this should be long term.
         self.alerted_stations = dict()
-        self.agent_id = random.randint(100000, 999999)
+        self.id_count = 30000
+        self.count = 0
 
     def get_objects(self) -> List[str]:
         line_mapping, lines, stations = self.get_lines_and_stations()
@@ -185,8 +186,8 @@ class SpaceTransitEnv():
                                 Fact(line=V("line")) &
                                 Fact(any_lines=False),
                 subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]),
-            Method(name='connect_stations', # Changed from head=
-                args=[],                # Added args
+            Method(name='connect_stations',
+                args=[],                
                 preconditions=Fact(station=V('station1'), unique_id=V("uid1")) &
                                 (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1"))) &
                                 Fact(station=V('station2'), unique_id=V("uid2")) &
@@ -216,11 +217,11 @@ class SpaceTransitEnv():
                                 Fact(line=V("line"), id=V('lineId')) &
                                 (Fact(to_station=V("station2id"), segment_line=V('lineId')) | Fact(from_station=V("station2id"), segment_line=V('lineId'))) &
                                 Fact(any_lines=False),
-                subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_nearest_stations')]), # Assuming connect_stations is still the desired recursive call
+                subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_nearest_stations')]),
             Method(name='connect_nearest_stations', # Changed from head=
                 args=[],                        # Added args
                 preconditions=Fact(agent_on=True),
-                subtasks=[Task('wait_small'), Task('connect_nearest_stations')]) # Assuming connect_stations is still the desired recursive call
+                subtasks=[Task('wait_small'), Task('connect_nearest_stations')]) 
         ]
         descriptions["connect_nearest_stations"] = "connect all unconnected stations to nearest unconnected"
 
@@ -304,7 +305,19 @@ class SpaceTransitEnv():
         val_state.append({'any_lines': len(lines)!=0})
 
         for i in range(len(val_state)):
-            val_state[i]['id'] = self.agent_id
+            if 'unique_id' in val_state[i].keys():
+                val_state[i]['id'] = val_state[i]['unique_id']
+            elif 'line_id' in val_state[i].keys():
+                val_state[i]['id'] = val_state[i]['line_id']
+            elif 'from_station' in val_state[i].keys():
+                temp = str(abs(val_state[i]['from_station'])) +"-"+ str(abs(val_state[i]['to_station']))
+                val_state[i]['id'] = temp
+            else:
+                val_state[i]['id'] = self.id_count
+                self.id_count += 1
+
+        self.count += 1
+        print(f"The count is {self.count}")
 
 
         return val_state
