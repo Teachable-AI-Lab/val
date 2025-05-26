@@ -1,4 +1,6 @@
 # val/env_interfaces/vertical_farm/vertical_farm_htn_methods.py
+from typing import Tuple, Dict, List
+
 from shop2.domain import Operator, Fact, Filter
 from shop2.domain import Task
 from shop2.common import V
@@ -9,6 +11,11 @@ import json
 from websockets.sync.client import connect
 from uuid import uuid4
 from json import dumps, loads
+
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
 
 class VerticalFarmHTNEnv(object):
     def __init__(self, base_url: str,
@@ -38,8 +45,6 @@ class VerticalFarmHTNEnv(object):
                                   open_timeout=None, close_timeout=None)
 
     _TASK_DISPATCH = {
-        'stop':    lambda env, args: env.execute_action('stop',    None),
-        'hold':    lambda env, args: env.execute_action('hold',    None),
         'move':    lambda env, args: env.execute_action('move',    {'direction': args[0]}),
         'move_to': lambda env, args: env.execute_action('move_to', {'x': args[0], 'y': args[1]}),
         'interact':lambda env, args: env.execute_action('interact', None),
@@ -87,32 +92,16 @@ class VerticalFarmHTNEnv(object):
     def execute_plan(self, plan_seq: list) -> dict:
         return self._send({"command": "execute_plan", "plan": plan_seq})
 
-    def get_vertical_farm_actions(self):
+    def get_actions(self) -> List[Tuple[str, List[str]]]:
         domain = {}
         descriptions = {}
 
-        domain["stop/0"] = [
-            Operator(
-                head=('stop',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'stop' in actions),
-                effects=[]
-            )
-        ]
-        descriptions["stop/0"] = "Stop the puppet immediately."
-
-        domain["hold/0"] = [
-            Operator(
-                head=('hold',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'hold' in actions),
-                effects=[]
-            )
-        ]
-        descriptions["hold/0"] = "Pause puppet until further instruction."
-
         domain["move/1"] = [
             Operator(
-                head=('move', V('direction')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions, direction: direction in actions),
+                name="move",
+                args=(V("direction"),),
+                preconditions=Fact(current_actions=V("actions")) &
+                              Filter(lambda actions, direction: direction in actions),
                 effects=[]
             )
         ]
@@ -120,8 +109,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["move_to/2"] = [
             Operator(
-                head=('move_to', V('x'), V('y')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'move_to' in actions),
+                name="move_to",
+                args=(V("x"), V("y")),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "move_to" in actions),
                 effects=[]
             )
         ]
@@ -129,17 +119,32 @@ class VerticalFarmHTNEnv(object):
 
         domain["interact/0"] = [
             Operator(
-                head=('interact',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'interact' in actions),
+                name="interact",
+                args=(),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "interact" in actions),
                 effects=[]
             )
         ]
         descriptions["interact/0"] = "Interact with an adjacent object."
 
+        domain["pick/1"] = [
+            Operator(
+                name="pick",
+                args=(V("target"),),
+                preconditions=Fact(current_actions=V("actions")) &
+                              Filter(lambda actions: "pick" in actions) &
+                              Fact(stage=V("stage")) &
+                              Filter(lambda stage: stage == "fruiting"),
+                effects=[]
+            )
+        ]
+        descriptions["pick/1"] = "Pick fruit at target slot (must be fruiting)."
+
         domain["pick_up/0"] = [
             Operator(
-                head=('pick_up',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'pick_up' in actions),
+                name="pick_up",
+                args=(),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "pick_up" in actions),
                 effects=[]
             )
         ]
@@ -147,8 +152,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["put_down/0"] = [
             Operator(
-                head=('put_down',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'put_down' in actions),
+                name="put_down",
+                args=(),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "put_down" in actions),
                 effects=[]
             )
         ]
@@ -156,8 +162,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["harvest/1"] = [
             Operator(
-                head=('harvest', V('target')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'harvest' in actions),
+                name="harvest",
+                args=(V("target"),),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "harvest" in actions),
                 effects=[]
             )
         ]
@@ -165,8 +172,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["pluck/1"] = [
             Operator(
-                head=('pluck', V('target')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'pluck' in actions),
+                name="pluck",
+                args=(V("target"),),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "pluck" in actions),
                 effects=[]
             )
         ]
@@ -174,8 +182,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["sample/1"] = [
             Operator(
-                head=('sample', V('target')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'sample' in actions),
+                name="sample",
+                args=(V("target"),),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "sample" in actions),
                 effects=[]
             )
         ]
@@ -183,8 +192,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["spray/1"] = [
             Operator(
-                head=('spray', V('volume')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'spray' in actions),
+                name="spray",
+                args=(V("volume"),),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "spray" in actions),
                 effects=[]
             )
         ]
@@ -192,8 +202,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["plant/1"] = [
             Operator(
-                head=('plant', V('target')),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'plant' in actions),
+                name="plant",
+                args=(V("target"),),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "plant" in actions),
                 effects=[]
             )
         ]
@@ -201,8 +212,9 @@ class VerticalFarmHTNEnv(object):
 
         domain["till/0"] = [
             Operator(
-                head=('till',),
-                preconditions=Fact(current_actions=V('actions')) & Filter(lambda actions: 'till' in actions),
+                name="till",
+                args=(),
+                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "till" in actions),
                 effects=[]
             )
         ]
@@ -225,38 +237,42 @@ class VerticalFarmHTNEnv(object):
 
 
 if __name__ == "__main__":
-    import argparse, json, sys
+    base_url = "http://localhost:4649"
+    agent_id = "agent123"
+    puppet_id = "farm_bot_1"
 
-    parser = argparse.ArgumentParser(prog='Test Vertical Farm HTN')
-    parser.add_argument('base_url', help='e.g. http://localhost:4649')
-    parser.add_argument('agent_id')
-    parser.add_argument('puppet_id')
-    parser.add_argument('--tasks',
-                        default='[["move", "up"], ["stop"]]',
-                        help='JSON list of HTN tasks')
-    parser.add_argument('--list-puppets', action='store_true', dest='list_puppets',
-                        help='Print available puppet IDs')
-    args = parser.parse_args()
+    # Initialize the HTN environment
+    env = VerticalFarmHTNEnv(
+        base_url=base_url,
+        agent_id=agent_id,
+        puppet_id=puppet_id
+    )
 
-    if args.list_puppets:
-        VerticalFarmHTNEnv.list_puppets(args.base_url)
-        sys.exit(0)
+    # 1. Fetch and print current state
+    state = env.get_state()
+    print("Current state:", state)
 
+    # 2. Fetch and print available actions and their descriptions
+    domain, descriptions = env.get_actions()
+    print("Action domain:", domain)
+    print("Descriptions:", descriptions)
 
-    if args.list_puppets:
-        VerticalFarmHTNEnv.list_puppets(args.base_url)
-        sys.exit(0)
+    # 3. Execute individual actions
+    print("Move up:", env.execute_action("move", {"direction": "up"}))
+    print("Interact:", env.execute_action("interact", None))
+    print("Plant seed in plant_slot_1:", env.execute_action("plant", {"target": "plant_slot_1"}))
+    print("pick", env.execute_action("pick", {"target": "plant_slot_1"}))
+    print("Harvest plant_slot_1:", env.execute_action("harvest", {"target": "plant_slot_1"}))
+    print("Till the soil:", env.execute_action("till", None))
+    print("Spray fertilizer with volume 10:", env.execute_action("spray", {"volume": 10}))
 
-    try:
-        htn_env = VerticalFarmHTNEnv(
-            base_url=args.base_url,
-            agent_id=args.agent_id,
-            puppet_id=args.puppet_id
-        )
-    except Exception as e:
-        print("Failed to initialize HTN environment:", e)
-        sys.exit(1)
+    # 4. Or dispatch a small HTN plan
+    plan = [
+        ["move", "up"],
+        ["interact"],
+        ["move", "left"],
+        ["harvest", "plant_slot_1"]
+    ]
+    results = env.run_tasks(plan)
+    print("Plan execution results:", results)
 
-    tasks = json.loads(args.tasks)
-    results = htn_env.run_tasks(tasks)
-    print("Task results:", results)
