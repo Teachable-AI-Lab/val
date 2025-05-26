@@ -1,3 +1,4 @@
+import copy
 from json import loads
 from typing import List
 from typing import Tuple
@@ -8,18 +9,20 @@ from val.env_interfaces.dice_adventure.move_planner import MovePlanner
 import os
 import json
 
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
+from pyhtn.conditions.pattern_matching import Filter
 
 class DiceAdventureEnv(AbstractEnvInterface):
 
-    def __init__(self, player="Dwarf", server="local", state_version="fow"):
+    def __init__(self, player="Dwarf", server="unity", state_version="fow"):
         self.player = player
+        self.character_id = "C11"
         self.env = DiceAdventurePythonEnv(player=player, server=server, state_version=state_version)
         self.env.register(self.player)
         self.move_planner = MovePlanner()
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        actions_path = os.path.join(base_dir, "env_actions.json")
-        with open(actions_path, "r") as file:
-            self.actions = json.load(file)
 
     def get_objects(self) -> List[str]:
         state = self.env.get_state()
@@ -33,23 +36,262 @@ class DiceAdventureEnv(AbstractEnvInterface):
         return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
-        """
-        Returns actions in a format the HTN interface can create primitives.
-        """
-        return self.actions
+        domain = {}
+        descriptions = {}
+
+        domain["up"] = [
+            Operator(
+                name="up",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["up"] = "Increases the player's y position by one unit."
+
+        domain["down"] = [
+            Operator(
+                name="down",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["down"] = "Decreases the player's y position by one unit."
+
+        domain["left"] = [
+            Operator(
+                name="left",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["left"] = "Decreases the player's x position by one unit."
+
+        domain["right"] = [
+            Operator(
+                name="right",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["right"] = "Increases the player's x position by one unit."
+
+        domain["wait"] = [
+            Operator(
+                name="wait",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["wait"] = "Keeps the player's x and y position the same."
+
+        domain["move_to"] = [
+            Operator(
+                name="move_to",
+                args=(V("target"),),
+                preconditions=[
+                    # Fact("currentPhase", "Player_Planning"),
+                    # Fact("actionPoints", V("ap")),
+                    # Filter(lambda ap: ap > 0)
+                ],
+                effects=[]
+            ),
+            # Operator(
+            #     name="move_to",
+            #     args=(V("direction"), V("num_steps")),
+            #     preconditions=[
+            #         Fact("currentPhase", "Player_Planning"),
+            #         Fact("actionPoints", V("ap")),
+            #         Filter(lambda ap: ap > 0)
+            #     ],
+            #     effects=[]
+            # ),
+            # Operator(
+            #     name="move_to",
+            #     args=(V("target"), V("direction"), V("num_steps")),
+            #     preconditions=[
+            #         Fact("currentPhase", "Player_Planning"),
+            #         Fact("actionPoints", V("ap")),
+            #         Filter(lambda ap: ap > 0)
+            #     ],
+            #     effects=[]
+            # )
+        ]
+        descriptions["move_to"] = "Only have one args, which is the targeted location. Move to the target location."
+
+        domain["submit"] = [
+            Operator(
+                name="submit",
+                args=(),
+                preconditions=[],
+                effects=[]
+            )
+        ]
+        descriptions["submit"] = "Submits the final action or plan."
+
+        for pin_type in ['pinga', 'pingb', 'pingc', 'pingd']:
+            domain[pin_type] = [
+                Operator(
+                    name=pin_type,
+                    args=(),
+                    preconditions=[
+                        Fact("actionPoints", V("ap")),
+                        Filter(lambda ap: ap > 0)
+                    ],
+                    effects=[]
+                )
+            ]
+        descriptions[pin_type] = f"Places a type '{pin_type[-1].upper()}' pin on the game board."
+        
+        domain["find_tower"] = [
+            Method(
+                name="find_tower",
+                args=(),
+                preconditions=[],
+                subtasks=[Task("explore"), 
+                          Task("find_tower")]
+            ),
+            Method(
+                name="find_tower",
+                args=(),
+                preconditions=[
+                    Fact(entityType="Goal", x=V("gx"), y=V("gy")),
+                ],
+                subtasks=[Task("move", V("gx"), V("gy")), 
+                          Task("find_tower")]
+            ),]
+        descriptions["find_tower"] = "Searches for a tower after shrine is reached. Moves, explores, or submits when out of points."
+        
+        domain["explore"] = [
+            Method(
+                name="explore",
+                args=(),
+                preconditions=[
+                    # Fact(id="gameData", currentPhase="Player_Planning"),
+                    Fact(sight_status="unexplored", x=V("gx"), y=V("gy"))
+                ],
+                subtasks=[Task("move", V("gx"), V("gy"))]
+            )
+        ]
+        descriptions["explore"] = "Moves the player to an unexplored location based on current position."
+        
+        domain["move"] = [
+            Operator(
+                name="move",
+                args=(V("dest_x"), V("dest_y")),
+                preconditions=[],
+                effects=[
+                    Fact(type="action", value="move")
+                ]
+            )
+        ]
+        
+        descriptions["move"] = "Moves the player from one location to another."
+        
+        domain["play"] = [
+            Method(
+                name="play",
+                args=(),
+                preconditions=[],
+                subtasks=[Task("explore"), Task("find_shrine"), Task("find_tower")]
+            )
+        ]
+        descriptions["play"] = "Controls the main game loop across phases: pinning, planning, and infinite continuation."
+
+        domain["find_shrine"] = [
+            Method(
+                name="find_shrine",
+                args=(),
+                preconditions=[
+                    # game environment name bug
+                    Fact(entityType="Shrine", objKey='K1', reached=False, x=V("sx"), y=V("sy")), 
+                    Fact(entityType="Character", objKey=self.character_id, actionPoints=V("ap")),
+                    Filter(lambda ap: ap > 0)
+                ],
+                subtasks=[Task("move", V("sx"), V("sy"))]
+            ),
+          
+            Method(
+                name="find_shrine",
+                args=(),
+                preconditions=[],
+                subtasks=[Task("explore"),Task("find_shrine")]
+            ),
+            
+            Method(
+                name="find_shrine",
+                args=(),
+                preconditions=[],
+                subtasks=[Task("submit")]
+            )
+        ]
+        descriptions["find_shrine"] = "Searches for a shrine by moving, exploring, or submitting if reached or out of action points."
+
+        # domain["find_tower"] = [
+        #     Method(
+        #         name="find_tower",
+        #         args=(),
+        #         preconditions=[
+        #             Fact(id="gameData", currentPhase="Player_Planning"),
+        #             Fact(entityType="Shrine", character=self.character_id, reached=True),
+        #             Fact(entityType="Goal", x=V("gx"), y=V("gy")),
+        #             Fact(entityType="Character", id=self.character_id, x=V("px"), y=V("py"), actionPoints=V("ap")),
+        #             Filter(lambda ap: ap > 0)
+        #         ],
+        #         subtasks=[Task("move", V("px"), V("py"), V("gx"), V("gy")), 
+        #                   Task("find_tower")]
+        #     ),
+            # Method(
+            #     name="find_tower",
+            #     args=(),
+            #     preconditions=[
+            #         Fact(id="gameData", currentPhase="Player_Planning"),
+            #         Fact(entityType="Shrine", character=self.character_id, reached=True),
+            #         Fact(entityType="Character", id=self.character_id, x=V("px"), y=V("py"), actionPoints=V("ap")),
+            #         Filter(lambda ap: ap > 0)
+            #     ],
+            #     subtasks=[Task("explore", V("px"), V("py")), 
+            #               Task("find_tower")]
+            # ),
+        #     Method(
+        #         name="find_tower",
+        #         args=(),
+        #         preconditions=[
+        #             Fact(id="gameData", currentPhase="Player_Planning"),
+        #             Fact(entityType="Character", id=self.character_id, x=V("px"), y=V("py"), actionPoints=V("ap")),
+        #             Filter(lambda ap: ap <= 0)
+        #         ],
+        #         subtasks=[Task("submit")]
+        #     )
+        # ]
+        # descriptions["find_tower"] = "Searches for a tower after shrine is reached. Moves, explores, or submits when out of points."
+
+
+
+        return domain, descriptions
 
     def get_state(self) -> list:
         """
-        Returns the state in a list that can be converted into HTN representation.
+        Returns the simplified game state with sight_status and unexplored cells,
+        formatted for HTN use.
         """
         state = self.env.get_state()
-        for ele in state["content"]["scene"]:
-            for k in ele:
-                if isinstance(ele[k], list):
-                    ele[k] = ",".join(ele[k])
-                    
-        return [state["content"]["gameData"]] + state["content"]["scene"]
+        simplified_scene = _simplify_state(state, self.player)
 
+        # Convert list-type values to string for HTN compatibility
+        for obj in simplified_scene:
+            for k, v in obj.items():
+                if isinstance(v, list):
+                    obj[k] = ",".join(map(str, v))
+
+        print("state:", simplified_scene)
+        return simplified_scene
+    
+    
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         """
         Takes an action and its arguments and executes it in the environment.
@@ -57,16 +299,22 @@ class DiceAdventureEnv(AbstractEnvInterface):
         state = self.env.get_state()
         player_obj = self.find_obj_by_id(state, self.env.get_player_code(self.player) + "1")
         if action_name == "move_to":
-            if len(args) == 1:
-                target_pos = self.get_target_pos(args[0], state)
-                self.move_to_target(target_pos, player_obj, state)
-            elif len(args) == 2:
-                self.move_in_direction(args[0], int(args[1]), player_obj, state)
-            elif len(args) == 3:
-                target_pos = self.get_target_pos(args[0], state)
-                tx, ty = self.change_position(target_pos, args[1], int(args[2]))
-                self.move_to_target((tx, ty), player_obj, state)
+            target_pos = self.get_target_pos(args[0], state)
+            print("target_pos:", target_pos)
+            self.move_to_target(target_pos, player_obj, state)
+            # if len(args) == 1:
+            #     target_pos = self.get_target_pos(args[0], state)
+            #     self.move_to_target(target_pos, player_obj, state)
+            # elif len(args) == 2:
+            #     self.move_in_direction(args[0], int(args[1]), player_obj, state)
+            # elif len(args) == 3:
+            #     target_pos = self.get_target_pos(args[0], state)
+            #     tx, ty = self.change_position(target_pos, args[1], int(args[2]))
+            #     self.move_to_target((tx, ty), player_obj, state)
             return True
+        if action_name == "move":
+            target_pos = (args[0], args[1])
+            self.move_to_target(target_pos, player_obj, state)
         else:
             next_state = self.env.execute_action(player=self.player, game_action=action_name)
             self.env.render()
@@ -131,4 +379,75 @@ class DiceAdventureEnv(AbstractEnvInterface):
         for obj in state["content"]["scene"]:
             if obj.get("id") == obj_id:
                 return obj
+
+
+#############
+# UTILITIES #
+#############
+def _simplify_state(state: dict, player: str) -> list[dict]:
+    """
+    Simplifies the game state into a list of dictionary objects, each representing an object in the game.
+    :param state: The game state
+    :param player: The player the state is related to
+    :return: The modified state as a list of dictionaries
+    """
+    state['content']['gameData']['id'] = 'gameData'
+    game_data_obj = state['content']['gameData']
+    scene = [game_data_obj] + state['content']['scene']
+
+    return _add_sight_status(scene, player, game_data_obj)
+
+
+def _add_sight_status(scene: list[dict], player: str, game_data_obj: dict) -> list[dict]:
+    """
+    Modifies the state by adding whether objects are visible or hidden. It also adds 'Cell' objects with an 'unexplored'
+    status to represent grid squares that have not yet been observed.
+    :param scene: The list of objects in the state
+    :param player: The name of the player
+    :param game_data_obj: The state object containing high level information about the current state of the game
+    :return: The modified scene list
+    """
+    player_obj = _find_player_obj(scene, player)
+    x_lower = player_obj['x'] - player_obj['sightRange']
+    x_upper = player_obj['x'] + player_obj['sightRange']
+    y_lower = player_obj['y'] - player_obj['sightRange']
+    y_upper = player_obj['y'] + player_obj['sightRange']
+
+    all_cells = {(i, j) for i in range(game_data_obj['boardWidth']) for j in range(game_data_obj['boardHeight'])}
+    scene_cells = {(obj.get('x'), obj.get('y')) for obj in scene}
+    unexplored = all_cells - scene_cells
+
+    for obj in scene:
+        x, y = obj.get('x'), obj.get('y')
+        if x is None or y is None:
+            continue
+        if x_lower <= x <= x_upper and y_lower <= y <= y_upper:
+            obj['sight_status'] = 'visible'
+        else:
+            obj['sight_status'] = 'hidden'
+
+    for i, pos in enumerate(unexplored):
+        scene.append({'id': f'UE{i}', 'entityType': 'Cell',
+                      'objKey': 'UE', 'sight_status': 'unexplored',
+                      'x': pos[0], 'y': pos[1]})
+    return scene
+
+
+def _find_player_obj(scene: list[dict], player: str) -> dict | None:
+    """
+    Locates the player's object dictionary in the scene list.
+    :param scene: The list of objects in the state
+    :param player: The name of the player to be returned
+    :return: The player dictionary object
+    """
+    ids = {"dwarf": "C11", "giant": "C21", "human": "C31"}
+    pid = ids[player.lower()]
+    for obj in scene:
+        if obj.get('id') == pid:
+            return copy.copy(obj)
+
+
+if __name__ == "__main__":
+    env = DiceAdventureEnv()
+    env.execute_action(action_name="find_shrine", args=[])
 
