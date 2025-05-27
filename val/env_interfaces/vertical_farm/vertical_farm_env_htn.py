@@ -96,7 +96,7 @@ class VerticalFarmHTNEnv(object):
         domain = {}
         descriptions = {}
 
-        domain["move/1"] = [
+        domain["move"] = [
             Operator(
                 name="move",
                 args=(V("direction"),),
@@ -105,9 +105,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["move/1"] = "Move puppet one step in the given direction."
+        descriptions["move"] = "Move puppet one step in the given direction."
 
-        domain["move_to/2"] = [
+        domain["move_to"] = [
             Operator(
                 name="move_to",
                 args=(V("x"), V("y")),
@@ -115,9 +115,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["move_to/2"] = "Move puppet to coordinates (x, y)."
+        descriptions["move_to"] = "Move puppet to coordinates (x, y)."
 
-        domain["interact/0"] = [
+        domain["interact"] = [
             Operator(
                 name="interact",
                 args=(),
@@ -125,9 +125,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["interact/0"] = "Interact with an adjacent object."
+        descriptions["interact"] = "Interact with an adjacent object."
 
-        domain["pick/1"] = [
+        domain["pick"] = [
             Operator(
                 name="pick",
                 args=(V("target"),),
@@ -138,9 +138,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["pick/1"] = "Pick fruit at target slot (must be fruiting)."
+        descriptions["pick"] = "Pick fruit at target slot (must be fruiting)."
 
-        domain["pick_up/0"] = [
+        domain["pick_up"] = [
             Operator(
                 name="pick_up",
                 args=(),
@@ -148,9 +148,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["pick_up/0"] = "Pick up an object at current location."
+        descriptions["pick_up"] = "Pick up an object at current location."
 
-        domain["put_down/0"] = [
+        domain["put_down"] = [
             Operator(
                 name="put_down",
                 args=(),
@@ -158,9 +158,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["put_down/0"] = "Put down carried object."
+        descriptions["put_down"] = "Put down carried object."
 
-        domain["harvest/1"] = [
+        domain["harvest"] = [
             Operator(
                 name="harvest",
                 args=(V("target"),),
@@ -168,9 +168,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["harvest/1"] = "Harvest the crop at target slot."
+        descriptions["harvest"] = "Harvest the crop at target slot."
 
-        domain["pluck/1"] = [
+        domain["pluck"] = [
             Operator(
                 name="pluck",
                 args=(V("target"),),
@@ -178,9 +178,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["pluck/1"] = "Pluck fruit at target slot."
+        descriptions["pluck"] = "Pluck fruit at target slot."
 
-        domain["sample/1"] = [
+        domain["sample"] = [
             Operator(
                 name="sample",
                 args=(V("target"),),
@@ -188,9 +188,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["sample/1"] = "Take a sample from target slot."
+        descriptions["sample"] = "Take a sample from target slot."
 
-        domain["spray/1"] = [
+        domain["spray"] = [
             Operator(
                 name="spray",
                 args=(V("volume"),),
@@ -198,9 +198,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["spray/1"] = "Spray fertilizer or pesticide of given volume."
+        descriptions["spray"] = "Spray fertilizer or pesticide of given volume."
 
-        domain["plant/1"] = [
+        domain["plant"] = [
             Operator(
                 name="plant",
                 args=(V("target"),),
@@ -208,9 +208,9 @@ class VerticalFarmHTNEnv(object):
                 effects=[]
             )
         ]
-        descriptions["plant/1"] = "Plant a seed at target slot."
+        descriptions["plant"] = "Plant a seed at target slot."
 
-        domain["till/0"] = [
+        domain["till"] = [
             Operator(
                 name="till",
                 args=(),
