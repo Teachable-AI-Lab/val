@@ -5,7 +5,32 @@ from val.utils import Task
 
 
 class AbstractUserInterface:
+    ### new functions for GUI ###
+    def check_for_break(self) -> bool:
+        """
+        Check if the user wants to break.
+        """
+        raise NotImplementedError("Not implemented yet")
+    
+    # def select_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+    #     """
+    #     Takes a user_task and the user_subtasks it decomposes into and asks the
+    #     user if this is the right thing to do, returns bool.
+    #     """
+    #     raise NotImplementedError("Not implemented yet")
 
+    def query_next_decomposition_and_rewards(self):
+        raise NotImplementedError("Not implemented yet")        
+
+
+    
+    def display_added_method(self, task: Task, subtasks: List[Task]) -> None:
+        """
+        Takes a user_task and the user_subtasks. No return value, just displays.
+        """
+        raise NotImplementedError("Not implemented yet")
+
+    ### old functions for chat ###
     def request_user_task(self) -> str:
         """
         Initial prompt to request a task from the user.
@@ -80,14 +105,7 @@ class AbstractUserInterface:
         Should return new list of task args that are correct.
         """
         raise NotImplementedError("Not implemented yet")
-
-    def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:
-        """
-        Takes a user_task and the user_subtasks it decomposes into and asks the
-        user if this is the right thing to do, returns bool.
-        """
-        raise NotImplementedError("Not implemented yet")
-
+   
     def confirm_task_execution(self, user_task: str) -> bool:
         """
         Takes a user_task and asks the user if this is the right thing to
@@ -100,4 +118,11 @@ class AbstractUserInterface:
         Displays the list of tasks that VAL knows how to do.
         """
         raise NotImplementedError("Not implemented yet")
+
+    def update_graph_vis(self, root_task_exec):
+        pass
+
+    
+
+
 

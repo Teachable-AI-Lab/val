@@ -2,14 +2,20 @@ from typing import List
 from collections import defaultdict
 from collections import deque
 
-from shop2.domain import Operator
-from shop2.domain import Method
-from shop2.domain import unify
-from shop2.domain import subst
-from shop2.fact import Fact
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
 
-from shop2.domain import Task
-from shop2.common import V
+from pyhtn.conditions.pattern_matching import (
+    # dict_to_tuple,
+    # fact_to_tuple,
+    # msubst,
+    subst,
+    # tuples_to_dicts,
+    unify,
+)
+
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 
 

@@ -1,86 +1,85 @@
+from typing import Any
+from typing import List
+from typing import Optional
+
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.pattern_matching import AND
+from pyhtn.conditions.pattern_matching import Filter
+from pyhtn.conditions.pattern_matching import flatten
+
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
+
+
+# from pyhtn.domain.operators import Operator
+# from pyhtn.domain.task import Task
+# from pyhtn.domain.variable import V
+from pyhtn.htn.planner2 import HtnPlanner2
+
+from val.env_interfaces.abstract_interface import AbstractEnvInterface
+from val.htn_interfaces.abstract_interface import AbstractHtnInterface
+from val.htn_interfaces.method_application import MethodApplication
+
 from typing import List
 from collections import defaultdict
 
-from shop2.domain import Operator
-from shop2.domain import Method
-from shop2.domain import flatten
-from shop2.planner import planner
-from shop2.planner import FailedPlanException, StopException
-from shop2.fact import Fact
-from shop2.common import V
-# from shop2.common import FailedPlanException
-from shop2.conditions import AND, Filter
-from py_plan.unification import unify
-from py_plan.unification import subst
-
-from shop2.domain import Task
-from val.htn_interfaces.abstract_interface import AbstractHtnInterface
-from val.env_interfaces.abstract_interface import AbstractEnvInterface
-# from user_interfaces.abstract_interface import AbstractUserInterface
-
-
-def dict_to_facts(fact_dict_list: list) -> Fact:
-    state = []
-    for fact_dict in fact_dict_list:
-        state.append(Fact(**{key: value for key, value in fact_dict.items()}))
-
-    return AND(*state)
-
-def dict_to_operators(operator_dict_list: list) -> List[Operator]:
-    domain = defaultdict(list)
-    task_descriptions = {}
-
-    for operator_dict in operator_dict_list:
-        head = (operator_dict['name'], *[V(arg[1:]) if len(arg)>1 and arg[0]=='?' else arg for arg in operator_dict["args"]])
-        preconditions = []
-        for precondition_dict in operator_dict['preconditions']:
-            if precondition_dict['type'] == 'fact':
-                f = Fact(**{key: (V(value[1:])
-                                  if (isinstance(value, str) and len(value) > 1 and value[0] == '?') else value)
-                            for key, value in precondition_dict.items() if key != 'type'})
-                preconditions.append(f)
-            if precondition_dict['type'] == 'filter':
-                f = Filter(eval(precondition_dict['lambda']))
-                preconditions.append(f)
-            if precondition_dict['type'] == 'bind':
-                raise NotImplementedError("Not implemented yet")
-
-        # TODO remove effects from operator, it will just return the operator name and args
-        new_operator = Operator(head, AND(*flatten(preconditions)), [])
-        key = f"{ new_operator.name }/{ len(new_operator.args) }"
-        domain[key].append(new_operator)
-        task_descriptions[key] = operator_dict['description']
-    print("DOMAIN CREATED\n", domain)
-    return domain, task_descriptions
 
 class PyHtnInterface(AbstractHtnInterface):
 
-    def __init__(self, agent):
+    def __init__(self, agent, environment: AbstractEnvInterface):
         """
         Needs both env and user interfaces so it can execute in the world and
         confirm execution.
         """
-        self.agent = agent
+        super().__init__(agent)
+        self.env = environment
     
         # TODO consider how and in what way we need the user interface
         # self.user_interface = user_interface
-        self.domain, self.task_description = dict_to_operators(self.agent.env.get_actions())
+        self.task_description = {}
+        self.domain, self.task_descriptions = self.agent.env.get_actions()
+        # initial state, authored HTN is passed to the planner
+        self.planner = HtnPlanner2(domain=self.domain, env=self.env)
 
 
-    def get_tasks(self) -> List[Task]:
+    def get_tasks(self) -> list[tuple[Task, Any]]:
         """
         Return a list of ungrounded tasks (no repeats).
         """
-        return list(set([(Task(operator.head[0],
-                               *[v for v in operator.head[1:]]), self.task_description[key])
-                         for key in self.domain for operator in self.domain[key]]))
+        # return self.domain, self.task_descriptions
+        return list(
+                    set(
+                        [
+                         (
+                            Task(method.name, args=method.args),
+                            self.task_descriptions.get(key,"")
+                         )
+                         for key in self.domain for method in self.domain[key]
+                        ]
+                    )
+        )
+
+    def is_exhausted(self):
+        return self.planner.is_exhausted()
+
+    def plan_to_next_decomposition(self):
+        self.planner.print_network()
+        return self.planner.plan_to_next_decomposition()        
+
+    def stage_method_exec(self, method_exec):
+        return self.planner.stage_method_exec(method_exec)
+
+        # head is defined in pyHTN, self.head = (self.name, *self.args)
         # return list(set([Task(operator.head[0], tuple([v for v in operator.head[1:]]))
         #                  for ele in self.domain for operator in self.domain[ele]]))
+
+    """
+    def execute_task(self, task: Any) -> bool:
         
-    def execute_task(self, task: Task) -> bool:
-        """
-        Executes the task provided in the environment
-        """
+        # Executes the task provided in the environment
+        
         # # TODO REMOVE THIS!!!!!
         # return False
 
@@ -110,23 +109,69 @@ class PyHtnInterface(AbstractHtnInterface):
         #     return True
         # except FailedPlanException as e:
         #     print(e)
-        #     return False
+    #     return False
+    """
 
-
-    def add_method(self, task_name: str,
-                   task_args: List[V], preconditions: Fact, subtasks: List[Task]):
+    def add_method_exec(self, method_exec):
         """
-        Creates a new HTN method and adds to domain.
-        """
-        # head = (task_name, *task_args)
-        # TODO if we want to support it we have to convert all variables to SV
-        if preconditions is None:
-            raise NotImplementedError("Preconditions not supported")
-        
+        Takes a MethodEx, adds its underlying Method to domain and 
+            forces the method execution into the planner's current frame.
+        """        
         # TODO make a method a single precondition subtask pair.
-        new_method = Method(head=(task_name, *[V(x.name) if isinstance(x, V) else x for x in task_args]),
-                            preconditions=preconditions, subtasks=subtasks)
-        
-        key = f"{ task_name }/{ len(task_args)}"
-        self.domain[key].append(new_method)
-        self.task_description[key] = ""
+        # task_args = tuple(V(x.name) if isinstance(x, V) else x for x in task_args)
+        self.planner.add_method(method_exec.method)
+        self.planner.add_method_exec(method_exec)
+        return method_exec
+
+
+    def add_tasks(self, tasks):
+        self.planner.add_tasks(tasks)
+
+    def get_next_method_execs(self):#all_methods: bool = False):
+
+        return self.planner.get_next_method_execs()
+        # state = self.agent.env.get_state()
+        # task, methods = self.planner.get_next_method_application(all_methods)
+        # #generate hash by deal methodAapplication.id in web interface
+        # return task, MethodApplication(method=methods[0], match=task.args, state=state)
+        # return task, [MethodApplication(method=method, match=task.args, state=state) for method in methods]
+    
+    # def apply_method_application(self, task, method_to_apply: Any):
+    #     self.planner.apply_method_application(task, method_to_apply)
+
+def dict_to_facts(fact_dict_list: list) -> AND:
+    state = []
+    for fact_dict in fact_dict_list:
+        state.append(Fact(**{key: value for key, value in fact_dict.items()}))
+
+    return AND(*state)
+
+def dict_to_operators(operator_dict_list: list) -> List[Operator]:
+    domain = defaultdict(list)
+    task_descriptions = {}
+
+    for operator_dict in operator_dict_list:
+        head = (operator_dict['name'], *[V(arg[1:]) if len(arg)>1 and arg[0]=='?' else arg for arg in operator_dict["args"]])
+        preconditions = []
+        for precondition_dict in operator_dict['preconditions']:
+            if precondition_dict['type'] == 'fact':
+                f = Fact(**{key: (V(value[1:])
+                                  if (isinstance(value, str) and len(value) > 1 and value[0] == '?') else value)
+                            for key, value in precondition_dict.items() if key != 'type'})
+                preconditions.append(f)
+            if precondition_dict['type'] == 'filter':
+                f = Filter(eval(precondition_dict['lambda']))
+                preconditions.append(f)
+            if precondition_dict['type'] == 'bind':
+                raise NotImplementedError("Not implemented yet")
+
+        # TODO remove effects from operator, it will just return the operator name and args
+        new_operator = Operator(name=head[0],
+                               args=head[1:],
+                               preconditions=AND(*flatten(preconditions)),
+                               effects=[])
+        key = f"{ new_operator.name }/{ len(new_operator.args) }"
+        domain[key].append(new_operator)
+        task_descriptions[key] = operator_dict['description']
+    print("DOMAIN CREATED\n", domain)
+    return domain, task_descriptions

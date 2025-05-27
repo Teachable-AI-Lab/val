@@ -3,8 +3,14 @@ from typing import Optional
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
-from shop2.domain import Task
-from shop2.common import V
+
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
+from pyhtn.exceptions import FailedPlanException
+
+
 from val.gpt_completer import GPTCompleter
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
@@ -31,34 +37,110 @@ class ValAgent:
 
         self.user_interface = user_interface_class()
         self.env = env
-        self.htn_interface = htn_interface_class(self)
+        self.htn_interface = htn_interface_class(self, self.env)
 
     def start(self):
         while True:
+
+            # Get current task node from planner and pass this to the user interface
             tasks = [self.verbalize_gpt(t, [arg.name for arg in t.args])
                                         for t, _ in self.htn_interface.get_tasks()]
             self.user_interface.display_known_tasks(tasks)
 
             user_tasks = self.user_interface.request_user_task()
+            tasks = [task for task in self.interpret(user_tasks)]
+            print(f"Tasks: {tasks}")
+            # planner = self.htn_interface.get_planner(tasks)
+            self.htn_interface.add_tasks(tasks)
+            #task here is a list of dicts. eg [{'name': 'moveTo', 'arguments': ['onion']}] 
 
-            for task in self.interpret(user_tasks):
-                # TODO do we need to maintain any state across tasks?
-                self.htn_interface.execute_task(task)
+            user_choice = None
 
-    def interpret(self, user_tasks: str):
+            try:
+                while True:
+                    if self.user_interface.check_for_break():
+                        break
+
+                    # Plan through HTN until next non-primitive task.
+                    trace = self.htn_interface.plan_to_next_decomposition()
+                    print("TRACE")
+                    trace.print_trace()
+
+                    if(self.htn_interface.is_exhausted()):
+                        break
+
+                    # Get the method executions considered by the planner
+                    task_exec, method_execs = self.htn_interface.get_next_method_execs()
+
+                    
+                    
+                    if method_execs is None:
+                        method_execs = []
+                    #     next_method_exec = self.query_new_method_exec(task_exec)
+                    #     sel_method = next_method_exec.method
+                    #     self.user_interface.display_added_method(task_exec, sel_method.subtasks)
+                    #     rewards = [1]
+                    #     method_execs = [next_method_exec]
+                    #     continue
+   
+
+                    # If there are any MethodExs, wait for the user to assign them
+                    #  with a reward label: 1, -1 (or not: None) and have the 
+                    #  user_interface decide which method_exec will be applied
+
+                    next_method_exec, rewards = \
+                        self.user_interface.query_next_decomposition_and_rewards(
+                            task_exec, method_execs)
+
+                    # If there is no next_method_exec because:
+                    #  1. Matching in the planner failed or 
+                    #  2. The user decided to describe their own method
+                    #  Then query the user to describe the grounded subtasks of the 
+                    #  decomposition. This creates the next method execution.
+                    if (next_method_exec is None):
+                        next_method_exec = self.query_new_method_exec(task_exec)
+                        sel_method = next_method_exec.method
+                        self.user_interface.display_added_method(task_exec, sel_method.subtasks)
+                        rewards.append(1)
+                        method_execs.append(next_method_exec)
+                        
+                    # Stage next_method_exec so that it is applied when 
+                    #  planning continues in the next loop 
+                    self.htn_interface.stage_method_exec(next_method_exec)
+
+                    # Apply any rewards that were assigned 
+                    for method_exec, reward in zip(method_execs, rewards):
+                        method = method_exec.method
+                        # method.cond_lrn.ifit(method_exec, 1)
+                    
+
+            except FailedPlanException:
+                # Signify Failure
+                pass
+
+    def interpret(self, user_tasks: str) -> List[Task]:
+        """
+        Takes a string of natural language from the user and returns a list of Tasks
+        """
         segmented_tasks = self.segment_gpt(user_tasks)
         while not self.user_interface.segment_confirmation(segmented_tasks):
+            #not segment correctly
             # TODO consider adding/editing steps here.
             user_tasks = self.user_interface.ask_rephrase(user_tasks)
             segmented_tasks = self.segment_gpt(user_tasks)
 
         for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
-
+            print("task_ungrounded", task_ungrounded)
+            # task ungrounded is None means the agent is not sure what the user means
+            # can not map to a task in the domain
+            # map_gpt: go to map to moveTo, map the action(predicate)
+            
             if ((task_ungrounded is None and
                    not self.user_interface.map_new_method_confirmation(user_task)) or
                   (task_ungrounded is not None and
                    not self.user_interface.map_confirmation(user_task, task_ungrounded.name))):
+                #correct the map result
                 # TODO add to htn interface
                 # TODO consider how we convert tasks to strings and handle args
                 known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
@@ -71,11 +153,17 @@ class ValAgent:
                     task_ungrounded = known_tasks[int(user_correction_index)]
 
             if task_ungrounded is None:
-                for subtask in self.add_method_from_user_task(user_task):
-                    yield subtask
+                task_name = self.name_gpt(user_task)
+                task_args = self.gen_gpt(user_task, task_name)
+                if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
+                    task_args = self.user_interface.gen_correction(task_name, task_args,
+                                                           self.env.get_objects())
+                yield Task(str(task_name), args=list(task_args))
 
             else:
+            # ground task objects
                 task_args = self.ground_gpt(user_task, task_ungrounded)
+                # if pick the wrong object
                 if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
                     task_args = self.user_interface.ground_correction(task_ungrounded.name,
                                                                       task_args,
@@ -85,63 +173,54 @@ class ValAgent:
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield Task(task_ungrounded.name, *task_args)
+                    yield Task(str(task_ungrounded.name), args=list(task_args))
+                # returns the mapped task name and the arguments
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
 
-    def add_method_from_task(self, task: Task):
-        verbalized_task = self.verbalize_gpt(task, task.args)
+    def query_new_method_exec(self, task_exec: TaskEx):
+        """
+        This is previous "add method" function. Returns an HTN method
+        """
+        state = self.env.get_state()
+        task = task_exec.task 
+        task_args = task_exec.match 
+        verbalized_task = self.verbalize_gpt(task, task_args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
         subtasks = []
         for subtask in self.interpret(user_subtasks):
-            yield subtask
             subtasks.append(subtask)
-
-        # TODO maybe consider a gpt module that names these better...
-        arg_map = {arg: V(chr(ord('A')+i))
-                   for i, arg in enumerate(task.args)}
-
-        task_args_v = [arg_map[arg] for arg in task.args]
-        subtasks_v = [Task(subtask.name,
-                         *[arg_map[subarg] if subarg in arg_map else subarg
-                                for subarg in subtask.args])
-                    for subtask in subtasks]
-
-        preconditions = []
-        self.htn_interface.add_method(task.name, task_args_v, preconditions, subtasks_v)
-
-    def add_method_from_user_task(self, user_task: str) -> Task:
-        """
-        Creates a new HTN method and adds it to self.htn_knowledge.
-        Returns a task name with args that will match the added method.
-
-        This is only called if the HTN method does not already exist.
-        """
-        task_name = self.name_gpt(user_task)
-        user_subtasks = self.user_interface.ask_subtasks(user_task)
-
-        subtasks = []
-        for subtask in self.interpret(user_subtasks):
-            yield subtask
-            subtasks.append(subtask)
-
-        task_args = self.gen_gpt(user_task, task_name, subtasks)
-        if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
-            task_args = self.user_interface.gen_correction(task_name, task_args,
-                                                           self.env.get_objects())
 
         # TODO maybe consider a gpt module that names these better...
         arg_map = {arg: V(chr(ord('A')+i))
                    for i, arg in enumerate(task_args)}
 
         task_args_v = [arg_map[arg] for arg in task_args]
-        subtasks_v = [Task(task.name, *[arg_map[subarg] if subarg in arg_map else subarg
-                                    for subarg in task.args])
-                    for task in subtasks]
 
-        preconditions = []
-        self.htn_interface.add_method(task_name, task_args_v, preconditions, subtasks_v)
+        subtasks_v = []
+        subtask_execs = []
+        for subtask in subtasks:
+            v_args = [arg_map[subarg] if subarg in arg_map else subarg
+                        for subarg in subtask.args]
+            print("v_args", v_args)
+            subtask_v = Task(subtask.name, args=v_args)
+            subtask_exec = TaskEx(subtask_v, state, match=subtask.args)
+            subtasks_v.append(subtask_v)
+            subtask_execs.append(subtask_exec)
+
+        print("task_args_v", task_args_v)
+        method = Method(task.name, args=task_args_v, subtasks=subtasks_v)
+        method_exec = MethodEx(method, state,
+            match=task_args,
+            parent_task_exec=task_exec,
+            subtask_execs=subtask_execs
+        )
+        for subtask_exec in subtask_execs:
+            subtask_exec.parent_exec = method_exec
+
+        self.htn_interface.add_method_exec(method_exec)
+        return method_exec
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
         # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
@@ -238,10 +317,11 @@ class ValAgent:
 
         return resp
 
-    def gen_gpt(self, user_task: str, task_name: str, subtasks: List[Task]) -> List[str]:
+    def gen_gpt(self, user_task: str, task_name: str) -> List[str]:
 
-        objects = set(arg for task in subtasks for arg in task.args)
-        
+        # objects = set(arg for task in subtasks for arg in task.args)
+        objects = self.env.get_objects()
+
         obj_str = ", ".join(objects)
         prompt = self.gen_prompt % (obj_str, user_task, task_name)
         resp = self.gpt.get_chat_gpt_completion(prompt).strip()

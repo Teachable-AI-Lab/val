@@ -20,6 +20,18 @@ from py_search.informed import best_first_search
 
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 
+from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
+from pyhtn.conditions.fact import Fact
+from pyhtn.conditions.conditions import NOT
+from pyhtn.domain.variable import V
+
+
+# from shop2.domain import Operator
+# from shop2.domain import Method
+# from shop2.domain import Task
+# from shop2.domain import Filter
+# from shop2.fact import Fact
+# from shop2.common import V
 
 class OvercookedRouteProblem(Problem):
 
@@ -51,11 +63,11 @@ class OvercookedRouteProblem(Problem):
         facing = (pos[0] + orr[0], pos[1] + orr[1])
         target = state_node.extra.mdp.terrain_mtx[facing[1]][facing[0]]
 
-        if goal == "onion_dispenser":
+        if goal == "onion":
             return target == 'O'
-        if goal == "dish_dispenser":
+        if goal == "dish":
             return target == 'D'
-        if goal == "tomato_dispenser":
+        if goal == "tomato":
             return target == 'T'
         if goal == "serving_pad":
             return target == 'S'
@@ -125,40 +137,157 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
-        return [
-                {"name": "go_to",
-                 "args": ['?object'],
-                 "description": "goes to and faces the target object, where object is something like pot, onion, onion_dispenser, etc.",
-                 "preconditions": [{"type": "fact", "object": "?location"} ]
-                 },
-                {"name": "wait20",
-                 "args": [],
-                 "description": "waits for 20 time steps",
-                 "preconditions": []
-                 },
-                {"name": "left",
-                 "args": [],
-                 "description": "Moves one unit left",
-                 "preconditions": []
-                 },
-                {"name": "right",
-                 "args": [],
-                 "description": "Moves one unit right",
-                 "preconditions": []
-                 },
-                {"name": "up",
-                 "args": [],
-                 "description": "Moves one unit up",
-                 "preconditions": []},
-                {"name": "down",
-                 "args": [],
-                 "description": "Moves one unit down",
-                 "preconditions": []},
-                {"name": "interact",
-                 "args": [],
-                 "description": "interact with the object, e.g., this should be called if you are trying to interact with the pot, onion_dispenser, plate_dispenser, tomato_dispenser, tomato, onion, etc.",
-                 "preconditions": []}
+        domain= {}
+        descriptions = {}
+        
+        domain["cook"] = [
+            Method(
+                name='cook',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('get', V('object')),
+                    Task('boil',V('object')),
+                    Task('plate')
                 ]
+            ),
+        ]
+        descriptions["cook"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
+
+        domain["get"] = [
+            Method(
+                name='get',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('go_to', V('object')),
+                    Task('interact'),
+                ]
+            )
+            # Method(
+            #     name=('get',),
+            #     preconditions=(),
+            #     subtasks=[
+            #         Task('go_to', V('?object'))
+            #     ]
+            # )
+        ]
+        descriptions["get"] = "Get an object by interacting with and moving to the object's location."
+
+        domain["boil"] = [
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('go_to', 'pot'),
+                    Task('interact')
+                ]
+            ),
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('interact')
+                ]
+            ),
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('go_to', 'pot'),
+                    Task('interact'),
+                    Task('interact')
+                ]
+            )
+            
+        ]
+        descriptions["boil"] = "Boil the onion by moving to the pot and interacting with it."
+
+        domain["plate"] = [
+            Method(
+                name='plate',
+                preconditions=(),
+                subtasks=[
+                    Task('get', 'dish'),
+                    Task('go_to', 'pot'),
+                    Task('interact')
+                ]
+            ),
+        ]
+        descriptions["plate"] = "Plate the soup by going to the plate area and interacting with it."
+        
+        ####### operators #######
+        domain["go_to"] = [
+            Operator(
+                name='go_to', 
+                args=(V('location'),),
+                # preconditions=[Fact(type='fact', object=V('location'))],
+                effects=[]
+            ),
+        ]
+        descriptions["go_to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
+        
+        domain["interact"] = [
+            Operator(
+                name='interact',
+                args=(),
+                preconditions=[],
+                effects=[]
+            ),
+        ]
+        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
+            
+        # domain["wait20/0"] = [
+        #     Operator(
+        #         name=('wait20',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["wait20/0"] = "Waits for 20 time steps."
+
+        # domain["left/0"] = [
+        #     Operator(
+        #         name=('left',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["left/0"] = "Moves one unit left."
+
+        # domain["right/0"] = [
+        #     Operator(
+        #         name=('right',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["right/0"] = "Moves one unit right."
+
+        # domain["up/0"] = [
+        #     Operator(
+        #         name=('up',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["up/0"] = "Moves one unit up."
+
+        # domain["down/0"] = [
+        #     Operator(
+        #         name=('down',),
+        #         preconditions=(),
+        #         effects=[]
+        #     ),
+        # ]
+        # descriptions["down/0"] = "Moves one unit down."
+
+        
+   
+        return domain, descriptions
 
     def get_player_pos_and_or(self):
         return (self.base_env.state.players[self.player_id].position,
@@ -167,6 +296,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
     def get_state(self) -> dict:
         state = []
 
+        # Players
         for i, player in enumerate(self.base_env.state.players):
             orientation = None
             if player.orientation[0] == -1:
@@ -178,67 +308,66 @@ class OvercookedAIEnv(AbstractEnvInterface):
             elif player.orientation[1] == 1:
                 orientation = "up"
 
-            state.append({'object': 'player',
-                          'player_index': i,
-                          'x': player.position[0],
-                          'y': player.position[1],
-                          'orientation': orientation,
-                          'is_me': str(i == self.player_id),
-                          'holding': player.held_object})
+            state.append({
+                'id': f'player_{i}',
+                'object': 'player',
+                'player_index': i,
+                'x': player.position[0],
+                'y': player.position[1],
+                'orientation': orientation,
+                'is_me': str(i == self.player_id),
+                'holding': player.held_object
+            })
 
+        # Static environment objects
         for x, y in self.base_env.mdp.get_dish_dispenser_locations():
-            state.append({'object': 'dish_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'dish_{x}_{y}', 'object': 'dish', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_onion_dispenser_locations():
-            state.append({'object': 'onion_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'onion_{x}_{y}', 'object': 'onion', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_tomato_dispenser_locations():
-            state.append({'object': 'tomato_dispenser', 'x': x, 'y': y})
+            state.append({'id': f'tomato_{x}_{y}', 'object': 'tomato', 'x': x, 'y': y})
 
         for x, y in self.base_env.mdp.get_serving_locations():
-            state.append({'object': 'serving_pad', 'x': x, 'y': y})
+            state.append({'id': f'serving_{x}_{y}', 'object': 'serving_pad', 'x': x, 'y': y})
 
+        # Pots
         pots = self.base_env.mdp.get_pot_states(self.base_env.state)
 
         for x, y in pots['empty']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'empty',
-                          'onion': 0, 'tomato': 0})
-        for x, y in pots['1_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '1_items'})
-        for x, y in pots['2_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '2_items'})
-        for x, y in pots['3_items']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': '3_items'})
-        for x, y in pots['ready']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'ready'})
-        for x, y in pots['cooking']:
-            state.append({'object': 'pot', 'x': x, 'y': y, 'status': 'cooking'})
+            state.append({'id': f'pot_{x}_{y}', 'object': 'pot', 'x': x, 'y': y, 'status': 'empty',
+                        'onion': 0, 'tomato': 0})
+        for status in ['1_items', '2_items', '3_items', 'ready', 'cooking']:
+            for x, y in pots[status]:
+                state.append({'id': f'pot_{x}_{y}', 'object': 'pot', 'x': x, 'y': y, 'status': status})
 
+        # Counter objects
         counter_objects = self.base_env.mdp.get_counter_objects_dict(self.base_env.state)
         for obj_type in counter_objects:
             for x, y in counter_objects[obj_type]:
-                state.append({'object': obj_type, 'x': x, 'y': y})
+                state.append({'id': f'{obj_type}_{x}_{y}', 'object': obj_type, 'x': x, 'y': y})
 
-        # print(self.base_env.mdp.terrain_mtx)
-        # print()
-        # for row in self.base_env.mdp.terrain_mtx:
-        #     print(row)
-        # print(self.base_env)
+        # Terrain
         for x in range(self.base_env.mdp.width):
             for y in range(self.base_env.mdp.height):
-                state.append({'terrain': self.base_env.mdp.terrain_mtx[y][x],
-                              'x': x,
-                              'y': y})
+                state.append({'id': f'terrain_{x}_{y}',
+                            'terrain': self.base_env.mdp.terrain_mtx[y][x],
+                            'x': x,
+                            'y': y})
 
-        for order in self.base_env.state.all_orders:
-            state.append({'order': str(order),
-                          'onion': order._ingredients.count('onion'),
-                          'tomato': order._ingredients.count('tomato')})
+        # Orders
+        for i, order in enumerate(self.base_env.state.all_orders):
+            state.append({'id': f'order_{i}',
+                        'order': str(order),
+                        'onion': order._ingredients.count('onion'),
+                        'tomato': order._ingredients.count('tomato')})
 
-        state.append({'timestep': self.base_env.state.timestep})        
+        # Timestep (wrap it in a dict with id)
+        state.append({'id': 'timestep', 'timestep': self.base_env.state.timestep})
 
-        # pprint(state) 
         return state
+
 
     def get_route_plan(self, target):
         pos, orr = self.get_player_pos_and_or()
@@ -251,6 +380,9 @@ class OvercookedAIEnv(AbstractEnvInterface):
             return None
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
+        if isinstance(args, tuple):
+            args = list(args)
+        print(f"[ENV] Executing: {action_name}({args})")
 
         if action_name == "go_to" and len(args) == 1:
             action_plan = self.get_route_plan(args[0])
@@ -284,12 +416,30 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return True
 
 if __name__ == "__main__":
+    horizon = 100
+    env = OvercookedAIEnv(player_id=0, horizon=horizon)
+    #for i in range(horizon):
+    env.get_state()
+    actions = env.get_actions()
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    
+    env.execute_action(action_name="go_to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    env.execute_action(action_name="interact", args=['pot'])
 
-    horizon = 500
-    env = OvercookedAIEnv(player_id=1, horizon=horizon)
-    for i in range(horizon):
-        env.get_state()
-        actions = env.get_actions()
-        action = choice(actions)
-        env.execute_action(action_name=action['name'], args=[])
-        env.render_state()
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+    env.execute_action(action_name="go_to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go_to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go_to", args=['serving_pad'])
+    env.execute_action(action_name="interact", args=['serving_pad'])

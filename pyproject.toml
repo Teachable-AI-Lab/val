@@ -2,6 +2,9 @@
 requires = ["setuptools>=61.0", "wheel", "setuptools-git-versioning<2"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+py-modules = ["val"]
+
 [tool.setuptools-git-versioning]
 enabled = true
 
@@ -20,7 +23,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "shop2@git+https://github.com/Teachable-AI-Lab-TAIL/shop2.git@val",
+    "pyhtn@git+https://github.com/Teachable-AI-Lab/pyHTN.git@planner_updates",
     "py_search@git+https://github.com/cmaclell/py_search@master",
     "pygame",
     "overcooked-ai",
