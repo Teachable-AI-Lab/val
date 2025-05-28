@@ -7,6 +7,7 @@ import websocket
 import importlib
 import json
 import math
+import os
 
 from nltk import edit_distance
 from time import sleep
@@ -25,6 +26,8 @@ class SpaceTransitEnv():
         self.ws = websocket.create_connection(self.url)
         self.line_names = ["redline", "blueline", "yellowline", "greenline", "purpleline"]
         self.active_game = 0
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.json_file_path = os.path.join(script_dir, 'start.json')
         # idk where to put this and might be worth discussing on where this should be long term.
         self.alerted_stations = dict()
         self.id_count = 30000
@@ -267,7 +270,7 @@ class SpaceTransitEnv():
         val_state = []
         cur_state = self.get_state_from_game()
 
-        with open('val\env_interfaces\space_transit\start.json', 'r') as f:
+        with open(self.json_file_path, 'r') as f:
             data = json.load(f)
             val_state.append({'agent_on': data['start']})
 
