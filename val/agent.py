@@ -76,12 +76,6 @@ class ValAgent:
                     
                     if method_execs is None:
                         method_execs = []
-                    #     next_method_exec = self.query_new_method_exec(task_exec)
-                    #     sel_method = next_method_exec.method
-                    #     self.user_interface.display_added_method(task_exec, sel_method.subtasks)
-                    #     rewards = [1]
-                    #     method_execs = [next_method_exec]
-                    #     continue
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -99,8 +93,9 @@ class ValAgent:
                     #  decomposition. This creates the next method execution.
                     if (next_method_exec is None):
                         next_method_exec = self.query_new_method_exec(task_exec)
-                        sel_method = next_method_exec.method
-                        self.user_interface.display_added_method(task_exec, sel_method.subtasks)
+                        print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
+                        print("type next_method_exec", type(next_method_exec))
+                        self.user_interface.display_added_method(task_exec, next_method_exec)
                         rewards.append(1)
                         method_execs.append(next_method_exec)
                         

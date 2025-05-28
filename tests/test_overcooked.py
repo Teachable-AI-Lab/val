@@ -3,8 +3,10 @@ import pygame
 from val.env_interfaces.overcooked_ai.overcooked_ai_env import OvercookedAIEnv
 from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
+from val.user_interfaces.web_interface import WebInterface
 from val.htn_interfaces.py_htn_interface import PyHtnInterface
 from val.utils import get_openai_key
+
 
 
 async def run_render(env):
@@ -21,7 +23,8 @@ async def run_render(env):
 async def main():
     openai_key = get_openai_key()
     env = OvercookedAIEnv(player_id=1, render=True)  # pygame init must be in main thread
-    user_interface = ConsoleUserInterface
+    # user_interface = ConsoleUserInterface
+    user_interface = WebInterface
     htn_interface = PyHtnInterface
     agent = ValAgent(env, user_interface, htn_interface, openai_key)
 

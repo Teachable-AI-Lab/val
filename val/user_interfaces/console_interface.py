@@ -95,11 +95,11 @@ class ConsoleUserInterface(AbstractUserInterface):
             return method_execs[index], rewards 
         
     
-    def display_added_method(self, task_exec: TaskEx, subtasks: List[Task]) -> None: 
+    def display_added_method(self, task_exec: TaskEx, method_exec: MethodEx) -> None: 
         print("Added Decomposition Method:")
         print(f"Main Task: {task_exec.task.name}")
         print("Subtasks:")
-        for i, subtask in enumerate(subtasks, start=1):
+        for i, subtask in enumerate(method_exec.method.subtasks, start=1):
             print(f"  {i}. {subtask.name}")
 
                

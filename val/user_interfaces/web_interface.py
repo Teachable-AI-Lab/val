@@ -35,66 +35,117 @@ class WebInterface:
     # change from previous version: event = self.sio.receive(), which is synchronous blocking call to wait for a server event 
     def on_message(self, data):
         print("Received message:", data)
-        if isinstance(data, dict) and 'response' in data:
+        if isinstance(data, dict) and 'response' in data and data.get('type') == self.expected_type:
             self.user_response = data['response']
             self.response_received = True 
-        
-    def select_task_decomposition(self, task: str, subtasks: List[str]) -> bool:
-        self.user_response = None 
-        self.response_received = False 
-        self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 
-                                  'text': subtasks})
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        if self.user_response == "add method":
-            return None
-        return self.user_response
     
     def query_next_decomposition_and_rewards(self, 
         task_exec: TaskEx, 
         method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
-        # result =  {'head': {'name': 'boil', 'V': 'onion', 'hash': 'TE_tr2Mf7K8RZNu411Hxuds6XSEBAA'}, 
-        #            'subtasks': [[{'Task': 'move_to pot', 'hash': 'TE_nIdIHwZwmWYBnRYpod9KKbiVB0I'}, 
-        #                          {'Task': 'interact', 'hash': 'TE_tW9426QYbCEYcK4BZ3sNg3LaVOY'}], 
-        #                         [{'Task': 'interact', 'hash': 'TE_wWX9sT4cfwK4xLDtqvU0tBxHS7w'}], 
-        #                         [{'Task': 'move_to pot', 'hash': 'TE_cTeHTQwMEauiYqNGQ2BzWhUji1k'}, 
-        #                          {'Task': 'interact', 'hash': 'TE_DKNYUrrFf0ioIq9eoApbsJTcPYo'}, 
-        #                          {'Task': 'interact', 'hash': 'TE_BdlWMJo5UCwG9gMC4zxweSn50dU'}]]}
-        # self.user_response = None  
-        # self.response_received = False
-
-        # self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-        # print("The message is emitted")
-        # while not self.response_received:
-        #     self.sio.sleep(0.1)
-
+        self.user_response = None  
+        self.response_received = False 
+        self.expected_type = 'response_decomposition' 
+        
         # Skip if there are no method_execs 
         if(method_execs is None or len(method_execs) == 0):
+            head = task_exec.as_dict()
+            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+            subtasks = []
+            result = {
+            "head": {
+                "name": head["name"],
+                "V": match,  # Or use a cleaner version if needed
+                "hash": head["id"]
+            },
+            "subtasks": subtasks
+            }
+            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
+            print("The message is emitted")
+            while not self.response_received:
+                self.sio.sleep(0.1)       
+            index = self.user_response
+            print("index", index) 
+            print("index type", type(index))
             return None, []
-            
-        # index = self.user_response 
-        # return index
-        ##### convert to the format we want ##### 
-        # Step 1: get head
+        else:
+            ##### convert format ##### 
+            # Step 1: get head
+            head = task_exec.as_dict()
+            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+
+            # Step 2: build subtasks
+            subtasks = []
+            for method_exec in method_execs:
+                method_dict = method_exec.as_dict()
+                child_list = method_dict.get("child_data", [])
+                
+                # Convert each child dict to the desired format
+                formatted_children = [
+                    {
+                        "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
+                        "hash": child["id"]
+                    }
+                    for child in child_list
+                ]
+                subtasks.append(formatted_children)
+
+            # Step 3: combine everything into one dict
+            result = {
+                "head": {
+                    "name": head["name"],
+                    "V": match,  # Or use a cleaner version if needed
+                    "hash": head["id"]
+                },
+                "subtasks": subtasks
+            }
+
+            self.user_response = None  
+            self.response_received = False
+
+            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
+            print("The message is emitted")
+            while not self.response_received:
+                self.sio.sleep(0.1)
+                
+            index = self.user_response 
+            rewards = [None]*len(method_execs)
+            if index == "add method":
+                return None, []
+            if(self.next_select_kind == "one at a time"):
+                for i, method_exec in enumerate(method_execs):
+                    confirmed = self._confirm_task_decomposition(task_exec, method_exec)
+                    if(not confirmed):
+                        rewards[i] = -1.0
+                    else:
+                        rewards[i] = 1.0
+                        return method_exec, rewards 
+            else:
+                rewards[index] = 1.0
+                return method_execs[index], rewards 
+    
+    def display_added_method(self, task_exec: TaskEx, 
+        method_exec: MethodEx):
+        self.user_response = None  
+        self.response_received = False 
+        self.expected_type = 'response_decomposition' 
+        self.expected_type = 'response_decomposition'
         head = task_exec.as_dict()
         match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
 
         # Step 2: build subtasks
         subtasks = []
-        for method_exec in method_execs:
-            method_dict = method_exec.as_dict()
-            child_list = method_dict.get("child_data", [])
-            
-            # Convert each child dict to the desired format
-            formatted_children = [
-                {
-                      "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
-                    "hash": child["id"]
-                }
-                for child in child_list
-            ]
-            subtasks.append(formatted_children)
+        method_dict = method_exec.as_dict()
+        child_list = method_dict.get("child_data", [])
+        
+        # Convert each child dict to the desired format
+        formatted_children = [
+            {
+                "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
+                "hash": child["id"]
+            }
+            for child in child_list
+        ]
+        subtasks.append(formatted_children)
 
         # Step 3: combine everything into one dict
         result = {
@@ -109,28 +160,13 @@ class WebInterface:
         self.user_response = None  
         self.response_received = False
 
-        self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
+        self.sio.emit('message', {'type': 'display_added_method', 'text': result})
         print("The message is emitted")
         while not self.response_received:
             self.sio.sleep(0.1)
             
         index = self.user_response 
-        rewards = [None]*len(method_execs)
-        if(self.next_select_kind == "one at a time"):
-            for i, method_exec in enumerate(method_execs):
-                confirmed = self._confirm_task_decomposition(task_exec, method_exec)
-                if(not confirmed):
-                    rewards[i] = -1.0
-                else:
-                    rewards[i] = 1.0
-                    return method_exec, rewards 
-        else:
-            rewards[0] = 1.0
-            return method_execs[0], rewards 
-    
-    def display_added_method(self, task: str, subtasks: List[str]):
-        self.sio.emit('message', {'type': 'display_added_method', 
-                                  'text': subtasks})
+
         return
     
     def check_for_break(self) -> bool:
@@ -163,13 +199,16 @@ class WebInterface:
         self.response_received = False 
         self.sio.emit('message', {'type': 'request_user_task', 'text': 'How can I help you today?'})
         print("The message is emitted")
+        self.expected_type = 'confirm_response'
         while not self.response_received:
             self.sio.sleep(0.1)
+        print('received')
         return self.user_response 
     
     def ask_subtasks(self, user_task: str) -> str:
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response'
         self.sio.emit('message', {'type': 'ask_subtasks', 
                                   'text': f"What are the steps for completing the task '{user_task}'?"})
         while not self.response_received:
@@ -179,7 +218,8 @@ class WebInterface:
     
     def ask_rephrase(self, user_tasks: str) -> str:
         self.user_response = None  
-        self.response_received = False 
+        self.response_received = False
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'ask_rephrase', 
             'text': f"Sorry about that. Can you rephrase the tasks '{user_tasks}'?"
@@ -193,6 +233,7 @@ class WebInterface:
         # set to None to reset the stored user response
         self.user_response = None
         self.response_received = False
+        self.expected_type = 'confirm_response' 
         formatted_steps = ', '.join(steps)
         self.sio.emit('message', {'type': 'segment_confirmation', 
                                   'text': f"These are the individual steps of your command: '{formatted_steps}', right?",
@@ -207,6 +248,7 @@ class WebInterface:
             return True 
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'map_confirmation', 
             'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"
@@ -220,6 +262,7 @@ class WebInterface:
         known_tasks.append('None of these above')
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'map_correction',
             'text': f"Which of these is the best choice for '{user_task}'?", 
@@ -239,7 +282,8 @@ class WebInterface:
         if self.disable_map_new_method_confirmation:
             return True
         self.user_response = None  
-        self.response_received = False 
+        self.response_received = False
+        self.expected_type = 'confirm_response'  
         self.sio.emit('message', {
             'type': 'map_new_method_confirmation',
             'text': f"The task '{user_task}' is a new method. Is that right?"
@@ -253,7 +297,8 @@ class WebInterface:
         if self.disable_ground_confirmation:
             return True 
         self.user_response = None  
-        self.response_received = False 
+        self.response_received = False
+        self.expected_type = 'confirm_response'  
         self.sio.emit('message', {
             'type': 'ground_confirmation',
             'task_name': task_name,
@@ -268,6 +313,7 @@ class WebInterface:
     def ground_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'ground_correction',
             'text': f"Could you help me pick the actual object? {task_name}",
@@ -284,6 +330,7 @@ class WebInterface:
             return True
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         formatted_args = ', '.join(task_args)
         self.sio.emit('message', {
             'type': 'gen_confirmation',
@@ -298,6 +345,7 @@ class WebInterface:
     def gen_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'gen_correction',
             'text': f"Could you help me pick the actual object? {task_name}:",
@@ -314,6 +362,7 @@ class WebInterface:
             return True
         self.user_response = None  
         self.response_received = False 
+        self.expected_type = 'confirm_response' 
         self.sio.emit('message', {
             'type': 'confirm_task_execution',
             'text': f"Should I execute {user_task}?"
