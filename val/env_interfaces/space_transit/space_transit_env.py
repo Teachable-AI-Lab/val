@@ -18,6 +18,7 @@ from pyhtn.conditions.fact import Fact
 from pyhtn.domain.variable import V
 from pyhtn.conditions.pattern_matching import Filter
 
+
 class SpaceTransitEnv():
 
     def __init__(self, url='ws://localhost:3000/metro'):
@@ -74,7 +75,7 @@ class SpaceTransitEnv():
                         "preconditions": [
                             {"type": "fact", "game": "?game_id"},
                         ]})
-        
+
         actions.append({"name": "alert_station",
                         "args": ["?station_id"],
                         "description": "alerts the user that a specific station is timing out",
@@ -95,7 +96,7 @@ class SpaceTransitEnv():
                         "preconditions": [
                             {"type": "fact", "line": "?line"},
                         ]})
-        
+
         actions.append({"name": "wait_small",
                         "args": [],
                         "description": "waits for 1 second",
@@ -103,158 +104,163 @@ class SpaceTransitEnv():
 
         return actions """
 
-        domain= {}
+        domain = {}
         descriptions = {}
 
         domain["create_line"] = [
             Operator(name='create_line',
-                    args=[V('station1'), V('station2')],
-                    preconditions=Fact(station=V('station1')) & Fact(station=V('station2')),
-                    effects=[])
+                     args=[V('station1'), V('station2')],
+                     preconditions=Fact(station=V('station1')) & Fact(station=V('station2')),
+                     effects=[])
         ]
         descriptions["create_line"] = "create a new line that connects station1 and station2"
 
         domain["delete_line"] = [
             Operator(name='delete_line',
-                    args=[V('line1')],
-                    preconditions=Fact(line=V('line1')),
-                    effects=[])
+                     args=[V('line1')],
+                     preconditions=Fact(line=V('line1')),
+                     effects=[])
         ]
         descriptions["delete_line"] = "delete the specified line"
 
         domain["insert_station"] = [
             Operator(name='insert_station',
-                    args=[V('station'), V('line')],
-                    preconditions=Fact(station=V('station')) & Fact(line=V('line')),
-                    effects=[])
+                     args=[V('station'), V('line')],
+                     preconditions=Fact(station=V('station')) & Fact(line=V('line')),
+                     effects=[])
         ]
         descriptions["insert_station"] = "insert station to the given line"
 
         domain["remove_station"] = [
             Operator(name='remove_station',
-                    args=[V('station'), V('line')],
-                    preconditions=Fact(station=V('station')) & Fact(line=V('line')),
-                    effects=[])
+                     args=[V('station'), V('line')],
+                     preconditions=Fact(station=V('station')) & Fact(line=V('line')),
+                     effects=[])
         ]
         descriptions["remove_station"] = "remove the specified station from the given line"
 
         domain["goto_game"] = [
             Operator(name='goto_game',
-                    args=[V('game_id')],
-                    preconditions=Fact(game=V('game_id')),
-                    effects=[])
+                     args=[V('game_id')],
+                     preconditions=Fact(game=V('game_id')),
+                     effects=[])
         ]
         descriptions["goto_game"] = "go to a specific game with a given id"
 
         domain["alert_station"] = [
             Operator(name='alert_station',
-                    args=[V('station_id')],
-                    preconditions=Fact(station=V('station_id')),
-                    effects=[])
+                     args=[V('station_id')],
+                     preconditions=Fact(station=V('station_id')),
+                     effects=[])
         ]
         descriptions["alert_station"] = "alerts the user that a specific station is timing out"
 
         domain["add_train"] = [
             Operator(name='add_train',
-                    args=[V('line1')],
-                    preconditions=Fact(line=V('line1')),
-                    effects=[])
+                     args=[V('line1')],
+                     preconditions=Fact(line=V('line1')),
+                     effects=[])
         ]
         descriptions["add_train"] = "add train to the given line"
 
         domain["remove_train"] = [
             Operator(name='remove_train',
-                    args=[V('line1')],
-                    preconditions=Fact(line=V('line1')),
-                    effects=[])
+                     args=[V('line1')],
+                     preconditions=Fact(line=V('line1')),
+                     effects=[])
         ]
         descriptions["remove_train"] = "remove train to the given line"
 
         domain["wait_small"] = [
             Operator(name='wait_small',
-                    args=[],
-                    preconditions=Fact(),
-                    effects=[])
+                     args=[],
+                     preconditions=Fact(),
+                     effects=[])
         ]
         descriptions["wait_small"] = "waits for 1 sec"
 
         domain["connect_stations"] = [
-            Method(name='connect_stations', # Changed from head=
-                args=[],                # Added args
-                preconditions=Fact(station=V('station1'), unique_id=V("uid1")) &
-                                (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1"))) &
-                                Fact(line=V("line")) &
-                                Fact(any_lines=False),
-                subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]),
+            Method(name='connect_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(station=V('station1'), unique_id=V("uid1")) &
+                                 (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1"))) &
+                                 Fact(line=V("line")) &
+                                 Fact(any_lines=False),
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_stations')]),
             Method(name='connect_stations',
-                args=[],                
-                preconditions=Fact(station=V('station1'), unique_id=V("uid1")) &
-                                (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1"))) &
-                                Fact(station=V('station2'), unique_id=V("uid2")) &
-                                Fact(any_lines=True) &
-                                Filter(lambda uid1, uid2: uid1 != uid2),
-                subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]),
-            Method(name='connect_stations', # Changed from head=
-                args=[],                # Added args
-                preconditions=Fact(agent_on=True),
-                subtasks=[Task('wait_small'), Task('connect_stations')])
+                   args=[],
+                   preconditions=Fact(station=V('station1'), unique_id=V("uid1")) &
+                                 (~Fact(to_station=V("uid1")) & ~Fact(from_station=V("uid1"))) &
+                                 Fact(station=V('station2'), unique_id=V("uid2")) &
+                                 Fact(any_lines=True) &
+                                 Filter(lambda uid1, uid2: uid1 != uid2),
+                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_stations')]),
+            Method(name='connect_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(agent_on=True),
+                   subtasks=[Task('wait_small'), Task('connect_stations')])
         ]
         descriptions["connect_stations"] = "connect all unconnected stations"
 
         domain["connect_nearest_stations"] = [
-            Method(name='connect_nearest_stations', # Changed from head=
-                args=[],                        # Added args
-                preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id")) &
-                                Fact(station=V('station1'), unique_id=V("station1id")) &
-                                Fact(station=V('station2'), unique_id=V("station2id")) &
-                                Fact(any_lines=True),
-                subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_nearest_stations')]),
-            Method(name='connect_nearest_stations', # Changed from head=
-                args=[],                        # Added args
-                preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id")) &
-                                Fact(station=V('station1'), unique_id=V("station1id")) &
-                                Fact(station=V('station2'), unique_id=V("station2id")) &
-                                Fact(line=V("line"), id=V('lineId')) &
-                                (Fact(to_station=V("station2id"), segment_line=V('lineId')) | Fact(from_station=V("station2id"), segment_line=V('lineId'))) &
-                                Fact(any_lines=False),
-                subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_nearest_stations')]),
-            Method(name='connect_nearest_stations', # Changed from head=
-                args=[],                        # Added args
-                preconditions=Fact(agent_on=True),
-                subtasks=[Task('wait_small'), Task('connect_nearest_stations')]) 
+            Method(name='connect_nearest_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id")) &
+                                 Fact(station=V('station1'), unique_id=V("station1id")) &
+                                 Fact(station=V('station2'), unique_id=V("station2id")) &
+                                 Fact(any_lines=True),
+                   subtasks=[Task('create_line', V('station1'), V('station2')), Task('connect_nearest_stations')]),
+            Method(name='connect_nearest_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(station_id=V('station1id'), nearest_station_id=V("station2id")) &
+                                 Fact(station=V('station1'), unique_id=V("station1id")) &
+                                 Fact(station=V('station2'), unique_id=V("station2id")) &
+                                 Fact(line=V("line"), id=V('lineId')) &
+                                 (Fact(to_station=V("station2id"), segment_line=V('lineId')) | Fact(
+                                     from_station=V("station2id"), segment_line=V('lineId'))) &
+                                 Fact(any_lines=False),
+                   subtasks=[Task('insert_station', V('station1'), V('line')), Task('connect_nearest_stations')]),
+            Method(name='connect_nearest_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(agent_on=True),
+                   subtasks=[Task('wait_small'), Task('connect_nearest_stations')])
         ]
         descriptions["connect_nearest_stations"] = "connect all unconnected stations to nearest unconnected"
 
         domain["remove_lines"] = [
-            Method(name='remove_lines', # Changed from head=
-                args=[],            # Added args
-                preconditions=Fact(line=V('line'), line_id=V('uid')) &
-                                Fact(segment_line=V('uid')),
-                subtasks=[Task('delete_line', V('line')), Task('remove_lines')])
+            Method(name='remove_lines',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(line=V('line'), line_id=V('uid')) &
+                                 Fact(segment_line=V('uid')),
+                   subtasks=[Task('delete_line', V('line')), Task('remove_lines')])
         ]
         descriptions["remove_lines"] = "delete all the lines"
 
         domain["connect_station_to_lines"] = [
-            Method(name='connect_station_to_lines', # Changed from head=
-                args=[V('station')],             # Added args (extracted from original head)
-                preconditions=Fact(line=V('line'), line_id=V('uid')) &
-                                Fact(station=V('station'), unique_id=V("uid1")) &
-                                (~Fact(to_station=V("uid1"), segment_line=V('uid')) & ~Fact(from_station=V("uid1"), segment_line=V('uid'))),
-                subtasks=[Task('insert_station', V('station'), V('line')), Task('connect_station_to_lines', V('station'))])
+            Method(name='connect_station_to_lines',  # Changed from head=
+                   args=[V('station')],  # Added args (extracted from original head)
+                   preconditions=Fact(line=V('line'), line_id=V('uid')) &
+                                 Fact(station=V('station'), unique_id=V("uid1")) &
+                                 (~Fact(to_station=V("uid1"), segment_line=V('uid')) & ~Fact(from_station=V("uid1"),
+                                                                                             segment_line=V('uid'))),
+                   subtasks=[Task('insert_station', V('station'), V('line')),
+                             Task('connect_station_to_lines', V('station'))])
         ]
         descriptions["connect_station_to_lines"] = "Connects a station to all lines"
 
         domain["monitor_stations"] = [
-            Method(name='monitor_stations', # Changed from head=
-                args=[],                # Added args
-                preconditions=Fact(station=V('station'), timer=V('timer')) &
-                                Filter(lambda timer: timer != 0) &
-                                Filter(lambda station: hasattr(self, 'is_valid_alert') and self.is_valid_alert(station)), # self refers to the context this function is called in
-                subtasks=[Task('alert_station', V('station')), Task('monitor_stations')]),
-            Method(name='monitor_stations', # Changed from head=
-                args=[],                # Added args
-                preconditions=Fact(agent_on=True),
-                subtasks=[Task('wait_small'), Task('monitor_stations')])
+            Method(name='monitor_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(station=V('station'), timer=V('timer')) &
+                                 Filter(lambda timer: timer != 0) &
+                                 Filter(
+                                     lambda station: hasattr(self, 'is_valid_alert') and self.is_valid_alert(station)),
+                   # self refers to the context this function is called in
+                   subtasks=[Task('alert_station', V('station')), Task('monitor_stations')]),
+            Method(name='monitor_stations',  # Changed from head=
+                   args=[],  # Added args
+                   preconditions=Fact(agent_on=True),
+                   subtasks=[Task('wait_small'), Task('monitor_stations')])
         ]
         descriptions["monitor_stations"] = "checks all stations to see if any needs to be alerted."
 
@@ -276,11 +282,11 @@ class SpaceTransitEnv():
         for line in cur_state['lines']:
             val_state.append({'line': self.line_names[line['id']], 'line_id': line['unique_id']})
             lines.add(line['unique_id'])
-        
+
         seen_stations = set()
 
         for segment in cur_state['segments']:
-            if segment['which_line'] not in val_state: #TODO debug
+            if segment['which_line'] not in val_state:  # TODO debug
                 val_state.append({'from_station': segment['from_station'],
                                   'to_station': segment['to_station'],
                                   'segment_line': segment['which_line']})
@@ -300,9 +306,7 @@ class SpaceTransitEnv():
                 val_state.append({'station_id': station['unique_id'],
                                   'nearest_station_id': closest_station})
 
-
-        
-        val_state.append({'any_lines': len(lines)!=0})
+        val_state.append({'any_lines': len(lines) != 0})
 
         for i in range(len(val_state)):
             if 'unique_id' in val_state[i].keys():
@@ -310,7 +314,7 @@ class SpaceTransitEnv():
             elif 'line_id' in val_state[i].keys():
                 val_state[i]['id'] = val_state[i]['line_id']
             elif 'from_station' in val_state[i].keys():
-                temp = str(abs(val_state[i]['from_station'])) +"-"+ str(abs(val_state[i]['to_station']))
+                temp = str(abs(val_state[i]['from_station'])) + "-" + str(abs(val_state[i]['to_station']))
                 val_state[i]['id'] = temp
             else:
                 val_state[i]['id'] = self.id_count
@@ -319,32 +323,32 @@ class SpaceTransitEnv():
         self.count += 1
         print(f"The count is {self.count}")
 
-
         return val_state
-    
+
     def is_valid_alert(self, station):
         curr_time = time.time()
         if station not in self.alerted_stations.keys():
             self.alerted_stations[station] = curr_time
             return True
-        if curr_time - self.alerted_stations[station] >= 30: #Number of seconds between alerts
+        if curr_time - self.alerted_stations[station] >= 30:  # Number of seconds between alerts
             self.alerted_stations[station] = curr_time
             return True
-        return False 
-    
+        return False
+
     def find_closest_station(self, station_list, comparison_station):
         min_dist = None
         id = -1
         for station in station_list:
             if station['unique_id'] == comparison_station['unique_id']:
                 continue
-            distance = math.sqrt(((station['x']-comparison_station['x'])**2)+((station['y']-comparison_station['y'])**2)+((station['z']-comparison_station['z'])**2))
-            if min_dist is None or (distance<min_dist):
+            distance = math.sqrt(
+                ((station['x'] - comparison_station['x']) ** 2) + ((station['y'] - comparison_station['y']) ** 2) + (
+                            (station['z'] - comparison_station['z']) ** 2))
+            if min_dist is None or (distance < min_dist):
                 min_dist = distance
                 id = station['unique_id']
-        
+
         return id
-                
 
     def execute_action(self, action_name: str, args: List[str]) -> bool:
         if action_name == "create_line":
@@ -385,9 +389,9 @@ class SpaceTransitEnv():
         return None
 
     def get_state_from_game(self):
-        state = self.send_and_recv({"command":"get_state", "game_id": 0})
-        #print("FIND ME")
-        #print(state)
+        state = self.send_and_recv({"command": "get_state", "game_id": 0})
+        # print("FIND ME")
+        # print(state)
         return state
 
     def get_lines_and_stations(self):
@@ -413,13 +417,13 @@ class SpaceTransitEnv():
                                                 object_name.lower()), name)
                                  for name in object_group])[0][1]
         return formatted_name
-    
+
     def find_nearest_station_sameline(self, input_station, input_line):
-    
+
         line_mapping, lines, stations = self.get_lines_and_stations()
-        list_stations = list(stations.values()) # the value is a dict
+        list_stations = list(stations.values())  # the value is a dict
         input_line_idx = line_mapping[input_line]
-        stations_on_line = lines[input_line_idx] # a list of unique_id
+        stations_on_line = lines[input_line_idx]  # a list of unique_id
         stations_mapping = {}
 
         for station in stations_on_line:
@@ -430,21 +434,23 @@ class SpaceTransitEnv():
         distance = {}
         for station in stations_mapping:
             distance[station] = math.sqrt(math.pow(stations[station]['x'] - stations[input_station]['x'], 2) +
-                                        math.pow(stations[station]['y'] - stations[input_station]['y'], 2) +
-                                        math.pow(stations[station]['z'] - stations[input_station]['z'], 2))
-        
-        sorted_station_d = sorted(distance.items(), key = lambda x:x[1])
-        nearest_station = stations_mapping[sorted_station_d[0][0]] # unique id
+                                          math.pow(stations[station]['y'] - stations[input_station]['y'], 2) +
+                                          math.pow(stations[station]['z'] - stations[input_station]['z'], 2))
+
+        sorted_station_d = sorted(distance.items(), key=lambda x: x[1])
+        nearest_station = stations_mapping[sorted_station_d[0][0]]  # unique id
         nearest_station_idx = stations_on_line.index(nearest_station)
         if nearest_station_idx == 0:
             return nearest_station_idx
         elif nearest_station_idx == len(stations_on_line) - 1:
             return nearest_station_idx + 1
         else:
-            station_before = stations_on_line[nearest_station_idx - 1] # unique id
-            station_after = stations_on_line[nearest_station_idx + 1] # unique id
-            station_before_dist = distance[list(stations_mapping.keys())[list(stations_mapping.values()).index(station_before)]]
-            station_after_dist = distance[list(stations_mapping.keys())[list(stations_mapping.values()).index(station_after)]]
+            station_before = stations_on_line[nearest_station_idx - 1]  # unique id
+            station_after = stations_on_line[nearest_station_idx + 1]  # unique id
+            station_before_dist = distance[
+                list(stations_mapping.keys())[list(stations_mapping.values()).index(station_before)]]
+            station_after_dist = distance[
+                list(stations_mapping.keys())[list(stations_mapping.values()).index(station_after)]]
             if station_before_dist < station_after_dist:
                 return nearest_station_idx
             else:
@@ -456,7 +462,7 @@ class SpaceTransitEnv():
         """
         try:
             game_id_int = int(game_id.replace("Game", ""))
-            #TODO look up to make sure this is a valid game...
+            # TODO look up to make sure this is a valid game...
             self.active_game = game_id_int
         except Exception as e:
             print("ERROR, trying to go to a game that doesn't exist: {}".format(game_id))
@@ -486,15 +492,15 @@ class SpaceTransitEnv():
             return False
 
         command1 = {
-                'command': 'take_action',
-                'game_id': self.active_game,
-                'arguments': {
-                    'action': "insert_station",
-                    'line_index': line_idx,
-                    'station_name': station1,
-                    'insert_index': 0
-                    }
-                }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "insert_station",
+                'line_index': line_idx,
+                'station_name': station1,
+                'insert_index': 0
+            }
+        }
         result1 = self.send_and_recv(command1)
         print("Result of creating first station: ", result1)
 
@@ -502,15 +508,15 @@ class SpaceTransitEnv():
             return False
 
         command2 = {
-                'command': 'take_action',
-                'game_id': self.active_game,
-                'arguments': {
-                    'action': "insert_station",
-                    'line_index': line_idx,
-                    'station_name': station2,
-                    'insert_index': 0
-                    }
-                }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "insert_station",
+                'line_index': line_idx,
+                'station_name': station2,
+                'insert_index': 0
+            }
+        }
         result2 = self.send_and_recv(command2)
         print("Result of creating second station: ", result2)
 
@@ -518,11 +524,11 @@ class SpaceTransitEnv():
             return False
 
         return True
-    
+
     def alert_station(self, station):
         alert_msg = f"station {station} is timing out"
         print("WARNING " + alert_msg)
-        alert_command = {"command":"speak", "response": alert_msg}
+        alert_command = {"command": "speak", "response": alert_msg}
         result2 = self.send_and_recv(alert_command)
         if result2["Status"] != "Success":
             return False
@@ -546,25 +552,25 @@ class SpaceTransitEnv():
             return False
 
         command = {
-                'command': 'take_action',
-                'game_id': self.active_game,
-                'arguments': {
-                    'action': "remove_track",
-                    'line_index': self.line_names.index(line)
-                    }
-                }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "remove_track",
+                'line_index': self.line_names.index(line)
+            }
+        }
         result = self.send_and_recv(command)
         print("Result of deleting line: ", result)
 
         return result["Status"] == "Success"
-    
+
     def wait_small(self):
         """
         waits for 1 seconds
         """
         sleep(1)
         return True
-    
+
     def insert_station(self, station, line):
         """
         insert station to the given line
@@ -580,23 +586,23 @@ class SpaceTransitEnv():
 
         if line_idx not in lines or len(lines[line_idx]) < 2:
             return False
-        
+
         station_id = stations[station]['unique_id']
         if station_id in lines[line_idx]:
             return False
-        
+
         insert_idx = self.find_nearest_station_sameline(station, line)
         # insert_idx = 0
-        
+
         command = {
-                    'command': 'take_action',
-                    'game_id': self.active_game,
-                    'arguments': {
-                        'action': "insert_station",
-                        'line_index': self.line_names.index(line),
-                        'station_name': station,
-                        'insert_index': insert_idx
-                    }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "insert_station",
+                'line_index': self.line_names.index(line),
+                'station_name': station,
+                'insert_index': insert_idx
+            }
         }
         result = self.send_and_recv(command)
         print("Result of inserting station: ", result)
@@ -607,7 +613,7 @@ class SpaceTransitEnv():
         """
         remove the specified station from the given line
         """
-        
+
         print("The current active game is Game {}".format(self.active_game))
 
         line = line.lower()
@@ -625,19 +631,19 @@ class SpaceTransitEnv():
             return False
 
         command = {
-                'command': 'take_action',
-                'game_id': self.active_game,
-                'arguments': {
-                    'action': "remove_station",
-                    'line_index': self.line_names.index(line),
-                    'station_name': station
-                    }
-                }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "remove_station",
+                'line_index': self.line_names.index(line),
+                'station_name': station
+            }
+        }
         result = self.send_and_recv(command)
         print("Result of removing station: ", result)
 
         return result["Status"] == "Success"
-    
+
     def add_train(self, line):
         """
         add a new train from the given line
@@ -654,23 +660,23 @@ class SpaceTransitEnv():
             return False
 
         command = {
-                    'command': 'take_action',
-                    'game_id': self.active_game,
-                    'arguments': {
-                        'action': "add_train",
-                        'line_index': self.line_names.index(line)
-                    }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "add_train",
+                'line_index': self.line_names.index(line)
             }
+        }
         result = self.send_and_recv(command)
         print("Result of adding a new train: ", result)
 
         return result["Status"] == "Success"
-    
+
     def remove_train(self, line):
         """
         remove a train from the given line
         """
-        
+
         print("The current active game is Game {}".format(self.active_game))
 
         line = line.lower()
@@ -682,22 +688,21 @@ class SpaceTransitEnv():
             return False
 
         command = {
-                    'command': 'take_action',
-                    'game_id': self.active_game,
-                    'arguments': {
-                        'action': "remove_train",
-                        'line_index': self.line_names.index(line)
-                    }
+            'command': 'take_action',
+            'game_id': self.active_game,
+            'arguments': {
+                'action': "remove_train",
+                'line_index': self.line_names.index(line)
             }
+        }
         result = self.send_and_recv(command)
         print("Result of adding a new train: ", result)
 
         return result["Status"] == "Success"
-    
+
     def disconnect_random(self):
         _, lines, _ = self.get_lines_and_stations()
         return self.delete_line(random.choice(lines))
-
 
     def print_state_objects(self):
         line_mapping, lines, stations = self.get_lines_and_stations()

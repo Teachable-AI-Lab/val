@@ -1,21 +1,20 @@
 # val/env_interfaces/vertical_farm/vertical_farm_htn_methods.py
-from typing import Tuple, Dict, List
-
-from shop2.domain import Operator, Fact, Filter
-from shop2.domain import Task
-from shop2.common import V
-from shop2.planner import planner
+from time import sleep
+from typing import Tuple, Dict, List, Any, Set
 import argparse
 import requests
 import json
+
+import websocket
 from websockets.sync.client import connect
 from uuid import uuid4
 from json import dumps, loads
 
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
 from pyhtn.conditions.fact import Fact
-from pyhtn.conditions.conditions import NOT
+from pyhtn.conditions.pattern_matching import Filter
 from pyhtn.domain.variable import V
+
 
 class VerticalFarmHTNEnv(object):
     def __init__(self, base_url: str,
@@ -24,8 +23,11 @@ class VerticalFarmHTNEnv(object):
                  priority: int = 128,
                  session_id: str = None,
                  transaction_ids: bool = False):
+        self.url = base_url
+
         # Normalize and store connection parameters
         self.base_url = base_url.rstrip('/')
+
         self.agent_id = agent_id
         self.puppet_id = puppet_id
         self.priority = priority
@@ -43,21 +45,6 @@ class VerticalFarmHTNEnv(object):
         self.api_key = info.get('api_key', '')
         self.connection = connect(self.service_target,
                                   open_timeout=None, close_timeout=None)
-
-    _TASK_DISPATCH = {
-        'move':    lambda env, args: env.execute_action('move',    {'direction': args[0]}),
-        'move_to': lambda env, args: env.execute_action('move_to', {'x': args[0], 'y': args[1]}),
-        'interact':lambda env, args: env.execute_action('interact', None),
-        'pick_up': lambda env, args: env.execute_action('pick_up', None),
-        'put_down':lambda env, args: env.execute_action('put_down',None),
-        'harvest': lambda env, args: env.execute_action('harvest', {'target': args[0]}),
-        'pluck':   lambda env, args: env.execute_action('pluck',   {'target': args[0]}),
-        'sample':  lambda env, args: env.execute_action('sample',  {'target': args[0]}),
-        'spray':   lambda env, args: env.execute_action('spray',   {'volume': args[0]}),
-        'plant':   lambda env, args: env.execute_action('plant',   {'target': args[0]}),
-        'till':    lambda env, args: env.execute_action('till',    None),
-    }
-
 
     @staticmethod
     def list_puppets(base_url: str):
@@ -81,144 +68,309 @@ class VerticalFarmHTNEnv(object):
         self.connection.send(payload)
         return loads(self.connection.recv())
 
-    def get_state(self) -> dict:
-        return self._send({"command": "get_state"})
+    def get_state_from_game(self):
+        state = self._send({"command": "get_state"})
+        return state
 
-    def execute_action(self, action: str, params: dict = None) -> dict:
-        cmd = {"command": "execute_action", "action": action}
-        if params: cmd["params"] = params
-        return self._send(cmd)
+    def get_state(self) -> List[Dict[str, Any]]:
+        """
+        Fetches the raw state via get_state_from_game(), flattens nested structures
+        into atomic facts, and assigns each fact a unique 'id'.
+        """
+        raw = self.get_state_from_game()
+        if not raw or raw.get('code') != 2001:
+            raise RuntimeError("Failed to retrieve state from game")
+
+        content = raw['content']
+        info = content.get('info', {})
+        percept = content.get('percept', [])
+
+        val_state: List[Dict[str, Any]] = []
+        bot_id = info.get('puppet_id')
+
+        # 1) Flatten bot info
+        for key, val in info.items():
+            if key == 'reservoir' and isinstance(val, dict):
+                # one fact per chemical
+                for chem, amount in val.items():
+                    val_state.append({
+                        'entity': bot_id,
+                        'reservoir_chem': chem,
+                        'amount': amount
+                    })
+            elif isinstance(val, list):
+                # one fact per list element
+                for item in val:
+                    val_state.append({
+                        'entity': bot_id,
+                        key: item
+                    })
+            else:
+                # simple scalar fact
+                val_state.append({
+                    'entity': bot_id,
+                    key: val
+                })
+
+        # 2) Flatten percept (grid cells)
+        for cell in percept:
+            cell_id = f"{cell['x']}_{cell['y']}_{cell['floor']}"
+
+            # Handle station cells separately (no saturation/plant_count)
+            if cell['cell_type'] == 'station':
+                val_state.append({
+                    'entity': cell_id,
+                    'cell_type': cell['cell_type'],
+                    'station_type': cell.get('station_type'),
+                    'bot_on_grid': cell['bot_on_grid']
+                })
+            else:
+                print(cell)
+                # Soil (or other) cells include saturation & plant_count
+                val_state.append({
+                    'entity': cell_id,
+                    'cell_type': cell['cell_type'],
+                    'bot_on_grid': cell['bot_on_grid'],
+                    'saturation': cell['saturation'],
+                    'plant_count': cell['plant_count']
+                })
+                # One fact per plant in this soil cell
+                for plant in cell.get('plants', []):
+                    val_state.append({
+                        'entity': cell_id,
+                        'plant_species': plant.get('species'),
+                        'growth_stage': plant.get('growth_stage')
+                    })
+
+        # 3) High-level flag: any ripe plants?
+        ripe_ready = any(
+            p.get('growth', 0) >= 1.0
+            for cell in percept
+            for p in (cell.get('plants') or [])
+        )
+        val_state.append({'ripe_ready': ripe_ready})
+
+        # 4) Assign unique IDs
+        if not hasattr(self, 'id_count'):
+            self.id_count = 0
+        if not hasattr(self, 'count'):
+            self.count = 0
+
+        for entry in val_state:
+            if 'entity' in entry and entry['entity'] != bot_id:
+                entry_id = entry['entity']
+            elif 'reservoir_chem' in entry:
+                entry_id = entry['reservoir_chem']
+            else:
+                entry_id = self.id_count
+                self.id_count += 1
+            entry['id'] = entry_id
+
+        # 5) Snapshot counter (optional)
+        self.count += 1
+        print(f"[VerticalFarmHTN] snapshot # {self.count}")
+
+        print(val_state)
+
+        return val_state
+
+
 
     def execute_plan(self, plan_seq: list) -> dict:
         return self._send({"command": "execute_plan", "plan": plan_seq})
+
+    def send_and_recv(self, message: dict):
+        sleep(0.25)
+        message = json.dumps(message)
+        attempts = 0
+        while attempts < 3:
+            try:
+                self.ws.send(message)
+                result = self.ws.recv()
+                return json.loads(result)
+            except:
+                print(attempts)
+                attempts = attempts + 1
+                self.ws = websocket.create_connection(self.url)
+
+        print("Failed")
+        return None
+
+    def get_objects(self) -> List[str]:
+        """
+        Returns a list of unique object identifiers present in the current state.
+        """
+        state = self.get_state()
+        objects: Set[str] = set()
+        for fact in state:
+            # gather each entity as an object
+            if 'entity' in fact:
+                objects.add(fact['entity'])
+            # include any other keys that represent objects, if needed
+        print(objects)
+        return list(objects)
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
         domain = {}
         descriptions = {}
 
+        # ── 1) Primitive operators ────────────────────────────────────────────
+
+        # Move one step in a cardinal direction (up/down/left/right)
         domain["move"] = [
             Operator(
                 name="move",
-                args=(V("direction"),),
-                preconditions=Fact(current_actions=V("actions")) &
-                              Filter(lambda actions, direction: direction in actions),
+                args=[V("direction")],
+                preconditions=Fact(current_actions=V("move")),
                 effects=[]
             )
         ]
-        descriptions["move"] = "Move puppet one step in the given direction."
+        descriptions["move"] = "Move the farm bot one cell in the given direction."
 
+        # Teleport or path‐plan to exact coordinates
         domain["move_to"] = [
             Operator(
                 name="move_to",
-                args=(V("x"), V("y")),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "move_to" in actions),
+                args=[V("x"), V("y")],
+                preconditions=Fact(sensing_range_x=V("rx")) & Fact(sensing_range_y=V("ry")),
                 effects=[]
             )
         ]
-        descriptions["move_to"] = "Move puppet to coordinates (x, y)."
+        descriptions["move_to"] = "Move the farm bot directly to coordinates (x,y)."
 
+        # Interact with whatever is in the current cell (station or plot)
         domain["interact"] = [
             Operator(
                 name="interact",
-                args=(),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "interact" in actions),
+                args=[],
+                preconditions=Fact(current_actions=V("interact")),
                 effects=[]
             )
         ]
-        descriptions["interact"] = "Interact with an adjacent object."
+        descriptions["interact"] = "Interact with the station or plot you’re standing on."
 
-        domain["pick"] = [
-            Operator(
-                name="pick",
-                args=(V("target"),),
-                preconditions=Fact(current_actions=V("actions")) &
-                              Filter(lambda actions: "pick" in actions) &
-                              Fact(stage=V("stage")) &
-                              Filter(lambda stage: stage == "fruiting"),
-                effects=[]
-            )
-        ]
-        descriptions["pick"] = "Pick fruit at target slot (must be fruiting)."
+        # The core farming primitives
+        for op in ["sample", "spray", "harvest", "pluck", "pick_up", "put_down", "plant", "till"]:
+            domain[op] = [
+                Operator(
+                    name=op,
+                    args=[V("target")],
+                    preconditions=Fact(full_actions=V(op)),
+                    effects=[]
+                )
+            ]
+            descriptions[op] = f"Perform '{op}' on the given target."
 
-        domain["pick_up"] = [
-            Operator(
-                name="pick_up",
-                args=(),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "pick_up" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["pick_up"] = "Pick up an object at current location."
+        # ── 2) Macro methods (“recipes”) ─────────────────────────────────────
 
-        domain["put_down"] = [
-            Operator(
-                name="put_down",
-                args=(),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "put_down" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["put_down"] = "Put down carried object."
-
-        domain["harvest"] = [
-            Operator(
-                name="harvest",
-                args=(V("target"),),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "harvest" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["harvest"] = "Harvest the crop at target slot."
-
-        domain["pluck"] = [
-            Operator(
-                name="pluck",
-                args=(V("target"),),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "pluck" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["pluck"] = "Pluck fruit at target slot."
-
-        domain["sample"] = [
-            Operator(
-                name="sample",
-                args=(V("target"),),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "sample" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["sample"] = "Take a sample from target slot."
-
-        domain["spray"] = [
-            Operator(
-                name="spray",
-                args=(V("volume"),),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "spray" in actions),
-                effects=[]
-            )
-        ]
-        descriptions["spray"] = "Spray fertilizer or pesticide of given volume."
-
+        # PLANT: pick up a seed and plant it in a plot
         domain["plant"] = [
-            Operator(
+            Method(
                 name="plant",
-                args=(V("target"),),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "plant" in actions),
-                effects=[]
+                # bind: seed type, plot ID, station coords, plot coords
+                args=[V("seed"), V("plot"), V("sx"), V("sy"), V("px"), V("py")],
+                preconditions=(
+                    # you have the seed type in your reservoir
+                        Fact(reservoir_chem=V("seed")) &
+                        # the plot really is a soil cell
+                        Fact(cell_type=V("soil")) &
+                        # fetch coordinates for both station & plot
+                        Fact(cell_id=V("plot")) & Fact(x=V("px")) & Fact(y=V("py")) &
+                        Fact(x=V("sx")) & Fact(y=V("sy"))
+                ),
+                subtasks=[
+                    # go to the planting station
+                    Task("move_to", V("sx"), V("sy")),
+                    Task("interact"),  # pick up a seed
+                    # go to the chosen plot
+                    Task("move_to", V("px"), V("py")),
+                    Task("plant", V("plot"))
+                ]
             )
         ]
-        descriptions["plant"] = "Plant a seed at target slot."
+        descriptions["plant"] = (
+            "Move to the PlantStation (at ?sx,?sy), grab a seed, "
+            "then move to the soil plot (at ?px,?py) and plant it."
+        )
 
-        domain["till"] = [
-            Operator(
-                name="till",
-                args=(),
-                preconditions=Fact(current_actions=V("actions")) & Filter(lambda actions: "till" in actions),
-                effects=[]
+        domain["move_around"] = [
+            Method(
+                name="move_around",
+                args=[],
+                preconditions=Fact(current_actions=V("move")),
+                subtasks=[
+                    Task("move", "up"),
+                    Task("move", "right"),
+                    Task("move", "down"),
+                    Task("move", "left")
+                ]
             )
         ]
-        descriptions["till/0"] = "Till the soil in front of puppet."
+        descriptions["move_around"] = (
+            "Move one cell up, then right, then down, then left (a patrol loop)."
+        )
+
+
+
+        # WATER: refill water and irrigate a plot
+        domain["water"] = [
+            Method(
+                name="water",
+                args=[V("plot")],
+                preconditions=Fact(reservoir_chem=V("w")),
+                subtasks=[
+                    Task("move_to", "WaterStation"),
+                    Task("interact"),  # refill water
+                    Task("move_to", V("plot_x"), V("plot_y")),
+                    Task("spray", V("w"))
+                ]
+            )
+        ]
+        descriptions["water"] = "move_to the water station, refill, then irrigate the target plot."
+
+        # HARVEST: collect produce and deposit it
+        domain["harvest"] = [
+            Method(
+                name="harvest",
+                args=[V("plot")],
+                preconditions=Fact(plant_count=V("n")) & Filter(lambda n: n > 0),
+                subtasks=[
+                    Task("move_to", V("plot_x"), V("plot_y")),
+                    Task("harvest", V("plot")),  # pick the crop
+                    Task("move_to", "CollectionStation"),
+                    Task("interact")  # drop it off
+                ]
+            )
+        ]
+        descriptions["harvest"] = "Move to a ripe plot, harvest it, then deliver produce to the collection station."
+
+        # TILL: prepare soil for planting
+        domain["till"] = [
+            Method(
+                name="till",
+                args=[V("plot")],
+                preconditions=Fact(cell_type=V("soil")) & Fact(plant_count=V("0")),
+                subtasks=[
+                    Task("move_to", V("plot_x"), V("plot_y")),
+                    Task("till", V("plot"))
+                ]
+            )
+        ]
+        descriptions["till"] = "Move to an empty soil plot and till the ground for planting."
+
+        # SAMPLE: take a soil sample
+        domain["sample"] = [
+            Method(
+                name="sample",
+                args=[V("plot")],
+                preconditions=Fact(cell_type=V("soil")),
+                subtasks=[
+                    Task("move_to", V("plot_x"), V("plot_y")),
+                    Task("sample", V("plot"))
+                ]
+            )
+        ]
+        descriptions["sample"] = "Move to a soil plot and collect a sample for analysis."
 
         return domain, descriptions
 
@@ -235,6 +387,94 @@ class VerticalFarmHTNEnv(object):
             results.append(handler(self, args))
         return results
 
+    def move_to(self, x: Any, y: Any) -> bool:
+        resp = self._send({"command": "move_to", "x": x, "y": y})
+        return resp.get("success", False)
+
+    def move(self, direction: str) -> bool:
+        resp = self._send({"command": "move", "direction": direction})
+        return resp.get("success", False)
+
+    def interact(self) -> bool:
+        resp = self._send({"command": "interact"})
+        return resp.get("success", False)
+
+    def sample(self, target: Any) -> bool:
+        resp = self._send({"command": "sample", "target": target})
+        return resp.get("success", False)
+
+    def spray(self, volume: Any) -> bool:
+        resp = self._send({"command": "spray", "volume": volume})
+        return resp.get("success", False)
+
+    def harvest(self, target: Any) -> bool:
+        resp = self._send({"command": "harvest", "target": target})
+        return resp.get("success", False)
+
+    def pluck(self, target: Any) -> bool:
+        resp = self._send({"command": "pluck", "target": target})
+        return resp.get("success", False)
+
+    def pick_up(self) -> bool:
+        resp = self._send({"command": "pick_up"})
+        return resp.get("success", False)
+
+    def put_down(self) -> bool:
+        resp = self._send({"command": "put_down"})
+        return resp.get("success", False)
+
+    def plant(self, target: Any) -> bool:
+        resp = self._send({"command": "plant", "target": target})
+        return resp.get("success", False)
+
+    def till(self) -> bool:
+        resp = self._send({"command": "till"})
+        return resp.get("success", False)
+
+    def execute_action(self, action_name: str, args: List[Any]) -> bool:
+        """
+        Dispatch HTN primitive actions by sending a JSON 'execute_action' command
+        with named params and an API key via WebSocket.
+        """
+        if isinstance(args, tuple):
+            args = list(args)
+        print(f"[ENV] Executing: {action_name}({args})")
+
+        param_map = {
+            'move': (['direction'], {'direction': str}),
+            'move_to': (['x', 'y'], {'x': int, 'y': int}),
+            'interact': ([], {}),
+            'sample': (['target'], {'target': int}),
+            'spray': (['volume'], {'volume': float}),
+            'harvest': (['target'], {'target': int}),
+            'pluck': (['target'], {'target': int}),
+            'pick_up': ([], {}),
+            'put_down': ([], {}),
+            'plant': (['target'], {'target': int}),
+            'till': ([], {})
+        }
+
+        names, types = param_map.get(action_name, ([], {}))
+
+        # Build params dict
+        params = {}
+        for i, name in enumerate(names):
+            if i < len(args):
+                value = args[i]
+                # optionally cast: value = types.get(name, lambda x: x)(value)
+                params[name] = value
+
+        msg = {
+            "command": "execute_action",
+            "action": action_name,
+            "params": params,
+            "api_key": self.api_key
+        }
+        result = self._send(msg)
+        if not result:
+            return False
+        status = result.get('status') or result.get('Status') or ''
+        return status.lower() in ("ok", "success")
 
 if __name__ == "__main__":
     base_url = "http://localhost:4649"
@@ -275,4 +515,3 @@ if __name__ == "__main__":
     ]
     results = env.run_tasks(plan)
     print("Plan execution results:", results)
-
