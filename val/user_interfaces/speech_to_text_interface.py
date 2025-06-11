@@ -9,7 +9,7 @@ from val.user_interfaces.abstract_interface import AbstractUserInterface
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
 
 
-class ConsoleUserInterface(AbstractUserInterface):
+class SpeechInterface(AbstractUserInterface):
     
     def __init__(self, disable_segment_confirmation: bool = False, disable_map_confirmation: bool = False,
                  disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = False, 
