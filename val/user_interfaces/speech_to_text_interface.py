@@ -326,7 +326,7 @@ class SpeechInterface(AbstractUserInterface):
             print(f"({i}): {task}")
 
 if __name__ == "__main__":
-    task_manager = ConsoleUserInterface(disable_segment_confirmation=True)
+    task_manager = SpeechInterface(disable_segment_confirmation=True)
     result_segment_disabled = task_manager.segment_confirmation("a,b,c")
     print(f"Segment confirmation result with disable: {result_segment_disabled}")
     task_name = "place"
