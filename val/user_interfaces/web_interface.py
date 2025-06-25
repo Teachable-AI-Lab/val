@@ -28,14 +28,14 @@ class WebInterface(AbstractUserInterface):
         self.disable_confirm_task_execution = disable_confirm_task_execution
     
     def display_known_tasks(self, tasks: List[str]):
-        text = "\n".join([f"({i}): {task}" for i, task in enumerate(tasks)])
+        text = "\n".join([f"({i}) {task}" for i, task in enumerate(tasks)])
         self.sio.emit('message', {'type': 'display_known_tasks',
-                                  'text': "Those are the actions I know:" + text})
+                                  'text': "Below is a list of actions I can perform. Please review and tell me which one matches what you'd like to do:\n" + text})
         return
         
     def request_user_task(self) -> str:
         self.sio.emit('message', {'type': 'request_user_task', 
-                                  'text': 'How can I help you today?'})
+                                  'text': 'Hello! I’m ready to get started. What would you like me to help you accomplish today?'})
         print("The message is emitted")
 
         # if you want timeout you can do something like this...
@@ -54,14 +54,14 @@ class WebInterface(AbstractUserInterface):
     
     def ask_subtasks(self, user_task: str) -> str:
         self.sio.emit('message', {'type': 'ask_subtasks', 
-                                  'text': f"What are the steps for completing the task '{user_task}'?"})
+                                  'text': f'To make sure I follow your plan, could you outline the step-by-step actions needed to complete "{user_task}"?'})
         event = self.sio.receive()
         print('received event:', event)
         return event[1]['response']
 
     def ask_rephrase(self, user_tasks: str) -> str:
         self.sio.emit('message', {'type': 'ask_rephrase', 
-                                  'text': f"Sorry about that. Can you rephrase the tasks '{user_tasks}'?"})
+                                  'text': f'Sorry, I didn’t understand that fully. Could you please rephrase "{user_tasks}" so I can assist you better?'})
         event = self.sio.receive()
         print('received event:', event)
         return event[1]['response']
@@ -71,7 +71,7 @@ class WebInterface(AbstractUserInterface):
             return True 
         formatted_steps = ', '.join(steps)
         self.sio.emit('message', {'type': 'segment_confirmation', 
-                                  'text': f"These are the individual steps of your command: '{formatted_steps}', right?",
+                                  'text': f'Just to confirm, are these the individual steps for your request: {formatted_steps}? (yes/no)',
                                   'steps': steps})
         event = self.sio.receive()
         print('received event:', event[1])
@@ -81,15 +81,15 @@ class WebInterface(AbstractUserInterface):
         if self.disable_map_confirmation:
             return True 
         self.sio.emit('message', {'type': 'map_confirmation', 
-                                  'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"})
+                                  'text': f'It looks like "{user_task}" maps to the action "{task_name}". Am I identifying that correctly?'})
         event = self.sio.receive()
         print('received event:', event[1])
         return 'yes' == event[1]['response']
 
     def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
-        known_tasks.append('None of these above')
+        known_tasks.append('None of the above')
         self.sio.emit('message', {'type': 'map_correction',
-                                  'text': f"Which of these is the best choice for '{user_task}'?", 
+                                  'text': f'I\'m not sure which action best matches "{user_task}". Please select the most appropriate option from the list below.',
                                   'user_task': user_task,
                                   'known_tasks': known_tasks})
         event = self.sio.receive()
@@ -104,7 +104,7 @@ class WebInterface(AbstractUserInterface):
         if self.disable_map_new_method_confirmation:
             return True
         self.sio.emit('message', {'type': 'map_new_method_confirmation',
-                                  'text': f"The task '{user_task}' is a new method. Is that right?"})
+                                  'text': f'It appears "{user_task}" is a completely new action I haven\'t seen before. Should I treat this as a new method?'})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
@@ -115,7 +115,7 @@ class WebInterface(AbstractUserInterface):
         self.sio.emit('message', {'type': 'ground_confirmation',
                                   'task_name': task_name,
                                   'task_args': ', '.join(task_args),
-                                  'text': f"The task is {task_name}({task_args}). Is that right? <br>place"})
+                                  'text': f'I understand the command as {task_name}({task_args}). Is this interpretation correct?'})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
@@ -123,7 +123,7 @@ class WebInterface(AbstractUserInterface):
     def ground_correction(self, task_name: str, task_args: List[str],
                           env_objects: List[str]) -> List[str]:
         self.sio.emit('message', {'type': 'ground_correction',
-                                  'text': f"Could you help me pick the actual object? {task_name}",
+                                  'text': f'I need your help selecting the precise object(s) for {task_name}. Which one should I use?',
                                   'task_args': task_args,
                                   'env_objects': env_objects})
         event = self.sio.receive()
@@ -135,7 +135,7 @@ class WebInterface(AbstractUserInterface):
             return True
         formatted_args = ', '.join(task_args)
         self.sio.emit('message', {'type': 'gen_confirmation',
-                                  'text': f"{user_task} is {task_name}({formatted_args}). Is that right?",
+                                  'text': f'So "{user_task}" translates to {task_name}({formatted_args}). Does that look correct?',
                                   'task_args': task_args})
         event = self.sio.receive()
         print('received event:', event)
@@ -144,7 +144,7 @@ class WebInterface(AbstractUserInterface):
     def gen_correction(self, task_name: str, task_args: List[str],
                        env_objects: List[str]) -> List[str]:
         self.sio.emit('message', {'type': 'gen_correction',
-                                  'text': f"Could you help me pick the actual object? {task_name}:",
+                                  'text': f'Please choose the exact object(s) that should be used for {task_name}:',
                                   'task_args': task_args,
                                   'env_objects': env_objects})
         event = self.sio.receive()
@@ -155,7 +155,7 @@ class WebInterface(AbstractUserInterface):
         if self.disable_confirm_task_decomposition:
             return True
         self.sio.emit('message', {'type': 'confirm_task_decomposition',
-                                  'text': f"Should I decompose { user_task } to { user_subtasks }?"})
+                                  'text': f'Would you like me to break "{user_task}" down into the following subtasks {user_subtasks} before proceeding?'})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
@@ -164,7 +164,7 @@ class WebInterface(AbstractUserInterface):
         if self.disable_confirm_task_execution:
             return True
         self.sio.emit('message', {'type': 'confirm_task_execution',
-                                  'text': f"Should I execute { user_task }?"})
+                                  'text': f'I\'m ready to execute "{user_task}" now. Shall I proceed?'})
         event = self.sio.receive()
         print('received event:', event)
         return 'yes' == event[1]['response']
