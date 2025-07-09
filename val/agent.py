@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 from typing import Optional
 
 from val.utils import load_prompt
@@ -15,6 +15,7 @@ from val.gpt_completer import GPTCompleter
 from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
+from val.logging_system import ValLogger, EventType
 
 
 class ValAgent:
@@ -38,6 +39,14 @@ class ValAgent:
         self.user_interface = user_interface_class()
         self.env = env
         self.htn_interface = htn_interface_class(self, self.env)
+        
+        # Initialize logging system
+        self.logger = ValLogger()
+        self.logger.start_session(
+            environment_type=type(env).__name__,
+            user_interface_type=user_interface_class.__name__,
+            htn_interface_type=htn_interface_class.__name__
+        )
 
     def start(self):
         while True:
@@ -48,8 +57,25 @@ class ValAgent:
             self.user_interface.display_known_tasks(tasks)
 
             user_tasks = self.user_interface.request_user_task()
+
+            self.logger.log_event(
+                EventType.USER_TASK_REQUEST,
+                {"user_task": user_tasks},
+                self._get_env_state_dict(),
+                self._get_htn_knowledge_base_dict()
+            )
+            
             tasks = [task for task in self.interpret(user_tasks)]
             print(f"Tasks: {tasks}")
+            
+            task_dicts = [{"name": task.name, "arguments": task.args} for task in tasks]
+            self.logger.log_event(
+                EventType.HTN_TASK_ADDITION,
+                {"tasks": task_dicts},
+                self._get_env_state_dict(),
+                self._get_htn_knowledge_base_dict()
+            )
+            
             # planner = self.htn_interface.get_planner(tasks)
             self.htn_interface.add_tasks(tasks)
             #task here is a list of dicts. eg [{'name': 'moveTo', 'arguments': ['onion']}] 
@@ -72,10 +98,22 @@ class ValAgent:
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
 
-                    
-                    
                     if method_execs is None:
                         method_execs = []
+                    
+                    # Log HTN planning step with environment state and HTN knowledge base
+                    task_exec_str = str(task_exec) if task_exec else "None"
+                    method_execs_str = [str(me) for me in method_execs]
+                    self.logger.log_event(
+                        EventType.HTN_PLANNING_STEP,
+                        {
+                            "task_exec": task_exec_str,
+                            "method_execs": method_execs_str,
+                            "selected_method": None
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -85,6 +123,22 @@ class ValAgent:
                     next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_and_rewards(
                             task_exec, method_execs)
+
+                    # Log user decomposition selection with environment state and HTN knowledge base
+                    task_exec_str = str(task_exec) if task_exec else "None"
+                    method_execs_str = [str(me) for me in method_execs]
+                    selected_index = method_execs.index(next_method_exec) if next_method_exec else None
+                    self.logger.log_event(
+                        EventType.USER_DECOMPOSITION_SELECTION,
+                        {
+                            "task_exec": task_exec_str,
+                            "method_execs": method_execs_str,
+                            "selected_index": selected_index,
+                            "rewards": rewards
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
 
                     # If there is no next_method_exec because:
                     #  1. Matching in the planner failed or 
@@ -111,22 +165,83 @@ class ValAgent:
 
             except FailedPlanException:
                 # Signify Failure
-                pass
+                self.logger.log_error("FailedPlanException", "HTN planning failed")
+            except KeyboardInterrupt:
+                # User interrupted the session
+                self.logger.end_session()
+                break
+            except Exception as e:
+                # Log any other errors
+                import traceback
+                self.logger.log_error("GeneralException", str(e), traceback.format_exc())
+                raise
 
     def interpret(self, user_tasks: str) -> List[Task]:
         """
         Takes a string of natural language from the user and returns a list of Tasks
         """
         segmented_tasks = self.segment_gpt(user_tasks)
+        
+        # Log LLM segmentation with environment state and HTN knowledge base
+        llm_response = self.gpt.get_chat_gpt_completion(f'{self.segment_prompt}"{user_tasks}"')
+        self.logger.log_event(
+            EventType.LLM_SEGMENTATION,
+            {
+                "user_tasks": user_tasks,
+                "segmented_tasks": segmented_tasks,
+                "llm_response": llm_response
+            },
+            self._get_env_state_dict(),
+            self._get_htn_knowledge_base_dict()
+        )
+        
         while not self.user_interface.segment_confirmation(segmented_tasks):
             #not segment correctly
             # TODO consider adding/editing steps here.
             user_tasks = self.user_interface.ask_rephrase(user_tasks)
             segmented_tasks = self.segment_gpt(user_tasks)
+            
+            # Log user rephrase request with environment state and HTN knowledge base
+            self.logger.log_event(
+                EventType.USER_REPHRASE_REQUEST,
+                {
+                    "original_tasks": user_tasks,
+                    "rephrased_tasks": user_tasks
+                },
+                self._get_env_state_dict(),
+                self._get_htn_knowledge_base_dict()
+            )
 
         for user_task in segmented_tasks:
             task_ungrounded = self.map_gpt(user_task)
             print("task_ungrounded", task_ungrounded)
+            
+            # Log LLM mapping with environment state and HTN knowledge base
+            tasks = [t for t, _ in self.htn_interface.get_tasks()]
+            descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
+            task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, descriptions[i])}"
+                         for i, task in enumerate(tasks)]
+            object_list = self.env.get_objects()
+            name_list = [x.split('(')[0] for x in task_list]
+            name_list.append(f"[{chr(ord('a')+len(task_list))}] None of the above; "
+                             f'"{user_task}" would require a combination of actions.')
+            task_str = ', '.join(task_list)
+            object_str = ', '.join(object_list)
+            name_str = '\n'.join(name_list)
+            prompt = self.map_prompt % (task_str, object_str, user_task, name_str)
+            llm_response = self.gpt.get_chat_gpt_completion(prompt)
+            mapped_task_name = task_ungrounded.name if task_ungrounded else None
+            self.logger.log_event(
+                EventType.LLM_MAPPING,
+                {
+                    "user_task": user_task,
+                    "mapped_task": mapped_task_name,
+                    "llm_response": llm_response
+                },
+                self._get_env_state_dict(),
+                self._get_htn_knowledge_base_dict()
+            )
+            
             # task ungrounded is None means the agent is not sure what the user means
             # can not map to a task in the domain
             # map_gpt: go to map to moveTo, map the action(predicate)
@@ -142,6 +257,19 @@ class ValAgent:
                 # known_tasks = self.htn_interface.get_tasks()
                 str_known_tasks = [task_to_gpt_str(task, "") for task in known_tasks]
                 user_correction_index = self.user_interface.map_correction(user_task, str_known_tasks)
+                
+                # Log user map correction with environment state and HTN knowledge base
+                self.logger.log_event(
+                    EventType.USER_MAP_CORRECTION,
+                    {
+                        "user_task": user_task,
+                        "available_tasks": str_known_tasks,
+                        "selected_index": user_correction_index
+                    },
+                    self._get_env_state_dict(),
+                    self._get_htn_knowledge_base_dict()
+                )
+                
                 if user_correction_index is None:
                     task_ungrounded = None
                 else:
@@ -150,26 +278,175 @@ class ValAgent:
             if task_ungrounded is None:
                 task_name = self.name_gpt(user_task)
                 task_args = self.gen_gpt(user_task, task_name)
+                
+                # Log LLM task naming and generation with environment state and HTN knowledge base
+                llm_name_response = self.gpt.get_chat_gpt_completion(f'{self.name_prompt}"{user_task}"')
+                self.logger.log_event(
+                    EventType.LLM_TASK_NAMING,
+                    {
+                        "user_task": user_task,
+                        "task_name": task_name,
+                        "llm_response": llm_name_response
+                    },
+                    self._get_env_state_dict(),
+                    self._get_htn_knowledge_base_dict()
+                )
+                
+                objects = self.env.get_objects()
+                obj_str = ", ".join(objects)
+                prompt = self.gen_prompt % (obj_str, user_task, task_name)
+                llm_gen_response = self.gpt.get_chat_gpt_completion(prompt).strip()
+                self.logger.log_event(
+                    EventType.LLM_GENERATION,
+                    {
+                        "user_task": user_task,
+                        "task_name": task_name,
+                        "generated_args": task_args,
+                        "llm_response": llm_gen_response
+                    },
+                    self._get_env_state_dict(),
+                    self._get_htn_knowledge_base_dict()
+                )
+                
                 if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
+                    # Log user gen confirmation with environment state and HTN knowledge base
+                    self.logger.log_event(
+                        EventType.USER_GEN_CONFIRMATION,
+                        {
+                            "user_task": user_task,
+                            "task_name": task_name,
+                            "task_args": task_args,
+                            "confirmed": False
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                    
+                    original_args = task_args.copy()
                     task_args = self.user_interface.gen_correction(task_name, task_args,
                                                            self.env.get_objects())
+                    
+                    self.logger.log_event(
+                        EventType.USER_GEN_CORRECTION,
+                        {
+                            "task_name": task_name,
+                            "original_args": original_args,
+                            "corrected_args": task_args
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                else:
+                    # Log user gen confirmation with environment state and HTN knowledge base
+                    self.logger.log_event(
+                        EventType.USER_GEN_CONFIRMATION,
+                        {
+                            "user_task": user_task,
+                            "task_name": task_name,
+                            "task_args": task_args,
+                            "confirmed": True
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                
                 yield Task(str(task_name), args=list(task_args))
 
             else:
             # ground task objects
                 task_args = self.ground_gpt(user_task, task_ungrounded)
+                
+                num_args = len(task_ungrounded.args)
+                object_list = self.env.get_objects()
+                object_str = ', '.join(object_list)
+                num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
+                num_objs_str = '%d object%s' % (num_args, '' if num_args==1 else 's')
+                task_name = task_ungrounded.name
+                o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
+                prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded, ""), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
+                llm_ground_response = self.gpt.get_chat_gpt_completion(prompt).strip()
+                self.logger.log_event(
+                    EventType.LLM_GROUNDING,
+                    {
+                        "user_task": user_task,
+                        "task_name": task_ungrounded.name,
+                        "grounded_args": task_args,
+                        "llm_response": llm_ground_response
+                    },
+                    self._get_env_state_dict(),
+                    self._get_htn_knowledge_base_dict()
+                )
+                
                 # if pick the wrong object
                 if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
+                    # Log user ground confirmation with environment state and HTN knowledge base
+                    self.logger.log_event(
+                        EventType.USER_GROUND_CONFIRMATION,
+                        {
+                            "task_name": task_ungrounded.name,
+                            "task_args": task_args,
+                            "confirmed": False
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                    
+                    original_args = task_args.copy()
                     task_args = self.user_interface.ground_correction(task_ungrounded.name,
                                                                       task_args,
                                                                       self.env.get_objects())
+                    
+                    self.logger.log_event(
+                        EventType.USER_GROUND_CORRECTION,
+                        {
+                            "task_name": task_ungrounded.name,
+                            "original_args": original_args,
+                            "corrected_args": task_args
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                else:
+                    # Log user ground confirmation with environment state and HTN knowledge base
+                    self.logger.log_event(
+                        EventType.USER_GROUND_CONFIRMATION,
+                        {
+                            "task_name": task_ungrounded.name,
+                            "task_args": task_args,
+                            "confirmed": True
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
 
                 verbalized_task = self.verbalize_gpt(task_ungrounded, task_args)
+                
+                self.logger.log_event(
+                    EventType.LLM_VERBALIZATION,
+                    {
+                        "task_name": task_ungrounded.name,
+                        "task_args": task_args,
+                        "verbalized_task": verbalized_task
+                    },
+                    self._get_env_state_dict(),
+                    self._get_htn_knowledge_base_dict()
+                )
 
                 if (self.paraphrase_gpt(verbalized_task, user_task) or
                      self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
+                    para_res = self.gpt.get_chat_gpt_completion(self.para_prompt % (user_task, verbalized_task))                    
+                    self.logger.log_event(
+                        EventType.LLM_PARAPHRASE_CHECK,
+                        {
+                            "verbalized_task": verbalized_task,
+                            "user_task": user_task,
+                            "is_paraphrase": para_res == 'yes'
+                        },
+                        self._get_env_state_dict(),
+                        self._get_htn_knowledge_base_dict()
+                    )
+                    
                     yield Task(str(task_ungrounded.name), args=list(task_args))
-                # returns the mapped task name and the arguments
                 else:
                     for subtask in self.add_method_from_user_task(user_task):
                         yield subtask
@@ -183,6 +460,17 @@ class ValAgent:
         task_args = task_exec.match 
         verbalized_task = self.verbalize_gpt(task, task_args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
+        
+        self.logger.log_event(
+            EventType.USER_SUBTASK_DESCRIPTION,
+            {
+                "task_name": task.name,
+                "user_subtasks": user_subtasks
+            },
+            self._get_env_state_dict(),
+            self._get_htn_knowledge_base_dict()
+        )
+        
         subtasks = []
         for subtask in self.interpret(user_subtasks):
             subtasks.append(subtask)
@@ -215,6 +503,21 @@ class ValAgent:
             subtask_exec.parent_exec = method_exec
 
         self.htn_interface.add_method_exec(method_exec)
+        
+        method_name = method.name
+        method_args = [str(arg) for arg in method.args]
+        subtask_names = [subtask.name for subtask in method.subtasks]
+        self.logger.log_event(
+            EventType.HTN_METHOD_ADDITION,
+            {
+                "method_name": method_name,
+                "method_args": method_args,
+                "subtasks": subtask_names
+            },
+            self._get_env_state_dict(),
+            self._get_htn_knowledge_base_dict()
+        )
+        
         return method_exec
 
     def segment_gpt(self, user_tasks: str) -> List[str]:
@@ -364,4 +667,47 @@ class ValAgent:
         # return bool based on confirmation
         verbalized_task = self.verbalize_gpt(task, task.args)
         return self.user_interface.confirm_task_execution(verbalized_task)
+    
+    def _get_env_state_dict(self) -> Dict[str, Any]:
+        """
+        Get environment state as a dictionary for logging
+        """
+        try:
+            state = self.env.get_state()
+            if state is None:
+                return {}
+            
+            if isinstance(state, list):
+                serializable_state = []
+                for item in state:
+                    try:
+                        serializable_state.append(str(item))
+                    except Exception:
+                        serializable_state.append(f"<non-serializable: {type(item).__name__}>")
+                return {"state": serializable_state}
+            
+            elif isinstance(state, dict):
+                serializable_state = {}
+                for key, value in state.items():
+                    try:
+                        serializable_state[str(key)] = str(value)
+                    except Exception:
+                        serializable_state[str(key)] = f"<non-serializable: {type(value).__name__}>"
+                return {"state": serializable_state}
+            
+            else:
+                return {"state": str(state)}
+                
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def _get_htn_knowledge_base_dict(self) -> Dict[str, Any]:
+        """Get HTN knowledge base as a dictionary for logging"""
+        try:
+            tasks = [t for t, _ in self.htn_interface.get_tasks()]
+            return {
+                "tasks": [{"name": task.name, "args": [str(arg) for arg in task.args]} for task in tasks]
+            }
+        except Exception as e:
+            return {"error": str(e)}
 
