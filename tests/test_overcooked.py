@@ -23,16 +23,25 @@ async def run_render(env):
 async def main():
     openai_key = get_openai_key()
     env = OvercookedAIEnv(player_id=1, render=True)  # pygame init must be in main thread
-    # user_interface = ConsoleUserInterface
-    user_interface = WebInterface
+    user_interface = ConsoleUserInterface
+    # user_interface = WebInterface
     htn_interface = PyHtnInterface
     agent = ValAgent(env, user_interface, htn_interface, openai_key)
 
+    print("VAL Agent started with logging enabled!")
+    print(f"Session ID: {agent.logger.session_id}")
+    print("Database: val/val_events.db")
+    print("Press Ctrl+C to stop and view logs...")
+
     # We use asyncio to concurrently run the blocking agent logic and the non-blocking render loop.
-    await asyncio.gather(
-        asyncio.to_thread(agent.start),  # Run the blocking agent logic in a background thread
-        run_render(env)                  # Keep rendering frames on the main thread
-    )
+    try:
+        await asyncio.gather(
+            asyncio.to_thread(agent.start),  # Run the blocking agent logic in a background thread
+            run_render(env)                  # Keep rendering frames on the main thread
+        )
+    except KeyboardInterrupt:
+        print("\nSession ended by user. Logging session summary...")
+        # The agent will handle session end logging in its exception handler
 
 # Below is an optional test action loop if you want to debug behavior directly.
 # async def run_action_loop(env):
