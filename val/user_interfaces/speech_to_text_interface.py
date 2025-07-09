@@ -11,11 +11,11 @@ from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree
 
 class SpeechInterface(AbstractUserInterface):
     
-    def __init__(self, disable_segment_confirmation: bool = False, disable_map_confirmation: bool = False,
-                 disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = False, 
-                 disable_ground_confirmation: bool = False, disable_ground_correction: bool = False,
-                 disable_gen_confirmation: bool = False, disable_gen_correction: bool = False,
-                 disable_confirm_task_decomposition: bool = False, disable_confirm_task_execution: bool = False, 
+    def __init__(self, disable_segment_confirmation: bool = True, disable_map_confirmation: bool = True,
+                 disable_map_correction: bool = True, disable_map_new_method_confirmation: bool = True,
+                 disable_ground_confirmation: bool = True, disable_ground_correction: bool = True,
+                 disable_gen_confirmation: bool = True, disable_gen_correction: bool = True,
+                 disable_confirm_task_decomposition: bool = True, disable_confirm_task_execution: bool = True,
                  next_select_kind = "one at a time", url='ws://localhost:3000/metro'
 
                  ):
