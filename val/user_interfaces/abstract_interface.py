@@ -115,7 +115,13 @@ class AbstractUserInterface:
 
     def display_known_tasks(self, tasks: List[str]):
         """
-        Displays the list of tasks that VAL knows how to do.
+        Display the known tasks to the user.
+        """
+        raise NotImplementedError("Not implemented yet")
+
+    def display_explanation(self, explanation: str) -> None:
+        """
+        Display the AI agent's decision explanation to the user.
         """
         raise NotImplementedError("Not implemented yet")
 

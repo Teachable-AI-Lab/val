@@ -241,6 +241,24 @@ class ConsoleUserInterface(AbstractUserInterface):
         for i, task in enumerate(tasks):
             print(f"({i}): {task}")
 
+    def display_explanation(self, explanation: str) -> None:
+        """
+        Display the AI agent's decision explanation to the user.
+        """
+        print("\n" + "="*60)
+        print("🤖 AI DECISION EXPLANATION")
+        print("="*60)
+        
+        # Check if explanation already contains formatted sections
+        if "Task:" in explanation and "Available methods:" in explanation:
+            # If it's already formatted, just print it as is
+            print(explanation)
+        else:
+            # If it's not formatted, add some basic formatting
+            print(f"Explanation: {explanation}")
+        
+        print("="*60 + "\n")
+
 if __name__ == "__main__":
     task_manager = ConsoleUserInterface(disable_segment_confirmation=True)
     result_segment_disabled = task_manager.segment_confirmation("a,b,c")

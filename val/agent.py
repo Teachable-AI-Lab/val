@@ -32,6 +32,7 @@ class ValAgent:
         self.verb_prompt = load_prompt('prompts/chat_verbalizer.txt')
         self.map_prompt = load_prompt('prompts/chat_map.txt')
         self.ground_prompt = load_prompt('prompts/chat_ground.txt')
+        self.explanation_prompt = load_prompt('prompts/newprompts/1st try.txt')
 
         self.gpt = GPTCompleter(openai_key)
 
@@ -85,6 +86,11 @@ class ValAgent:
                     next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_and_rewards(
                             task_exec, method_execs)
+
+                    # Generate and display explanation for the chosen method
+                    if next_method_exec is not None and len(method_execs) > 0:
+                        explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
+                        self.user_interface.display_explanation(explanation)
 
                     # If there is no next_method_exec because:
                     #  1. Matching in the planner failed or 
@@ -364,4 +370,117 @@ class ValAgent:
         # return bool based on confirmation
         verbalized_task = self.verbalize_gpt(task, task.args)
         return self.user_interface.confirm_task_execution(verbalized_task)
+
+    def explain_decision(self, task_exec: TaskEx, method_execs: list, chosen_method_exec: MethodEx) -> str:
+        """
+        Generate an explanation for why a specific method was chosen for task decomposition.
+        """
+        # Parameter validation
+        if task_exec is None:
+            print("WARNING: task_exec is None")
+            return "Cannot explain decision: task_exec is None"
+        
+        if method_execs is None or len(method_execs) == 0:
+            print("WARNING: method_execs is None or empty")
+            return "Cannot explain decision: no available methods"
+        
+        if chosen_method_exec is None:
+            print("WARNING: chosen_method_exec is None")
+            return "Cannot explain decision: no method was chosen"
+        
+        print(f"DEBUG: Explaining decision for task: {task_exec}")
+        print(f"DEBUG: Number of available methods: {len(method_execs)}")
+        print(f"DEBUG: Chosen method: {chosen_method_exec}")
+        
+        # Get current state information
+        current_state = self.env.get_state()
+        print(f"DEBUG: Current state has {len(current_state)} items")
+        
+        # Format task information
+        try:
+            task_str = f"{task_exec.task.name}({', '.join([str(arg) for arg in task_exec.match])})"
+            print(f"DEBUG: Task string: {task_str}")
+        except Exception as e:
+            print(f"ERROR formatting task: {e}")
+            task_str = f"{task_exec.task.name if task_exec.task else 'unknown'}"
+        
+        # Format available methods
+        method_strs = []
+        try:
+            for i, method_exec in enumerate(method_execs):
+                if method_exec is None or method_exec.method is None:
+                    method_strs.append(f"Method {i+1}: [INVALID_METHOD]")
+                    continue
+                    
+                subtasks = []
+                for subtask in method_exec.method.subtasks:
+                    if subtask is None:
+                        subtasks.append("INVALID_SUBTASK")
+                    else:
+                        subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
+                        subtasks.append(subtask_str)
+                method_strs.append(f"Method {i+1}: [{', '.join(subtasks)}]")
+            available_methods_str = "; ".join(method_strs)
+            print(f"DEBUG: Available methods: {available_methods_str}")
+        except Exception as e:
+            print(f"ERROR formatting methods: {e}")
+            available_methods_str = "Error formatting methods"
+        
+        # Format chosen method
+        try:
+            if chosen_method_exec.method is None:
+                chosen_method_str = "[INVALID_CHOSEN_METHOD]"
+            else:
+                chosen_subtasks = []
+                for subtask in chosen_method_exec.method.subtasks:
+                    if subtask is None:
+                        chosen_subtasks.append("INVALID_SUBTASK")
+                    else:
+                        subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
+                        chosen_subtasks.append(subtask_str)
+                chosen_method_str = f"[{', '.join(chosen_subtasks)}]"
+            print(f"DEBUG: Chosen method: {chosen_method_str}")
+        except Exception as e:
+            print(f"ERROR formatting chosen method: {e}")
+            chosen_method_str = "[ERROR_FORMATTING_CHOSEN_METHOD]"
+        
+        # Format state information (simplified for readability)
+        state_info = []
+        try:
+            for item in current_state:
+                if isinstance(item, dict):
+                    if 'object' in item:
+                        state_info.append(f"{item['object']}: {item.get('status', 'present')}")
+                    elif 'terrain' in item:
+                        state_info.append(f"terrain at ({item['x']},{item['y']}): {item['terrain']}")
+            current_state_str = "; ".join(state_info[:10])  # Limit to first 10 items for readability
+            print(f"DEBUG: State string: {current_state_str}")
+        except Exception as e:
+            print(f"ERROR formatting state: {e}")
+            current_state_str = "Error formatting state"
+        
+        # Generate explanation using GPT
+        try:
+            prompt = self.explanation_prompt % (task_str, available_methods_str, current_state_str, chosen_method_str)
+            print(f"DEBUG: Generated prompt length: {len(prompt)}")
+        
+            
+            explanation = self.gpt.get_chat_gpt_completion(prompt)
+            print(f"DEBUG: Generated explanation length: {len(explanation)}")
+            
+            # Ensure the explanation contains the expected format
+            if "Task:" not in explanation or "Available methods:" not in explanation:
+                print("WARNING: GPT response doesn't contain expected format, adding headers...")
+                formatted_explanation = f"""Task: {task_str}
+Available methods: {available_methods_str}
+Current state: {current_state_str}
+Chosen method: {chosen_method_str}
+
+Explanation: {explanation}"""
+                return formatted_explanation
+            
+            return explanation
+        except Exception as e:
+            print(f"ERROR generating explanation: {e}")
+            return f"Error generating explanation: {e}"
 

@@ -12,9 +12,9 @@ if __name__ == "__main__":
     openai_key = get_openai_key()
 
     env = SpaceTransitEnv()
-    # user_interface = ConsoleUserInterface
+    user_interface = ConsoleUserInterface
     # user_interface = WebInterface
-    user_interface = SpeechInterface
+    # user_interface = SpeechInterface
     # htn_interface = BasicHtnInterface
     htn_interface = PyHtnInterface
 

@@ -1,0 +1,34 @@
+***
+You are an AI agent that needs to explain your decision-making process to a human user. You will be given information about:
+
+1. The current task you're trying to accomplish
+2. The available methods/actions you can choose from
+3. The current state of the environment
+4. Your chosen method/action
+
+Your job is to explain:
+- Why you chose this specific method/action over others
+- What preconditions or conditions made this choice possible
+- How this choice helps achieve the overall goal
+- What you expect to happen next
+
+Please provide a clear, natural language explanation that a human can easily understand.
+
+IMPORTANT: You must format your response exactly like this example:
+
+Task: cook(onion)
+Available methods: Method 1: [get(onion), boil(onion), plate(), deliver()]; Method 2: [get(onion), interact()]
+Current state: player: present; pot: empty; onion: present; dish: present; serving pad: present
+Chosen method: [get(onion), boil(onion), plate(), deliver()]
+
+Explanation: I chose Method 1 because it provides a complete cooking workflow. The preconditions for this method are minimal (just needing the onion to be available), which are satisfied by the current state because the onion is present in the environment. This method will help me achieve the goal by following the standard cooking process: getting the ingredient, boiling it, plating it, and delivering it. Next, I expect to start by getting the onion and begin the cooking process.
+
+Now, please explain your decision for the following scenario:
+
+Task: %s
+Available methods: %s
+Current state: %s
+Chosen method: %s
+
+Please provide your complete response in the exact format shown above:
+***
