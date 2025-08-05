@@ -26,6 +26,9 @@ class ValAgent:
                  openai_key: str):
 
         self.segment_prompt = load_prompt("prompts/chat_segmenter.txt")
+        self.grounding_prompt = load_prompt("prompts/unified_grounding.txt")
+        self.precondition_parser_prompt = load_prompt("prompts/precondition_parser.txt")
+        
         self.name_prompt = load_prompt('prompts/chat_namer.txt')
         self.gen_prompt = load_prompt('prompts/chat_gen.txt')
         self.para_prompt = load_prompt('prompts/chat_paraphrase_ider.txt')
@@ -74,7 +77,8 @@ class ValAgent:
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
 
                     
-                    
+                    # if this is an unknown task, the user interface will return next_method_exec as None
+                    # and it will go to query_new_method_exec
                     if method_execs is None:
                         method_execs = []
    
@@ -84,8 +88,31 @@ class ValAgent:
                     #  user_interface decide which method_exec will be applied
 
                     next_method_exec, rewards = \
-                        self.user_interface.query_next_decomposition_and_rewards(
+                        self.user_interface.query_next_decomposition_with_edit(
                             task_exec, method_execs)
+
+                    # Check if user edited the decomposition
+                    if next_method_exec is None and hasattr(self.user_interface, 'last_edited_decomposition'):
+                        # User edited a decomposition - create new method from edited content
+                        edited_decomposition = self.user_interface.last_edited_decomposition
+                        next_method_exec = self.edit_from_gui(
+                            task_exec, edited_decomposition
+                        )
+                        rewards = [1.0]  # Give positive reward to the new method
+                        method_execs.append(next_method_exec)
+                        
+                    elif next_method_exec is None and hasattr(self.user_interface, 'chatbot_response'):
+                        # User responded via chatbot - use the chatbot response to create new method
+                        chatbot_response = self.user_interface.chatbot_response
+                        preconditions = getattr(self.user_interface, 'last_preconditions', [])
+                        # Clear the chatbot response to avoid reuse
+                        delattr(self.user_interface, 'chatbot_response')
+                        # Use the chatbot response as subtasks for new method
+                        next_method_exec = self.edit_from_chat(
+                            task_exec, chatbot_response, preconditions
+                        )
+                        rewards = [1.0]  # Give positive reward to the new method
+                        method_execs.append(next_method_exec)
 
                     # Generate and display explanation for the chosen method
                     if next_method_exec is not None and len(method_execs) > 0:
@@ -122,64 +149,27 @@ class ValAgent:
     def interpret(self, user_tasks: str) -> List[Task]:
         """
         Takes a string of natural language from the user and returns a list of Tasks
+        Simplified version without excessive confirmations
         """
         segmented_tasks = self.segment_gpt(user_tasks)
+        
+        # Allow correction of segmentation
         while not self.user_interface.segment_confirmation(segmented_tasks):
-            #not segment correctly
-            # TODO consider adding/editing steps here.
             user_tasks = self.user_interface.ask_rephrase(user_tasks)
             segmented_tasks = self.segment_gpt(user_tasks)
 
         for user_task in segmented_tasks:
-            task_ungrounded = self.map_gpt(user_task)
-            print("task_ungrounded", task_ungrounded)
-            # task ungrounded is None means the agent is not sure what the user means
-            # can not map to a task in the domain
-            # map_gpt: go to map to moveTo, map the action(predicate)
+            # Use unified grounding to extract action and objects
+            task_name, task_args = self.unified_grounding_gpt(user_task)
             
-            if ((task_ungrounded is None and
-                   not self.user_interface.map_new_method_confirmation(user_task)) or
-                  (task_ungrounded is not None and
-                   not self.user_interface.map_confirmation(user_task, task_ungrounded.name))):
-                #correct the map result
-                # TODO add to htn interface
-                # TODO consider how we convert tasks to strings and handle args
-                known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
-                # known_tasks = self.htn_interface.get_tasks()
-                str_known_tasks = [task_to_gpt_str(task, "") for task in known_tasks]
-                user_correction_index = self.user_interface.map_correction(user_task, str_known_tasks)
-                if user_correction_index is None:
-                    task_ungrounded = None
-                else:
-                    task_ungrounded = known_tasks[int(user_correction_index)]
-
-            if task_ungrounded is None:
-                task_name = self.name_gpt(user_task)
-                task_args = self.gen_gpt(user_task, task_name)
-                if not self.user_interface.gen_confirmation(user_task, task_name, task_args):
-                    task_args = self.user_interface.gen_correction(task_name, task_args,
-                                                           self.env.get_objects())
-                yield Task(str(task_name), args=list(task_args))
-
-            else:
-            # ground task objects
-                task_args = self.ground_gpt(user_task, task_ungrounded)
-                # if pick the wrong object
-                if not self.user_interface.ground_confirmation(task_ungrounded.name, task_args):
-                    task_args = self.user_interface.ground_correction(task_ungrounded.name,
-                                                                      task_args,
-                                                                      self.env.get_objects())
-
-                verbalized_task = self.verbalize_gpt(task_ungrounded, task_args)
-
-                if (self.paraphrase_gpt(verbalized_task, user_task) or
-                     self.user_interface.gen_confirmation(user_task, task_ungrounded.name, task_args)):
-                    yield Task(str(task_ungrounded.name), args=list(task_args))
-                # returns the mapped task name and the arguments
-                else:
-                    for subtask in self.add_method_from_user_task(user_task):
-                        yield subtask
-
+            # Allow correction of the grounded result
+            corrected_task_name, corrected_task_args = self.user_interface.correct_grounding(
+                user_task, task_name, task_args, self.env.get_objects()
+            )
+            
+            yield Task(str(corrected_task_name), args=list(corrected_task_args))
+            
+            
     def query_new_method_exec(self, task_exec: TaskEx):
         """
         This is previous "add method" function. Returns an HTN method
@@ -193,12 +183,34 @@ class ValAgent:
         for subtask in self.interpret(user_subtasks):
             subtasks.append(subtask)
 
-        # TODO maybe consider a gpt module that names these better...
+        # Use the generic method to create MethodEx (no preconditions for manual input)
+        return self.create_method_exec(task_exec, subtasks)
+
+    def create_method_exec(self, task_exec: TaskEx, subtasks: List[Task], preconditions: List[Fact] = None) -> MethodEx:
+        """
+        Generic method to create a MethodEx from subtasks and preconditions
+        Args:
+            task_exec: The task being decomposed
+            subtasks: List of subtasks
+            preconditions: List of preconditions (optional)
+        Returns:
+            MethodEx: The new method execution
+        """
+        state = self.env.get_state()
+        task = task_exec.task 
+        task_args = task_exec.match 
+        
+        # Use empty list if no preconditions provided
+        if preconditions is None:
+            preconditions = []
+        
+        # Create argument mapping
         arg_map = {arg: V(chr(ord('A')+i))
                    for i, arg in enumerate(task_args)}
 
         task_args_v = [arg_map[arg] for arg in task_args]
 
+        # Create subtasks with variables
         subtasks_v = []
         subtask_execs = []
         for subtask in subtasks:
@@ -211,7 +223,7 @@ class ValAgent:
             subtask_execs.append(subtask_exec)
 
         print("task_args_v", task_args_v)
-        method = Method(task.name, args=task_args_v, subtasks=subtasks_v)
+        method = Method(task.name, args=task_args_v, subtasks=subtasks_v, preconditions=preconditions)
         method_exec = MethodEx(method, state,
             match=task_args,
             parent_task_exec=task_exec,
@@ -223,153 +235,82 @@ class ValAgent:
         self.htn_interface.add_method_exec(method_exec)
         return method_exec
 
-    def segment_gpt(self, user_tasks: str) -> List[str]:
-        # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
-        resp = self.gpt.get_chat_gpt_completion(f'{self.segment_prompt}"{user_tasks}"')
-        segmented_user_tasks = []
-        for line in resp.split('\n'):
-            # Code parses string '2. "interact with it" (resolved pronouns: "interact with the onion")'
-            # to get "interact with the onion" out.
-            segmented_user_tasks.append(line.split('"')[3])
-
-        return segmented_user_tasks
-
-    def name_gpt(self, user_task: str) -> str:
+    # TODO: this needs to be revised
+    def parse_preconditions(self, chatbot_response: str, task_name: str) -> List[Fact]:
         """
-        Takes user task string and returns a task name that matches it.
+        Use LLM to parse preconditions from chatbot response
+        Args:
+            chatbot_response: The chatbot response describing the decomposition
+            task_name: The name of the task being decomposed
+        Returns:
+            List[Fact]: List of parsed Fact objects
         """
-        resp = self.gpt.get_chat_gpt_completion(f'{self.name_prompt}"{user_task}"')
-        return resp.split('(')[0]
-
-    def map_gpt(self, user_task: str) -> Optional[Task]:
-        """
-        Takes user input and htn_methods and maps to a method.
-
-        Might return... Task("moveTo", V("X"))
-        """
-
-        # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
-        tasks = [t for t, _ in self.htn_interface.get_tasks()]
-        descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
-
-        task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, descriptions[i])}"
-                     for i, task in enumerate(tasks)]
-
-        # TODO get_objects returns -> ['onion', 'pot', ...]
-        object_list = self.env.get_objects()
-        name_list = [x.split('(')[0] for x in task_list]
-        name_list.append(f"[{chr(ord('a')+len(task_list))}] None of the above; "
-                         f'"{user_task}" would require a combination of actions.')
-
-        task_str = ', '.join(task_list)
-        object_str = ', '.join(object_list)
-        name_str = '\n'.join(name_list)
-
-        prompt = self.map_prompt % (task_str, object_str, user_task, name_str)
-        resp = self.gpt.get_chat_gpt_completion(prompt)
-
-        choice = None
-        for i in range(len(resp)):
-            if resp[i] == '[':
-                choice = resp[i+1]
-                break
-        choice = ord(choice)-ord('a')
-
-        chosen_task = None
-        if choice < len(task_list):
-            chosen_task = tasks[choice]
-
-        return chosen_task
-
-    def ground_gpt(self, user_task: str, task_ungrounded: Task) -> List[str]:
-        """
-        Takes the user task,
-        the name from map
-        the kb
-        the objects in environment
-
-        returns list of argument mappings for task name
-        """
-        num_args = len(task_ungrounded.args)
-        if num_args == 0:
-            return task_ungrounded.args
-
-        object_list = self.env.get_objects()
-        object_str = ', '.join(object_list)
-
-        num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
-        num_objs_str = '%d object%s' % (num_args, '' if num_args==1 else 's')
-
-        task_name = task_ungrounded.name
-
-        o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
-
-        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded, ""), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
-
-        resp = self.gpt.get_chat_gpt_completion(prompt).strip()
-
-        if '"' in resp:
-            resp = resp.replace('"', '').strip()
+        # Load precondition parser prompt
+        precondition_prompt = self.precondition_parser_prompt.format(
+            task_name=task_name,
+            chatbot_response=chatbot_response
+        )
+        return
         
-        resp = resp.replace(" ", "")
-        resp = resp.split("(")[1]
-        resp = resp.split(")")[0]
-        resp = resp.split(",")
-
-        return resp
-
-    def gen_gpt(self, user_task: str, task_name: str) -> List[str]:
-
-        # objects = set(arg for task in subtasks for arg in task.args)
-        objects = self.env.get_objects()
-
-        obj_str = ", ".join(objects)
-        prompt = self.gen_prompt % (obj_str, user_task, task_name)
-        resp = self.gpt.get_chat_gpt_completion(prompt).strip()
-
-        if ': ' in resp:
-            resp = resp.split(': ')[1]
-
-        if '(' not in resp:
-            return resp + '()'
+####### edit functions: from chatbot and gui #######
+    def edit_from_chat(self, task_exec: TaskEx, chatbot_response: str, preconditions: List[str]) -> MethodEx:
+        """
+        Create a new MethodEx from chatbot response
+        Args:
+            task_exec: The task being decomposed
+            chatbot_response: String response from chatbot describing the decomposition
+            preconditions: List of precondition strings (legacy parameter, not used)
+        Returns:
+            MethodEx: The new method execution created from the chatbot response
+        """
+        # Use LLM to parse preconditions from chatbot response
+        parsed_preconditions = self.parse_preconditions(chatbot_response, task_exec.task.name)
         
-        resp = resp.replace(" ", "")
-        resp = resp.split("(")[1]
-        resp = resp.split(")")[0]
-        resp = resp.split(",")
-        return resp
+        # Use the chatbot response as subtasks input
+        # This reuses the existing interpret method to parse the chatbot response
+        subtasks = []
+        for subtask in self.interpret(chatbot_response):
+            subtasks.append(subtask)
 
-    def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
-        """
-        Takes the task_ungrounded and its args and converts it into an English
-        formatted verbalization that can be compared with the user_task.
-        """
-        task = f"{task_ungrounded.name}({', '.join(task_args)})"
-        return self.gpt.get_chat_gpt_completion(f"{self.verb_prompt}{task}")
+        # Use the generic method to create MethodEx with preconditions
+        return self.create_method_exec(task_exec, subtasks, parsed_preconditions)
 
-    def paraphrase_gpt(self, verbalized_task: str, user_task: str) -> bool:
+    def edit_from_gui(self, task_exec: TaskEx, edited_decomposition: dict) -> MethodEx:
         """
-        Takes a verbalized task (generated from task name and args) and the
-        original user_task and returns whether they are the same.
+        Create a new MethodEx from user-edited decomposition
+        Args:
+            task_exec: The task being decomposed
+            edited_decomposition: Dictionary containing the edited decomposition from frontend
+        Returns:
+            MethodEx: The new method execution created from the edited decomposition
         """
-        res = self.gpt.get_chat_gpt_completion(
-                self.para_prompt % (user_task, verbalized_task))
-        return res == 'yes'
+        # Extract subtasks from edited decomposition
+        subtasks = []
+        if 'subtasks' in edited_decomposition:
+            for subtask_data in edited_decomposition['subtasks']:
+                # Parse subtask from the edited format
+                if isinstance(subtask_data, dict) and 'Task' in subtask_data:
+                    # Extract task name and arguments from the Task string
+                    task_str = subtask_data['Task']
+                    # Parse task_str like "moveTo onion" to get name and args
+                    parts = task_str.split()
+                    if len(parts) >= 1:
+                        task_name = parts[0]
+                        task_args_list = parts[1:] if len(parts) > 1 else []
+                        subtask = Task(task_name, args=task_args_list)
+                        subtasks.append(subtask)
+                elif isinstance(subtask_data, str):
+                    # Handle string format
+                    parts = subtask_data.split()
+                    if len(parts) >= 1:
+                        task_name = parts[0]
+                        task_args_list = parts[1:] if len(parts) > 1 else []
+                        subtask = Task(task_name, args=task_args_list)
+                        subtasks.append(subtask)
 
-    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
-        # convert task and subtasks into english using GPT prompt.
-        # use user interface to confirm with user
-        # return bool based on confirmation
-        verbalized_task = self.verbalize_gpt(task, task.args)
-        verbalized_subtasks = [self.verbalize_gpt(subtask, subtask.args) for subtask in subtasks]
-        return self.user_interface.confirm_task_decomposition(verbalized_task, verbalized_subtasks)
+        # Use the generic method to create MethodEx (no preconditions for GUI)
+        return self.create_method_exec(task_exec, subtasks)
 
-    def confirm_task_execution(self, task: Task) -> bool:
-        # convert task into english using GPT prompt.
-        # use user interface to confirm with user
-        # return bool based on confirmation
-        verbalized_task = self.verbalize_gpt(task, task.args)
-        return self.user_interface.confirm_task_execution(verbalized_task)
 
     def explain_decision(self, task_exec: TaskEx, method_execs: list, chosen_method_exec: MethodEx) -> str:
         """
@@ -472,11 +413,11 @@ class ValAgent:
             if "Task:" not in explanation or "Available methods:" not in explanation:
                 print("WARNING: GPT response doesn't contain expected format, adding headers...")
                 formatted_explanation = f"""Task: {task_str}
-Available methods: {available_methods_str}
-Current state: {current_state_str}
-Chosen method: {chosen_method_str}
+                Available methods: {available_methods_str}
+                Current state: {current_state_str}
+                Chosen method: {chosen_method_str}
 
-Explanation: {explanation}"""
+                Explanation: {explanation}"""
                 return formatted_explanation
             
             return explanation
@@ -484,3 +425,196 @@ Explanation: {explanation}"""
             print(f"ERROR generating explanation: {e}")
             return f"Error generating explanation: {e}"
 
+
+####### unified old grounding functions into one function #######
+    def segment_gpt(self, user_tasks: str) -> List[str]:
+        # SEGMENTS: 1. "cook an onion" (resolved pronouns: "cook an onion")
+        resp = self.gpt.get_chat_gpt_completion(f'{self.segment_prompt}"{user_tasks}"')
+        segmented_user_tasks = []
+        for line in resp.split('\n'):
+            # Code parses string '2. "interact with it" (resolved pronouns: "interact with the onion")'
+            # to get "interact with the onion" out.
+            segmented_user_tasks.append(line.split('"')[3])
+
+        return segmented_user_tasks
+
+
+    def unified_grounding_gpt(self, user_task: str) -> tuple[str, List[str]]:
+        """
+        Unified method to extract action and objects from natural language
+        Returns (task_name, task_args)
+        """
+        # Get available tasks and objects
+        known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
+        task_descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
+        objects = self.env.get_objects()
+        
+        # Create task list for prompt
+        task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, task_descriptions[i])}"
+                     for i, task in enumerate(known_tasks)]
+        available_actions = ', '.join(task_list)
+        available_objects = ', '.join(objects)
+        
+        # Load and format prompt
+        
+        prompt = self.grounding_prompt.format(
+            available_actions=available_actions,
+            available_objects=available_objects,
+            user_input=user_task
+        )
+        
+        resp = self.gpt.get_chat_gpt_completion(prompt).strip()
+        
+        # Parse response
+        lines = resp.split('\n')
+        task_name = "unknown"
+        task_args = []
+        
+        for line in lines:
+            if line.startswith('ACTION:'):
+                task_name = line.split('ACTION:')[1].strip()
+            elif line.startswith('OBJECTS:'):
+                objects_str = line.split('OBJECTS:')[1].strip()
+                if objects_str:
+                    task_args = [obj.strip() for obj in objects_str.split(',')]
+        
+        return task_name, task_args
+
+
+
+### old functions ###
+    def name_gpt(self, user_task: str) -> str:
+        """
+        Takes user task string and returns a task name that matches it.
+        """
+        resp = self.gpt.get_chat_gpt_completion(f'{self.name_prompt}"{user_task}"')
+        return resp.split('(')[0]
+
+    def map_gpt(self, user_task: str) -> Optional[Task]:
+        """
+        Takes user input and htn_methods and maps to a method.
+
+        Might return... Task("moveTo", V("X"))
+        """
+
+        # TODO get_tasks returns -> [Task('moveTo', 'V(X)'), ...]
+        tasks = [t for t, _ in self.htn_interface.get_tasks()]
+        descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
+
+        task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, descriptions[i])}"
+                     for i, task in enumerate(tasks)]
+
+        # TODO get_objects returns -> ['onion', 'pot', ...]
+        object_list = self.env.get_objects()
+        name_list = [x.split('(')[0] for x in task_list]
+        name_list.append(f"[{chr(ord('a')+len(task_list))}] None of the above; "
+                         f'"{user_task}" would require a combination of actions.')
+
+        task_str = ', '.join(task_list)
+        object_str = ', '.join(object_list)
+        name_str = '\n'.join(name_list)
+
+        prompt = self.map_prompt % (task_str, object_str, user_task, name_str)
+        resp = self.gpt.get_chat_gpt_completion(prompt)
+
+        choice = None
+        for i in range(len(resp)):
+            if resp[i] == '[':
+                choice = resp[i+1]
+                break
+        choice = ord(choice)-ord('a')
+
+        chosen_task = None
+        if choice < len(task_list):
+            chosen_task = tasks[choice]
+
+        return chosen_task
+
+    def ground_gpt(self, user_task: str, task_ungrounded: Task) -> List[str]:
+        """
+        Takes the user task,
+        the name from map
+        the kb
+        the objects in environment
+        returns list of argument mappings for task name
+        """
+        num_args = len(task_ungrounded.args)
+        if num_args == 0:
+            return task_ungrounded.args
+
+        object_list = self.env.get_objects()
+        object_str = ', '.join(object_list)
+
+        num_args_str = '%d argument%s' % (num_args, '' if num_args==1 else 's')
+        num_objs_str = '%d object%s' % (num_args, '' if num_args==1 else 's')
+
+        task_name = task_ungrounded.name
+
+        o_list = ', '.join([('o%d' % (i+1)) for i in range(num_args)])
+
+        prompt = self.ground_prompt % (task_to_gpt_str(task_ungrounded, ""), user_task, object_str, task_name, num_args_str, num_objs_str, task_name, o_list)
+
+        resp = self.gpt.get_chat_gpt_completion(prompt).strip()
+
+        if '"' in resp:
+            resp = resp.replace('"', '').strip()
+        
+        resp = resp.replace(" ", "")
+        resp = resp.split("(")[1]
+        resp = resp.split(")")[0]
+        resp = resp.split(",")
+
+        return resp
+
+    def gen_gpt(self, user_task: str, task_name: str) -> List[str]:
+
+        # objects = set(arg for task in subtasks for arg in task.args)
+        objects = self.env.get_objects()
+
+        obj_str = ", ".join(objects)
+        prompt = self.gen_prompt % (obj_str, user_task, task_name)
+        resp = self.gpt.get_chat_gpt_completion(prompt).strip()
+
+        if ': ' in resp:
+            resp = resp.split(': ')[1]
+
+        if '(' not in resp:
+            return resp + '()'
+        
+        resp = resp.replace(" ", "")
+        resp = resp.split("(")[1]
+        resp = resp.split(")")[0]
+        resp = resp.split(",")
+        return resp
+
+    def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
+        """
+        Takes the task_ungrounded and its args and converts it into an English
+        formatted verbalization that can be compared with the user_task.
+        """
+        task = f"{task_ungrounded.name}({', '.join(task_args)})"
+        return self.gpt.get_chat_gpt_completion(f"{self.verb_prompt}{task}")
+
+    def paraphrase_gpt(self, verbalized_task: str, user_task: str) -> bool:
+        """
+        Takes a verbalized task (generated from task name and args) and the
+        original user_task and returns whether they are the same.
+        """
+        res = self.gpt.get_chat_gpt_completion(
+                self.para_prompt % (user_task, verbalized_task))
+        return res == 'yes'
+
+    def confirm_task_decomposition(self, task: Task, subtasks: List[Task]) -> bool:
+        # convert task and subtasks into english using GPT prompt.
+        # use user interface to confirm with user
+        # return bool based on confirmation
+        verbalized_task = self.verbalize_gpt(task, task.args)
+        verbalized_subtasks = [self.verbalize_gpt(subtask, subtask.args) for subtask in subtasks]
+        return self.user_interface.confirm_task_decomposition(verbalized_task, verbalized_subtasks)
+
+    def confirm_task_execution(self, task: Task) -> bool:
+        # convert task into english using GPT prompt.
+        # use user interface to confirm with user
+        # return bool based on confirmation
+        verbalized_task = self.verbalize_gpt(task, task.args)
+        return self.user_interface.confirm_task_execution(verbalized_task)

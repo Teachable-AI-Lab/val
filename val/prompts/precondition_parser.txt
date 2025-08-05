@@ -1,0 +1,21 @@
+Given the following task decomposition and user's chatbot response, extract any preconditions that should be satisfied for this decomposition to be valid.
+
+Task: {task_name}
+User's chatbot response: {chatbot_response}
+
+Please identify any preconditions that should be checked before using this decomposition. 
+Return the preconditions as a JSON list of Fact objects in the format:
+[
+  {{"name": "fact_name", "operator": ">", "value": 1}},
+  {{"name": "fact_name", "operator": "=", "value": true}},
+  {{"name": "fact_name", "operator": "<", "value": 3}}
+]
+
+Examples:
+- Resource availability: {{"name": "pot_num", "operator": ">", "value": 1}}
+- State conditions: {{"name": "onion_available", "operator": "=", "value": true}}
+- Quantity requirements: {{"name": "ingredients_sufficient", "operator": "=", "value": true}}
+
+Return an empty list if no preconditions are needed.
+
+Response: 
