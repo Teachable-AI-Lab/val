@@ -93,8 +93,110 @@ class ConsoleUserInterface(AbstractUserInterface):
             index = self._select_task_decomposition(task_exec, method_execs)
             rewards[index] = 1.0
             return method_execs[index], rewards 
+
+    def query_next_decomposition_with_edit(self, 
+        task_exec: TaskEx, 
+        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+        """
+        Enhanced version that allows users to edit decomposition options
+        Supports two edit modes:
+        1. GUI edit: User edits directly in the interface
+        2. Chatbot edit: User responds via chatbot (triggers query_new_method_exec)
+        Returns (chosen_or_edited_method_exec, rewards)
+        """
+        if(method_execs is None or len(method_execs) == 0):
+            print(f"No decomposition methods available for task: {task_exec}")
+            print("Would you like to create a new decomposition method? (y/n)")
+            while True:
+                choice = input().strip().lower()
+                if choice in ['y', 'n']:
+                    break
+                print("Invalid input. Please enter 'y' or 'n'.")
+            
+            if choice == 'y':
+                print("Please describe the new decomposition method:")
+                new_method_description = input().strip()
+                # Store for later processing
+                self.last_edited_decomposition = {'description': new_method_description}
+                return None, []
+            else:
+                return None, []
+        else:
+            print(f"\nTask: {task_exec}")
+            print("Available decomposition methods:")
+            
+            for i, method_exec in enumerate(method_execs):
+                subtask_execs = method_exec.subtask_execs
+                print(f"  {i+1}) {subtask_execs}")
+            
+            print("\nOptions:")
+            print("  - Enter a number to select a method")
+            print("  - Enter 'edit' to modify an existing method")
+            print("  - Enter 'new' to create a new method")
+            print("  - Enter 'skip' to skip")
+            
+            while True:
+                choice = input("Your choice: ").strip().lower()
+                
+                if choice == 'skip':
+                    return None, []
+                elif choice == 'new':
+                    print("Please describe the new decomposition method:")
+                    new_method_description = input().strip()
+                    self.last_edited_decomposition = {'description': new_method_description}
+                    return None, []
+                elif choice == 'edit':
+                    print("Which method would you like to edit? (enter number):")
+                    try:
+                        method_index = int(input().strip()) - 1
+                        if 0 <= method_index < len(method_execs):
+                            print("Please describe the edited decomposition method:")
+                            edited_description = input().strip()
+                            self.last_edited_decomposition = {
+                                'original_method': method_execs[method_index],
+                                'description': edited_description
+                            }
+                            return None, []
+                        else:
+                            print("Invalid method number.")
+                    except ValueError:
+                        print("Invalid input. Please enter a number.")
+                else:
+                    try:
+                        method_index = int(choice) - 1
+                        if 0 <= method_index < len(method_execs):
+                            rewards = [None] * len(method_execs)
+                            rewards[method_index] = 1.0
+                            return method_execs[method_index], rewards
+                        else:
+                            print("Invalid method number.")
+                    except ValueError:
+                        print("Invalid input. Please enter a valid option.")
+
+    def handle_edited_decomposition(self, task_exec: TaskEx, edited_decomposition: dict) -> MethodEx:
+        """
+        Handle user-edited decomposition and convert it to a new MethodEx
+        Args:
+            task_exec: The task being decomposed
+            edited_decomposition: Dictionary containing the edited decomposition from frontend
+        Returns:
+            MethodEx: The new method execution created from the edited decomposition
+        """
+        print(f"Processing edited decomposition for task: {task_exec}")
+        print(f"Edited decomposition: {edited_decomposition}")
         
-    
+        # For console interface, we'll create a simple MethodEx
+        # In a real implementation, you would parse the edited_decomposition
+        # and create a proper MethodEx object
+        
+        # This is a placeholder implementation
+        # You would need to implement proper parsing and MethodEx creation
+        print("Note: Console interface does not support full MethodEx creation from edited decomposition.")
+        print("This functionality is primarily designed for web interface.")
+        
+        # Return a placeholder MethodEx (this would need proper implementation)
+        return None
+        
     def display_added_method(self, task_exec: TaskEx, method_exec: MethodEx) -> None: 
         print("Added Decomposition Method:")
         print(f"Main Task: {task_exec.task.name}")
@@ -213,6 +315,27 @@ class ConsoleUserInterface(AbstractUserInterface):
         correct_args = [env_objects[i] for i in selected_indices
                         if env_objects[i] in task_args]
         return correct_args
+
+    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str]) -> tuple[str, List[str]]:
+        """
+        Allow user to correct the grounding result (action and objects)
+        Returns (corrected_task_name, corrected_task_args)
+        """
+        print(f"Correct the grounding for: '{user_task}'")
+        print(f"Current action: {task_name}")
+        print(f"Current objects: {', '.join(task_args)}")
+        print(f"Available objects: {', '.join(env_objects)}")
+        print("Enter the corrected action and objects in format 'action:object1,object2' (or press Enter to keep current):")
+        
+        response = input().strip()
+        if ':' in response:
+            corrected_task_name, objects_str = response.split(':', 1)
+            corrected_task_args = [obj.strip() for obj in objects_str.split(',') if obj.strip()]
+        else:
+            corrected_task_name = task_name
+            corrected_task_args = task_args
+            
+        return corrected_task_name, corrected_task_args
 
     def confirm_task_decomposition(self, user_task: str, user_subtasks: List[str]) -> bool:    
         if self.disable_confirm_task_decomposition:
