@@ -59,89 +59,6 @@ class WebInterface:
                     self.user_response = data['method_exec']
                     self.response_received = True
     
-    def query_next_decomposition_and_rewards(self, 
-        task_exec: TaskEx, 
-        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'response_decomposition' 
-        
-        # Skip if there are no method_execs 
-        if(method_execs is None or len(method_execs) == 0):
-            head = task_exec.as_dict()
-            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
-            subtasks = []
-            result = {
-            "head": {
-                "name": head["name"],
-                "V": match,  # Or use a cleaner version if needed
-                "hash": head["id"]
-            },
-            "subtasks": subtasks
-            }
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-            print("The message is emitted")
-            while not self.response_received:
-                self.sio.sleep(0.1)       
-            index = self.user_response
-            print("index", index) 
-            print("index type", type(index))
-            return None, []
-        else:
-            ##### convert format ##### 
-            # Step 1: get head
-            head = task_exec.as_dict()
-            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
-
-            # Step 2: build subtasks
-            subtasks = []
-            for method_exec in method_execs:
-                method_dict = method_exec.as_dict()
-                child_list = method_dict.get("child_data", [])
-                
-                # Convert each child dict to the desired format
-                formatted_children = [
-                    {
-                        "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
-                        "hash": child["id"]
-                    }
-                    for child in child_list
-                ]
-                subtasks.append(formatted_children)
-
-            # Step 3: combine everything into one dict
-            result = {
-                "head": {
-                    "name": head["name"],
-                    "V": match,  
-                    "hash": head["id"]
-                },
-                "subtasks": subtasks
-            }
-
-            self.user_response = None  
-            self.response_received = False
-
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-            print("The message is emitted")
-            while not self.response_received:
-                self.sio.sleep(0.1)
-                
-            index = self.user_response 
-            rewards = [None]*len(method_execs)
-            if index == "add method":
-                return None, []
-            if(self.next_select_kind == "one at a time"):
-                for i, method_exec in enumerate(method_execs):
-                    confirmed = self._confirm_task_decomposition(task_exec, method_exec)
-                    if(not confirmed):
-                        rewards[i] = -1.0
-                    else:
-                        rewards[i] = 1.0
-                        return method_exec, rewards 
-            else:
-                rewards[index] = 1.0
-                return method_execs[index], rewards 
     
     def query_next_decomposition_with_edit(self, 
         task_exec: TaskEx, 
@@ -170,37 +87,13 @@ class WebInterface:
             },
             "subtasks": subtasks
             }
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition_with_edit', 'text': result})
+            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
             print("The message is emitted")
             while not self.response_received:
                 self.sio.sleep(0.1)       
             response = self.user_response
             print("response", response) 
             print("response type", type(response))
-            
-            # Handle user response - could be index, edited decomposition, or chatbot response
-            if isinstance(response, dict) and 'type' in response:
-                if response['type'] == 'gui_edit':
-                    # User edited via GUI - return None to trigger new method creation from edited content
-                    self.last_edited_decomposition = response.get('edited_decomposition', {})
-                    return None, []
-                elif response['type'] == 'chatbot_edit':
-                    # User responded via chatbot - this triggers query_new_method_exec flow
-                    self.chatbot_response = response.get('chatbot_response', '')
-                    self.last_preconditions = response.get('preconditions', [])
-                    return None, []
-                elif response['type'] == 'select':
-                    # User selected an existing option
-                    index = response['index']
-                    rewards = [None] * len(method_execs)
-                    rewards[index] = 1.0
-                    return method_execs[index], rewards
-            elif isinstance(response, int):
-                # Legacy support for simple index
-                rewards = [None] * len(method_execs)
-                rewards[response] = 1.0
-                return method_execs[response], rewards
-            
             return None, []
         else:
             ##### convert format ##### 
@@ -217,7 +110,8 @@ class WebInterface:
                 # Convert each child dict to the desired format
                 formatted_children = [
                     {
-                        "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
+                        "task_name": child["name"],
+                        "args": [str(m).replace('_', ' ') for m in child["match"]],
                         "hash": child["id"]
                     }
                     for child in child_list
@@ -237,7 +131,7 @@ class WebInterface:
             self.user_response = None  
             self.response_received = False
 
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition_with_edit', 'text': result})
+            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
             print("The message is emitted")
             while not self.response_received:
                 self.sio.sleep(0.1)
@@ -256,11 +150,6 @@ class WebInterface:
                     self.chatbot_response = response.get('chatbot_response', '')
                     self.last_preconditions = response.get('preconditions', [])
                     return None, []
-                elif response['type'] == 'select':
-                    # User selected an existing option
-                    index = response['index']
-                    rewards[index] = 1.0
-                    return method_execs[index], rewards
             elif isinstance(response, str) and response == "add method":
                 return None, []
             elif isinstance(response, int):
@@ -270,40 +159,12 @@ class WebInterface:
             
             return None, []
     
-    def handle_edited_decomposition(self, task_exec: TaskEx, edited_decomposition: dict) -> MethodEx:
-        """
-        Handle user-edited decomposition and convert it to a new MethodEx
-        Args:
-            task_exec: The task being decomposed
-            edited_decomposition: Dictionary containing the edited decomposition from frontend
-        Returns:
-            MethodEx: The new method execution created from the edited decomposition
-        """
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'edited_decomposition_processed'
-        
-        # Send the edited decomposition back to frontend for confirmation
-        self.sio.emit('message', {
-            'type': 'confirm_edited_decomposition', 
-            'text': {
-                'task': task_exec.as_dict(),
-                'edited_decomposition': edited_decomposition
-            }
-        })
-        
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        
-        # The response should contain the processed MethodEx data
-        return self.user_response
 
     def display_added_method(self, task_exec: TaskEx, 
         method_exec: MethodEx):
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'response_decomposition' 
-        self.expected_type = 'response_decomposition'
         head = task_exec.as_dict()
         match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
 
@@ -315,7 +176,8 @@ class WebInterface:
         # Convert each child dict to the desired format
         formatted_children = [
             {
-                "Task": ' '.join([child["name"]] + [str(m).replace('_', ' ') for m in child["match"]]),
+                "task_name": child["name"],
+                "args": [str(m).replace('_', ' ') for m in child["match"]],
                 "hash": child["id"]
             }
             for child in child_list

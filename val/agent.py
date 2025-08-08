@@ -90,48 +90,52 @@ class ValAgent:
                     next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
                             task_exec, method_execs)
-
-                    # Check if user edited the decomposition
-                    if next_method_exec is None and hasattr(self.user_interface, 'last_edited_decomposition'):
-                        # User edited a decomposition - create new method from edited content
-                        edited_decomposition = self.user_interface.last_edited_decomposition
-                        next_method_exec = self.edit_from_gui(
-                            task_exec, edited_decomposition
-                        )
-                        rewards = [1.0]  # Give positive reward to the new method
-                        method_execs.append(next_method_exec)
                         
-                    elif next_method_exec is None and hasattr(self.user_interface, 'chatbot_response'):
-                        # User responded via chatbot - use the chatbot response to create new method
-                        chatbot_response = self.user_interface.chatbot_response
-                        preconditions = getattr(self.user_interface, 'last_preconditions', [])
-                        # Clear the chatbot response to avoid reuse
-                        delattr(self.user_interface, 'chatbot_response')
-                        # Use the chatbot response as subtasks for new method
-                        next_method_exec = self.edit_from_chat(
-                            task_exec, chatbot_response, preconditions
-                        )
-                        rewards = [1.0]  # Give positive reward to the new method
-                        method_execs.append(next_method_exec)
-
                     # Generate and display explanation for the chosen method
                     if next_method_exec is not None and len(method_execs) > 0:
                         explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
                         self.user_interface.display_explanation(explanation)
 
-                    # If there is no next_method_exec because:
-                    #  1. Matching in the planner failed or 
-                    #  2. The user decided to describe their own method
-                    #  Then query the user to describe the grounded subtasks of the 
-                    #  decomposition. This creates the next method execution.
-                    if (next_method_exec is None):
-                        next_method_exec = self.query_new_method_exec(task_exec)
-                        print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
-                        print("type next_method_exec", type(next_method_exec))
-                        self.user_interface.display_added_method(task_exec, next_method_exec)
-                        rewards.append(1)
-                        method_execs.append(next_method_exec)
+                    # if next_method_exec is None, then the user has edited the decomposition or want to add new method
+                    else:
+                        #### edit from gui ####
+                        if hasattr(self.user_interface, 'last_edited_decomposition'):
+                            # User edited a decomposition - create new method from edited content
+                            edited_decomposition = self.user_interface.last_edited_decomposition
+                            next_method_exec = self.edit_from_gui(
+                                task_exec, edited_decomposition
+                            )
+                            rewards.append(1)# Give positive reward to the new method
+                            method_execs.append(next_method_exec)
                         
+                        #### edit from chatbot ####
+                        elif hasattr(self.user_interface, 'chatbot_response'):
+                            # User responded via chatbot - use the chatbot response to create new method
+                            chatbot_response = self.user_interface.chatbot_response
+                            preconditions = getattr(self.user_interface, 'last_preconditions', [])
+                            # Clear the chatbot response to avoid reuse
+                            delattr(self.user_interface, 'chatbot_response')
+                            # Use the chatbot response as subtasks for new method
+                            next_method_exec = self.edit_from_chat(
+                                task_exec, chatbot_response, preconditions
+                            )
+                            rewards.append(1)# Give positive reward to the new method
+                            method_execs.append(next_method_exec)
+                        
+                        #### add new method ####    
+                        # If there is no next_method_exec because:
+                        #  1. Matching in the planner failed or 
+                        #  2. The user decided to describe their own method
+                        #  Then query the user to describe the grounded subtasks of the 
+                        #  decomposition. This creates the next method execution.
+                        else:
+                            next_method_exec = self.query_new_method_exec(task_exec)
+                            print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
+                            print("type next_method_exec", type(next_method_exec))
+                            self.user_interface.display_added_method(task_exec, next_method_exec)
+                            rewards.append(1)
+                            method_execs.append(next_method_exec)
+                      
                     # Stage next_method_exec so that it is applied when 
                     #  planning continues in the next loop 
                     self.htn_interface.stage_method_exec(next_method_exec)
@@ -185,6 +189,77 @@ class ValAgent:
 
         # Use the generic method to create MethodEx (no preconditions for manual input)
         return self.create_method_exec(task_exec, subtasks)
+    
+####### edit functions: from chatbot and gui #######
+#edit functions are used to create a new method execution
+
+    def edit_from_gui(self, task_exec: TaskEx, edited_decomposition: dict) -> MethodEx:
+        """
+        Create a new MethodEx from user-edited decomposition
+        Args:
+            task_exec: The task being decomposed
+            edited_decomposition: Dictionary containing the edited decomposition from frontend
+        Returns:
+            MethodEx: The new method execution created from the edited decomposition
+        """
+        # Extract subtasks from edited decomposition
+        subtasks = []
+        if 'subtasks' in edited_decomposition:
+            for subtask_data in edited_decomposition['subtasks']:
+                # Parse subtask from the edited format
+                if isinstance(subtask_data, dict):
+                    if 'task_name' in subtask_data and 'args' in subtask_data:
+                        # New format with separated task_name and args
+                        task_name = subtask_data['task_name']
+                        task_args_list = subtask_data['args']
+                        subtask = Task(task_name, args=task_args_list)
+                        subtasks.append(subtask)
+                    elif 'Task' in subtask_data:
+                        # Legacy format - extract task name and arguments from the Task string
+                        task_str = subtask_data['Task']
+                        # Parse task_str like "moveTo onion" to get name and args
+                        parts = task_str.split()
+                        if len(parts) >= 1:
+                            task_name = parts[0]
+                            task_args_list = parts[1:] if len(parts) > 1 else []
+                            subtask = Task(task_name, args=task_args_list)
+                            subtasks.append(subtask)
+                elif isinstance(subtask_data, str):
+                    # Handle string format
+                    parts = subtask_data.split()
+                    if len(parts) >= 1:
+                        task_name = parts[0]
+                        task_args_list = parts[1:] if len(parts) > 1 else []
+                        subtask = Task(task_name, args=task_args_list)
+                        subtasks.append(subtask)
+
+        # Use the generic method to create MethodEx (no preconditions for GUI)
+        return self.create_method_exec(task_exec, subtasks)
+    
+    
+    def edit_from_chat(self, task_exec: TaskEx, chatbot_response: str, preconditions: List[str]) -> MethodEx:
+        """
+        Create a new MethodEx from chatbot response
+        Args:
+            task_exec: The task being decomposed
+            chatbot_response: String response from chatbot describing the decomposition
+            preconditions: List of precondition strings (legacy parameter, not used)
+        Returns:
+            MethodEx: The new method execution created from the chatbot response
+        """
+        # Use LLM to parse preconditions from chatbot response
+        parsed_preconditions = self.parse_preconditions(chatbot_response, task_exec.task.name)
+        
+        # Use the chatbot response as subtasks input
+        # This reuses the existing interpret method to parse the chatbot response
+        subtasks = []
+        for subtask in self.interpret(chatbot_response):
+            subtasks.append(subtask)
+
+        # Use the generic method to create MethodEx with preconditions
+        return self.create_method_exec(task_exec, subtasks, parsed_preconditions)
+
+
 
     def create_method_exec(self, task_exec: TaskEx, subtasks: List[Task], preconditions: List[Fact] = None) -> MethodEx:
         """
@@ -252,64 +327,7 @@ class ValAgent:
         )
         return
         
-####### edit functions: from chatbot and gui #######
-    def edit_from_chat(self, task_exec: TaskEx, chatbot_response: str, preconditions: List[str]) -> MethodEx:
-        """
-        Create a new MethodEx from chatbot response
-        Args:
-            task_exec: The task being decomposed
-            chatbot_response: String response from chatbot describing the decomposition
-            preconditions: List of precondition strings (legacy parameter, not used)
-        Returns:
-            MethodEx: The new method execution created from the chatbot response
-        """
-        # Use LLM to parse preconditions from chatbot response
-        parsed_preconditions = self.parse_preconditions(chatbot_response, task_exec.task.name)
-        
-        # Use the chatbot response as subtasks input
-        # This reuses the existing interpret method to parse the chatbot response
-        subtasks = []
-        for subtask in self.interpret(chatbot_response):
-            subtasks.append(subtask)
 
-        # Use the generic method to create MethodEx with preconditions
-        return self.create_method_exec(task_exec, subtasks, parsed_preconditions)
-
-    def edit_from_gui(self, task_exec: TaskEx, edited_decomposition: dict) -> MethodEx:
-        """
-        Create a new MethodEx from user-edited decomposition
-        Args:
-            task_exec: The task being decomposed
-            edited_decomposition: Dictionary containing the edited decomposition from frontend
-        Returns:
-            MethodEx: The new method execution created from the edited decomposition
-        """
-        # Extract subtasks from edited decomposition
-        subtasks = []
-        if 'subtasks' in edited_decomposition:
-            for subtask_data in edited_decomposition['subtasks']:
-                # Parse subtask from the edited format
-                if isinstance(subtask_data, dict) and 'Task' in subtask_data:
-                    # Extract task name and arguments from the Task string
-                    task_str = subtask_data['Task']
-                    # Parse task_str like "moveTo onion" to get name and args
-                    parts = task_str.split()
-                    if len(parts) >= 1:
-                        task_name = parts[0]
-                        task_args_list = parts[1:] if len(parts) > 1 else []
-                        subtask = Task(task_name, args=task_args_list)
-                        subtasks.append(subtask)
-                elif isinstance(subtask_data, str):
-                    # Handle string format
-                    parts = subtask_data.split()
-                    if len(parts) >= 1:
-                        task_name = parts[0]
-                        task_args_list = parts[1:] if len(parts) > 1 else []
-                        subtask = Task(task_name, args=task_args_list)
-                        subtasks.append(subtask)
-
-        # Use the generic method to create MethodEx (no preconditions for GUI)
-        return self.create_method_exec(task_exec, subtasks)
 
 
     def explain_decision(self, task_exec: TaskEx, method_execs: list, chosen_method_exec: MethodEx) -> str:
