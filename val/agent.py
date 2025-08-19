@@ -16,6 +16,8 @@ from val.user_interfaces.abstract_interface import AbstractUserInterface
 from val.env_interfaces.abstract_interface import AbstractEnvInterface
 from val.htn_interfaces.abstract_interface import AbstractHtnInterface
 
+import re
+
 
 class ValAgent:
 
@@ -310,24 +312,270 @@ class ValAgent:
         self.htn_interface.add_method_exec(method_exec)
         return method_exec
 
-    # TODO: this needs to be revised
     def parse_preconditions(self, chatbot_response: str, task_name: str) -> List[Fact]:
         """
-        Use LLM to parse preconditions from chatbot response
+        Hybrid approach to parse preconditions from chatbot response:
+        1. Use NLP/rule-based parsing for common patterns
+        2. Fall back to LLM for complex cases
         Args:
             chatbot_response: The chatbot response describing the decomposition
             task_name: The name of the task being decomposed
         Returns:
             List[Fact]: List of parsed Fact objects
         """
-        # Load precondition parser prompt
-        precondition_prompt = self.precondition_parser_prompt.format(
-            task_name=task_name,
-            chatbot_response=chatbot_response
-        )
-        return
+        # First try rule-based parsing for common precondition patterns
+        parsed_preconditions = self._rule_based_precondition_parsing(chatbot_response, task_name)
         
-
+        # If rule-based parsing found preconditions, return them
+        if parsed_preconditions:
+            print(f"Rule-based parsing found {len(parsed_preconditions)} preconditions")
+            return parsed_preconditions
+        
+        # Fall back to LLM parsing for complex cases
+        print("Rule-based parsing found no preconditions, falling back to LLM")
+        return self._llm_based_precondition_parsing(chatbot_response, task_name)
+    
+    def _rule_based_precondition_parsing(self, chatbot_response: str, task_name: str) -> List[Fact]:
+        """
+        Rule-based parsing for common precondition patterns
+        """
+        preconditions = []
+        response_lower = chatbot_response.lower()
+        
+        # Common precondition patterns
+        patterns = [
+            # Resource availability
+            (r'need\s+(\w+)\s*[>=]\s*(\d+)', 'resource_check', '>='),
+            (r'require\s+(\w+)\s*[>=]\s*(\d+)', 'resource_check', '>='),
+            (r'at\s+least\s+(\d+)\s+(\w+)', 'resource_check', '>='),
+            (r'more\s+than\s+(\d+)\s+(\w+)', 'resource_check', '>'),
+            
+            # State conditions
+            (r'(\w+)\s+must\s+be\s+(\w+)', 'state_check', '='),
+            (r'(\w+)\s+should\s+be\s+(\w+)', 'state_check', '='),
+            (r'(\w+)\s+is\s+(\w+)', 'state_check', '='),
+            
+            # Boolean conditions
+            (r'(\w+)\s+available', 'availability', '='),
+            (r'(\w+)\s+ready', 'readiness', '='),
+            (r'(\w+)\s+empty', 'emptiness', '='),
+        ]
+        
+        for pattern, fact_type, operator in patterns:
+            matches = re.findall(pattern, response_lower)
+            for match in matches:
+                if fact_type == 'resource_check':
+                    if len(match) == 2:
+                        value, resource = match
+                        try:
+                            value = int(value)
+                            fact_name = f"{resource}_count"
+                            preconditions.append(Fact(fact_name, operator, value))
+                        except ValueError:
+                            continue
+                elif fact_type == 'state_check':
+                    if len(match) == 2:
+                        object_name, state = match
+                        fact_name = f"{object_name}_state"
+                        preconditions.append(Fact(fact_name, operator, state))
+                elif fact_type in ['availability', 'readiness', 'emptiness']:
+                    if len(match) == 1:
+                        object_name = match[0]
+                        fact_name = f"{object_name}_{fact_type}"
+                        preconditions.append(Fact(fact_name, operator, True))
+        
+        # Special case: check for negation patterns
+        neg_patterns = [
+            (r'no\s+(\w+)', 'resource_check', '='),
+            (r'(\w+)\s+not\s+(\w+)', 'state_check', '!='),
+        ]
+        
+        for pattern, fact_type, operator in neg_patterns:
+            matches = re.findall(pattern, response_lower)
+            for match in matches:
+                if fact_type == 'resource_check':
+                    if len(match) == 1:
+                        resource = match[0]
+                        fact_name = f"{resource}_count"
+                        preconditions.append(Fact(fact_name, operator, 0))
+                elif fact_type == 'state_check':
+                    if len(match) == 2:
+                        object_name, state = match
+                        fact_name = f"{object_name}_state"
+                        preconditions.append(Fact(fact_name, operator, state))
+        
+        # Try enhanced NLP parsing if available
+        enhanced_preconditions = self._enhanced_nlp_parsing(chatbot_response, task_name)
+        if enhanced_preconditions:
+            preconditions.extend(enhanced_preconditions)
+        
+        return preconditions
+    
+    def _enhanced_nlp_parsing(self, chatbot_response: str, task_name: str) -> List[Fact]:
+        """
+        Enhanced NLP parsing using spaCy or NLTK for better understanding
+        """
+        try:
+            # Try to use spaCy first (more powerful)
+            return self._spacy_based_parsing(chatbot_response, task_name)
+        except ImportError:
+            try:
+                # Fallback to NLTK
+                return self._nltk_based_parsing(chatbot_response, task_name)
+            except ImportError:
+                # No NLP libraries available
+                return []
+    
+    def _spacy_based_parsing(self, chatbot_response: str, task_name: str) -> List[Fact]:
+        """
+        Use spaCy for advanced NLP parsing
+        """
+        try:
+            import spacy
+            
+            # Load English model (you might want to cache this)
+            try:
+                nlp = spacy.load("en_core_web_sm")
+            except OSError:
+                # Try to download if not available
+                import subprocess
+                subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+                nlp = spacy.load("en_core_web_sm")
+            
+            doc = nlp(chatbot_response)
+            preconditions = []
+            
+            # Extract dependency-based preconditions
+            for token in doc:
+                # Look for requirement patterns
+                if token.dep_ == "ROOT" and token.lemma_ in ["need", "require", "must", "should"]:
+                    # Find the object being required
+                    for child in token.children:
+                        if child.dep_ in ["dobj", "pobj"]:
+                            # Check if there's a quantity modifier
+                            quantity = None
+                            for grandchild in child.children:
+                                if grandchild.dep_ == "nummod":
+                                    try:
+                                        quantity = int(grandchild.text)
+                                    except ValueError:
+                                        continue
+                            
+                            if quantity is not None:
+                                fact_name = f"{child.lemma_}_count"
+                                preconditions.append(Fact(fact_name, ">=", quantity))
+                            else:
+                                fact_name = f"{child.lemma_}_available"
+                                preconditions.append(Fact(fact_name, "=", True))
+                
+                # Look for state conditions
+                elif token.dep_ == "nsubj" and token.head.pos_ == "VERB":
+                    # Check if this is a state verb
+                    if token.head.lemma_ in ["be", "have", "contain"]:
+                        for child in token.head.children:
+                            if child.dep_ == "attr" or child.dep_ == "dobj":
+                                fact_name = f"{token.lemma_}_state"
+                                preconditions.append(Fact(fact_name, "=", child.lemma_))
+            
+            return preconditions
+            
+        except Exception as e:
+            print(f"spaCy parsing failed: {e}")
+            return []
+    
+    def _nltk_based_parsing(self, chatbot_response: str, task_name: str) -> List[Fact]:
+        """
+        Use NLTK for basic NLP parsing as fallback
+        """
+        try:
+            import nltk
+            from nltk.tokenize import word_tokenize, sent_tokenize
+            from nltk.tag import pos_tag
+            from nltk.chunk import RegexpParser
+            
+            # Download required NLTK data
+            try:
+                nltk.data.find('tokenizers/punkt')
+            except LookupError:
+                nltk.download('punkt')
+            try:
+                nltk.data.find('taggers/averaged_perceptron_tagger')
+            except LookupError:
+                nltk.download('averaged_perceptron_tagger')
+            
+            preconditions = []
+            sentences = sent_tokenize(chatbot_response)
+            
+            for sentence in sentences:
+                tokens = word_tokenize(sentence)
+                pos_tags = pos_tag(tokens)
+                
+                # Simple pattern matching with POS tags
+                for i, (word, pos) in enumerate(pos_tags):
+                    if pos.startswith('VB') and word.lower() in ['need', 'require', 'must']:
+                        # Look for the object after the verb
+                        if i + 1 < len(pos_tags):
+                            next_word, next_pos = pos_tags[i + 1]
+                            if next_pos.startswith('NN'):
+                                fact_name = f"{next_word}_available"
+                                preconditions.append(Fact(fact_name, "=", True))
+                
+                # Look for "X is Y" patterns
+                for i, (word, pos) in enumerate(pos_tags):
+                    if pos.startswith('NN') and i + 2 < len(pos_tags):
+                        next_word, next_pos = pos_tags[i + 1]
+                        next_next_word, next_next_pos = pos_tags[i + 2]
+                        if next_pos == 'VBZ' and next_next_pos.startswith('JJ'):
+                            fact_name = f"{word}_state"
+                            preconditions.append(Fact(fact_name, "=", next_next_word))
+            
+            return preconditions
+            
+        except Exception as e:
+            print(f"NLTK parsing failed: {e}")
+            return []
+    
+    def _llm_based_precondition_parsing(self, chatbot_response: str, task_name: str) -> List[Fact]:
+        """
+        LLM-based parsing for complex precondition cases
+        """
+        try:
+            # Load precondition parser prompt
+            precondition_prompt = self.precondition_parser_prompt.format(
+                task_name=task_name,
+                chatbot_response=chatbot_response
+            )
+            
+            response = self.gpt.get_chat_gpt_completion(precondition_prompt)
+            
+            # Try to parse JSON response
+            try:
+                import json
+                # Extract JSON from response (handle cases where LLM adds extra text)
+                json_start = response.find('[')
+                json_end = response.rfind(']') + 1
+                if json_start != -1 and json_end != -1:
+                    json_str = response[json_start:json_end]
+                    parsed_data = json.loads(json_str)
+                    
+                    # Convert to Fact objects
+                    facts = []
+                    for item in parsed_data:
+                        if isinstance(item, dict) and 'name' in item and 'operator' in item and 'value' in item:
+                            facts.append(Fact(item['name'], item['operator'], item['value']))
+                    
+                    return facts
+                else:
+                    print("LLM response doesn't contain valid JSON array")
+                    return []
+                    
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse LLM response as JSON: {e}")
+                return []
+                
+        except Exception as e:
+            print(f"LLM-based precondition parsing failed: {e}")
+            return []
 
 
     def explain_decision(self, task_exec: TaskEx, method_execs: list, chosen_method_exec: MethodEx) -> str:

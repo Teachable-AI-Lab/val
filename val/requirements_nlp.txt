@@ -1,0 +1,15 @@
+# NLP dependencies for enhanced precondition parsing
+# These are optional - the system will fall back to rule-based parsing if not available
+
+# Advanced NLP processing (recommended)
+spacy>=3.0.0
+
+# Basic NLP processing (fallback)
+nltk>=3.8
+
+# For downloading spaCy English model
+# Run: python -m spacy download en_core_web_sm
+
+# Alternative lightweight NLP libraries
+# textblob>=0.17.0  # Simple text processing
+# pattern>=3.6      # Text analysis and NLP
