@@ -49,7 +49,7 @@ class AbstractUserInterface:
         """
         raise NotImplementedError("Not implemented yet")
 
-    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str]) -> tuple[str, List[str]]:
+    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str], available_actions: List[str]) -> tuple[str, List[str]]:
         """
         Allow user to correct the grounding result (action and objects)
         Returns (corrected_task_name, corrected_task_args)

@@ -490,7 +490,7 @@ class WebInterface:
         print('received response:', self.user_response)
         return 'yes' == self.user_response
     
-    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str]) -> tuple[str, List[str]]:
+    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str], available_actions: List[str]) -> tuple[str, List[str]]:
         """
         Allow user to correct the grounding result (action and objects)
         Returns (corrected_task_name, corrected_task_args)
@@ -504,7 +504,8 @@ class WebInterface:
             'text': f"Correct the grounding for: '{user_task}'",
             'current_action': task_name,
             'current_objects': task_args,
-            'available_objects': env_objects
+            'available_objects': env_objects,
+            'available_actions': available_actions
         })
         
         while not self.response_received:

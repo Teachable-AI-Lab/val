@@ -169,8 +169,11 @@ class ValAgent:
             task_name, task_args = self.unified_grounding_gpt(user_task)
             
             # Allow correction of the grounded result
+            # Get available actions from htn_interface
+            available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
+            
             corrected_task_name, corrected_task_args = self.user_interface.correct_grounding(
-                user_task, task_name, task_args, self.env.get_objects()
+                user_task, task_name, task_args, self.env.get_objects(), available_actions
             )
             
             yield Task(str(corrected_task_name), args=list(corrected_task_args))

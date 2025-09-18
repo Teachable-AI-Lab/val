@@ -316,7 +316,7 @@ class ConsoleUserInterface(AbstractUserInterface):
                         if env_objects[i] in task_args]
         return correct_args
 
-    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str]) -> tuple[str, List[str]]:
+    def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str], available_actions: List[str]) -> tuple[str, List[str]]:
         """
         Allow user to correct the grounding result (action and objects)
         Returns (corrected_task_name, corrected_task_args)
@@ -325,6 +325,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         print(f"Current action: {task_name}")
         print(f"Current objects: {', '.join(task_args)}")
         print(f"Available objects: {', '.join(env_objects)}")
+        print(f"Available actions: {', '.join(available_actions)}")
         print("Enter the corrected action and objects in format 'action:object1,object2' (or press Enter to keep current):")
         
         response = input().strip()
