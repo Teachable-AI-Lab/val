@@ -23,8 +23,8 @@ async def run_render(env):
 async def main():
     openai_key = get_openai_key()
     env = OvercookedAIEnv(player_id=1, render=True)
-    user_interface = ConsoleUserInterface
-
+    #user_interface = ConsoleUserInterface
+    user_interface = WebInterface
     htn_interface = PyHtnInterface
     agent = ValAgent(env, user_interface, htn_interface, openai_key)
 

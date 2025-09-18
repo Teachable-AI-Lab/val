@@ -107,7 +107,7 @@ class ValAgent:
                             next_method_exec = self.edit_from_gui(
                                 task_exec, edited_decomposition
                             )
-                            rewards.append(1)# Give positive reward to the new method
+                            rewards.append(1)  # Give positive reward to the new method
                             method_execs.append(next_method_exec)
                         
                         #### edit from chatbot ####
@@ -121,7 +121,7 @@ class ValAgent:
                             next_method_exec = self.edit_from_chat(
                                 task_exec, chatbot_response, preconditions
                             )
-                            rewards.append(1)# Give positive reward to the new method
+                            rewards.append(1)  # Give positive reward to the new method
                             method_execs.append(next_method_exec)
                         
                         #### add new method ####    
@@ -249,14 +249,24 @@ class ValAgent:
         Returns:
             MethodEx: The new method execution created from the chatbot response
         """
-        # Use LLM to parse preconditions from chatbot response
-        parsed_preconditions = self.parse_preconditions(chatbot_response, task_exec.task.name)
+        task_name = task_exec.task.name
         
-        # Use the chatbot response as subtasks input
-        # This reuses the existing interpret method to parse the chatbot response
+        # Display decomposition analysis (preconditions + thinking process)
+        parsed_preconditions = self.parse_preconditions(chatbot_response, task_name)
+        precondition_names = [str(p) for p in parsed_preconditions]
+        
+        # Parse subtasks from chatbot response
         subtasks = []
         for subtask in self.interpret(chatbot_response):
             subtasks.append(subtask)
+        
+        subtask_names = [f"{s.name}({', '.join(s.args)})" for s in subtasks]
+        
+        # Display comprehensive decomposition analysis
+        self.user_interface.display_decomposition_analysis(task_name, chatbot_response, subtask_names, precondition_names)
+        
+        # Display method creation process
+        self.user_interface.display_method_creation(task_name, subtask_names, precondition_names)
 
         # Use the generic method to create MethodEx with preconditions
         return self.create_method_exec(task_exec, subtasks, parsed_preconditions)

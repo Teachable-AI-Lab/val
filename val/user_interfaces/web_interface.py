@@ -58,6 +58,10 @@ class WebInterface:
                 if 'method_exec' in data:
                     self.user_response = data['method_exec']
                     self.response_received = True
+            elif data['type'] == 'correct_grounding_response':
+                if 'response' in data:
+                    self.user_response = data['response']
+                    self.response_received = True
     
     
     def query_next_decomposition_with_edit(self, 
@@ -87,6 +91,7 @@ class WebInterface:
             },
             "subtasks": subtasks
             }
+            # chatbot_edit
             self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
             print("The message is emitted")
             while not self.response_received:
@@ -229,6 +234,82 @@ class WebInterface:
         text = "\n".join([f"({i}): {task}" for i, task in enumerate(tasks)])
         self.sio.emit('message', {'type': 'display_known_tasks',
                                   'text': "Those are the actions I know:" + text})
+        return
+
+    def display_decomposition_analysis(self, task_name: str, chatbot_response: str, subtasks: List[str], preconditions: List[str] = None):
+        """
+        Display the complete decomposition analysis including precondition analysis and thinking process
+        Args:
+            task_name: The task being decomposed
+            chatbot_response: Original chatbot response
+            subtasks: List of subtasks
+            preconditions: List of preconditions (optional)
+        """
+        # Format subtasks
+        subtasks_text = ", ".join(subtasks)
+        
+        # Build comprehensive analysis message
+        analysis_parts = []
+        
+        # Add precondition analysis
+        if preconditions and len(preconditions) > 0:
+            analysis_parts.append(f"🔍 **Precondition Analysis:** Found conditions: {', '.join(preconditions)}")
+        else:
+            analysis_parts.append("🔍 **Precondition Analysis:** No specific conditions found")
+        
+        # Add thinking process
+        analysis_parts.append(f"🧠 **Thinking Process:** Learned that `{task_name}` should be decomposed to: {subtasks_text}")
+        
+        # Combine all parts
+        analysis_text = "\n\n".join(analysis_parts)
+        
+        self.sio.emit('message', {'type': 'display_decomposition_analysis', 'text': analysis_text})
+        print("Decomposition analysis message emitted")
+        return
+
+    def display_method_creation(self, task_name: str, subtasks: List[str], preconditions: List[str] = None):
+        """
+        Display when a new method is being created
+        Args:
+            task_name: The task name
+            subtasks: List of subtasks
+            preconditions: List of preconditions (optional)
+        """
+        subtasks_text = ", ".join(subtasks)
+        creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
+        
+        if preconditions and len(preconditions) > 0:
+            creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
+        
+        self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
+        print("Method creation message emitted")
+        return
+
+    def display_edit_options(self, task_exec, method_execs):
+        """
+        Display editing options for existing decompositions
+        Args:
+            task_exec: The task being edited
+            method_execs: Available method executions
+        """
+        # Format the task
+        head = task_exec.as_dict()
+        task_name = head["name"]
+        match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+        
+        # Format available methods
+        methods_text = []
+        for i, method_exec in enumerate(method_execs):
+            method_dict = method_exec.as_dict()
+            child_list = method_dict.get("child_data", [])
+            subtasks = [f"{child['name']}({', '.join([str(m).replace('_', ' ') for m in child['match']])})" 
+                       for child in child_list]
+            methods_text.append(f"Option {i+1}: {', '.join(subtasks)}")
+        
+        edit_text = f"Editing options for {task_name}({match}):\n" + "\n".join(methods_text)
+        
+        self.sio.emit('message', {'type': 'display_edit_options', 'text': edit_text})
+        print("Edit options message emitted")
         return
     
     def request_user_task(self) -> str:
