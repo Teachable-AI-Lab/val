@@ -360,136 +360,7 @@ class WebInterface:
             self.sio.sleep(0.1)
         print('received response:', self.user_response)
         return 'yes' == self.user_response
-    
-    def map_confirmation(self, user_task: str, task_name: str) -> bool:
-        if self.disable_map_confirmation:
-            return True 
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        self.sio.emit('message', {
-            'type': 'map_confirmation', 
-            'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return 'yes' == self.user_response
 
-    def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
-        known_tasks.append('None of these above')
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        self.sio.emit('message', {
-            'type': 'map_correction',
-            'text': f"Which of these is the best choice for '{user_task}'?", 
-            'user_task': user_task,
-            'known_tasks': known_tasks
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        response = int(self.user_response)
-        if response == len(known_tasks) - 1:
-            print("none")
-            return None
-        return response
-
-    def map_new_method_confirmation(self, user_task: str) -> bool:
-        if self.disable_map_new_method_confirmation:
-            return True
-        self.user_response = None  
-        self.response_received = False
-        self.expected_type = 'confirm_response'  
-        self.sio.emit('message', {
-            'type': 'map_new_method_confirmation',
-            'text': f"The task '{user_task}' is a new method. Is that right?"
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return 'yes' == self.user_response
-
-    def ground_confirmation(self, task_name: str, task_args: List[str]) -> bool:
-        if self.disable_ground_confirmation:
-            return True 
-        self.user_response = None  
-        self.response_received = False
-        self.expected_type = 'confirm_response'  
-        self.sio.emit('message', {
-            'type': 'ground_confirmation',
-            'task_name': task_name,
-            'task_args': ', '.join(task_args),
-            'text': f"The task is {task_name}({task_args}). Is that right? "
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return 'yes' == self.user_response
-
-    def ground_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        self.sio.emit('message', {
-            'type': 'ground_correction',
-            'text': f"Could you help me pick the actual object? {task_name}",
-            'task_args': task_args,
-            'env_objects': env_objects
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return self.user_response
-
-    def gen_confirmation(self, user_task: str, task_name: str, task_args: List[str]) -> bool:
-        if self.disable_gen_confirmation:
-            return True
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        formatted_args = ', '.join(task_args)
-        self.sio.emit('message', {
-            'type': 'gen_confirmation',
-            'text': f"{user_task} is {task_name}({formatted_args}). Is that right?",
-            'task_args': task_args
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return 'yes' == self.user_response
-
-    def gen_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        self.sio.emit('message', {
-            'type': 'gen_correction',
-            'text': f"Could you help me pick the actual object? {task_name}:",
-            'task_args': task_args,
-            'env_objects': env_objects
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return self.user_response
-
-    def confirm_task_execution(self, user_task: str) -> bool:
-        if self.disable_confirm_task_execution:
-            return True
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'confirm_response' 
-        self.sio.emit('message', {
-            'type': 'confirm_task_execution',
-            'text': f"Should I execute {user_task}?"
-        })
-        while not self.response_received:
-            self.sio.sleep(0.1)
-        print('received response:', self.user_response)
-        return 'yes' == self.user_response
-    
     def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str], available_actions: List[str]) -> tuple[str, List[str]]:
         """
         Allow user to correct the grounding result (action and objects)
@@ -521,47 +392,180 @@ class WebInterface:
             corrected_task_args = task_args
             
         return corrected_task_name, corrected_task_args
+
+
+# ### previous version ###
+#     def map_confirmation(self, user_task: str, task_name: str) -> bool:
+#         if self.disable_map_confirmation:
+#             return True 
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         self.sio.emit('message', {
+#             'type': 'map_confirmation', 
+#             'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return 'yes' == self.user_response
+
+#     def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
+#         known_tasks.append('None of these above')
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         self.sio.emit('message', {
+#             'type': 'map_correction',
+#             'text': f"Which of these is the best choice for '{user_task}'?", 
+#             'user_task': user_task,
+#             'known_tasks': known_tasks
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         response = int(self.user_response)
+#         if response == len(known_tasks) - 1:
+#             print("none")
+#             return None
+#         return response
+
+#     def map_new_method_confirmation(self, user_task: str) -> bool:
+#         if self.disable_map_new_method_confirmation:
+#             return True
+#         self.user_response = None  
+#         self.response_received = False
+#         self.expected_type = 'confirm_response'  
+#         self.sio.emit('message', {
+#             'type': 'map_new_method_confirmation',
+#             'text': f"The task '{user_task}' is a new method. Is that right?"
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return 'yes' == self.user_response
+
+#     def ground_confirmation(self, task_name: str, task_args: List[str]) -> bool:
+#         if self.disable_ground_confirmation:
+#             return True 
+#         self.user_response = None  
+#         self.response_received = False
+#         self.expected_type = 'confirm_response'  
+#         self.sio.emit('message', {
+#             'type': 'ground_confirmation',
+#             'task_name': task_name,
+#             'task_args': ', '.join(task_args),
+#             'text': f"The task is {task_name}({task_args}). Is that right? "
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return 'yes' == self.user_response
+
+#     def ground_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         self.sio.emit('message', {
+#             'type': 'ground_correction',
+#             'text': f"Could you help me pick the actual object? {task_name}",
+#             'task_args': task_args,
+#             'env_objects': env_objects
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return self.user_response
+
+#     def gen_confirmation(self, user_task: str, task_name: str, task_args: List[str]) -> bool:
+#         if self.disable_gen_confirmation:
+#             return True
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         formatted_args = ', '.join(task_args)
+#         self.sio.emit('message', {
+#             'type': 'gen_confirmation',
+#             'text': f"{user_task} is {task_name}({formatted_args}). Is that right?",
+#             'task_args': task_args
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return 'yes' == self.user_response
+
+#     def gen_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         self.sio.emit('message', {
+#             'type': 'gen_correction',
+#             'text': f"Could you help me pick the actual object? {task_name}:",
+#             'task_args': task_args,
+#             'env_objects': env_objects
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return self.user_response
+
+#     def confirm_task_execution(self, user_task: str) -> bool:
+#         if self.disable_confirm_task_execution:
+#             return True
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'confirm_response' 
+#         self.sio.emit('message', {
+#             'type': 'confirm_task_execution',
+#             'text': f"Should I execute {user_task}?"
+#         })
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
+#         print('received response:', self.user_response)
+#         return 'yes' == self.user_response
     
-    def correct_decomposition(self, task_str: str, method_options: List[str], 
-                           chosen_method_exec, method_execs) -> tuple:
-        """
-        Allow user to correct the decomposition choice
-        Returns (corrected_method_exec, corrected_rewards)
-        """
-        self.user_response = None  
-        self.response_received = False 
-        self.expected_type = 'correct_decomposition_response'
+
+    
+#     def correct_decomposition(self, task_str: str, method_options: List[str], 
+#                            chosen_method_exec, method_execs) -> tuple:
+#         """
+#         Allow user to correct the decomposition choice
+#         Returns (corrected_method_exec, corrected_rewards)
+#         """
+#         self.user_response = None  
+#         self.response_received = False 
+#         self.expected_type = 'correct_decomposition_response'
         
-        self.sio.emit('message', {
-            'type': 'correct_decomposition',
-            'text': f"Correct the decomposition for: {task_str}",
-            'method_options': method_options,
-            'current_choice': method_execs.index(chosen_method_exec) if chosen_method_exec in method_execs else -1
-        })
+#         self.sio.emit('message', {
+#             'type': 'correct_decomposition',
+#             'text': f"Correct the decomposition for: {task_str}",
+#             'method_options': method_options,
+#             'current_choice': method_execs.index(chosen_method_exec) if chosen_method_exec in method_execs else -1
+#         })
         
-        while not self.response_received:
-            self.sio.sleep(0.1)
+#         while not self.response_received:
+#             self.sio.sleep(0.1)
         
-        # Parse response - expected format: "method_index:reward"
-        response = self.user_response
-        if ':' in response:
-            method_index_str, reward_str = response.split(':', 1)
-            try:
-                method_index = int(method_index_str)
-                reward = float(reward_str)
-                if 0 <= method_index < len(method_execs):
-                    corrected_method_exec = method_execs[method_index]
-                    corrected_rewards = [None] * len(method_execs)
-                    corrected_rewards[method_index] = reward
-                    return corrected_method_exec, corrected_rewards
-            except (ValueError, IndexError):
-                pass
+#         # Parse response - expected format: "method_index:reward"
+#         response = self.user_response
+#         if ':' in response:
+#             method_index_str, reward_str = response.split(':', 1)
+#             try:
+#                 method_index = int(method_index_str)
+#                 reward = float(reward_str)
+#                 if 0 <= method_index < len(method_execs):
+#                     corrected_method_exec = method_execs[method_index]
+#                     corrected_rewards = [None] * len(method_execs)
+#                     corrected_rewards[method_index] = reward
+#                     return corrected_method_exec, corrected_rewards
+#             except (ValueError, IndexError):
+#                 pass
         
-        # Return original choice if parsing fails
-        rewards = [None] * len(method_execs)
-        if chosen_method_exec in method_execs:
-            rewards[method_execs.index(chosen_method_exec)] = 1.0
-        return chosen_method_exec, rewards
+#         # Return original choice if parsing fails
+#         rewards = [None] * len(method_execs)
+#         if chosen_method_exec in method_execs:
+#             rewards[method_execs.index(chosen_method_exec)] = 1.0
+#         return chosen_method_exec, rewards
     
 if __name__ == "__main__":
     web_interface = WebInterface()
