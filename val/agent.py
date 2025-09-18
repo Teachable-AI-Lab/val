@@ -89,54 +89,48 @@ class ValAgent:
                     #  with a reward label: 1, -1 (or not: None) and have the 
                     #  user_interface decide which method_exec will be applied
 
-                    next_method_exec, rewards = \
+                    user_choice, next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
                             task_exec, method_execs)
                         
                     # Generate and display explanation for the chosen method
-                    if next_method_exec is not None and len(method_execs) > 0:
-                        explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
-                        self.user_interface.display_explanation(explanation)
+                    if user_choice == 'approve':
+                        print("user_choice", user_choice)
+                        # explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
+                        # self.user_interface.display_explanation(explanation)
 
-                    # if next_method_exec is None, then the user has edited the decomposition or want to add new method
-                    else:
-                        #### edit from gui ####
-                        if hasattr(self.user_interface, 'last_edited_decomposition'):
-                            # User edited a decomposition - create new method from edited content
-                            edited_decomposition = self.user_interface.last_edited_decomposition
-                            next_method_exec = self.edit_from_gui(
+                    #### edit from gui ####
+                    elif user_choice == 'gui_edit':
+                        edited_decomposition = self.user_interface.last_edited_decomposition
+                        next_method_exec = self.edit_from_gui(
                                 task_exec, edited_decomposition
                             )
-                            rewards.append(1)  # Give positive reward to the new method
-                            method_execs.append(next_method_exec)
+                        rewards.append(1)  # Give positive reward to the new method
+                        method_execs.append(next_method_exec)
                         
-                        #### edit from chatbot ####
-                        elif hasattr(self.user_interface, 'chatbot_response'):
-                            # User responded via chatbot - use the chatbot response to create new method
-                            chatbot_response = self.user_interface.chatbot_response
-                            preconditions = getattr(self.user_interface, 'last_preconditions', [])
-                            # Clear the chatbot response to avoid reuse
-                            delattr(self.user_interface, 'chatbot_response')
-                            # Use the chatbot response as subtasks for new method
-                            next_method_exec = self.edit_from_chat(
+                    #### edit from chatbot ####
+                    elif user_choice == 'chatbot_edit':
+                        chatbot_response = self.user_interface.chatbot_response
+                        preconditions = self.user_interface.last_preconditions
+                        next_method_exec = self.edit_from_chat(
                                 task_exec, chatbot_response, preconditions
                             )
-                            rewards.append(1)  # Give positive reward to the new method
-                            method_execs.append(next_method_exec)
+                        rewards.append(1)  # Give positive reward to the new method
+                        method_execs.append(next_method_exec)
                         
-                        #### add new method ####    
-                        # If there is no next_method_exec because:
-                        #  1. Matching in the planner failed or 
-                        #  2. The user decided to describe their own method
-                        #  Then query the user to describe the grounded subtasks of the 
-                        #  decomposition. This creates the next method execution.
-                        else:
-                            next_method_exec = self.query_new_method_exec(task_exec)
-                            print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
-                            print("type next_method_exec", type(next_method_exec))
-                            self.user_interface.display_added_method(task_exec, next_method_exec)
-                            rewards.append(1)
-                            method_execs.append(next_method_exec)
+                    #### add new method ####    
+                    # If there is no next_method_exec because:
+                    #  1. Matching in the planner failed or 
+                    #  2. The user decided to describe their own method
+                    #  Then query the user to describe the grounded subtasks of the 
+                    #  decomposition. This creates the next method execution.
+                    elif user_choice == 'add_method':
+                        next_method_exec = self.query_new_method_exec(task_exec)
+                        print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
+                        print("type next_method_exec", type(next_method_exec))
+                        self.user_interface.display_added_method(task_exec, next_method_exec)
+                        rewards.append(1)
+                        method_execs.append(next_method_exec)
                       
                     # Stage next_method_exec so that it is applied when 
                     #  planning continues in the next loop 

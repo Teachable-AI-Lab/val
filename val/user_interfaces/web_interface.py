@@ -7,29 +7,12 @@ from typing import List, Sequence, Optional, Tuple
 
 class WebInterface:
             
-    def __init__(self, url="http://localhost:4002",
-                 disable_segment_confirmation: bool = False, disable_map_confirmation: bool = False,
-                 disable_map_correction: bool = False, disable_map_new_method_confirmation: bool = False, 
-                 disable_ground_confirmation: bool = False, disable_ground_correction: bool = False,
-                 disable_gen_confirmation: bool = False, disable_gen_correction: bool = False,
-                 disable_confirm_task_decomposition: bool = True, disable_confirm_task_execution: bool = True,
-                 next_select_kind = "all at once"):
+    def __init__(self, url="http://localhost:4002"):
         self.sio = socketio.Client()
         self.sio.connect(url)
         self.user_response = None
         self.response_received = False
         self.sio.on('message', self.on_message)
-        self.disable_segment_confirmation = disable_segment_confirmation
-        self.disable_map_confirmation = disable_map_confirmation
-        self.disable_map_correction = disable_map_correction
-        self.disable_map_new_method_confirmation = disable_map_new_method_confirmation
-        self.disable_ground_confirmation = disable_ground_confirmation
-        self.disable_ground_correction = disable_ground_correction
-        self.disable_gen_confirmation = disable_gen_confirmation
-        self.disable_gen_correction = disable_gen_correction
-        self.disable_confirm_task_decomposition = disable_confirm_task_decomposition
-        self.disable_confirm_task_execution = disable_confirm_task_execution
-        self.next_select_kind = next_select_kind
 
     # This function is called when the client receives a message from the server 
     # change from previous version: event = self.sio.receive(), which is synchronous blocking call to wait for a server event 
@@ -38,30 +21,6 @@ class WebInterface:
         if isinstance(data, dict) and 'response' in data and data.get('type') == self.expected_type:
             self.user_response = data['response']
             self.response_received = True 
-        elif isinstance(data, dict) and 'type' in data:
-            # Handle different message types
-            if data['type'] == 'response_decomposition_with_edit':
-                if 'response' in data:
-                    self.user_response = data['response']
-                    self.response_received = True
-                elif 'edited_decomposition' in data:
-                    # Store the edited decomposition for later use
-                    self.last_edited_decomposition = data['edited_decomposition']
-                    self.user_response = {'type': 'gui_edit'}
-                    self.response_received = True
-                elif 'chatbot_response' in data:
-                    # Store the chatbot response for later use
-                    self.chatbot_response = data['chatbot_response']
-                    self.user_response = {'type': 'chatbot_edit'}
-                    self.response_received = True
-            elif data['type'] == 'edited_decomposition_processed':
-                if 'method_exec' in data:
-                    self.user_response = data['method_exec']
-                    self.response_received = True
-            elif data['type'] == 'correct_grounding_response':
-                if 'response' in data:
-                    self.user_response = data['response']
-                    self.response_received = True
     
     
     def query_next_decomposition_with_edit(self, 
@@ -80,26 +39,8 @@ class WebInterface:
         
         # Skip if there are no method_execs 
         if(method_execs is None or len(method_execs) == 0):
-            head = task_exec.as_dict()
-            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
-            subtasks = []
-            result = {
-            "head": {
-                "name": head["name"],
-                "V": match,
-                "hash": head["id"]
-            },
-            "subtasks": subtasks
-            }
-            # chatbot_edit
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-            print("The message is emitted")
-            while not self.response_received:
-                self.sio.sleep(0.1)       
-            response = self.user_response
-            print("response", response) 
-            print("response type", type(response))
-            return None, []
+            user_choice = 'add_method'
+            return user_choice, None, []
         else:
             ##### convert format ##### 
             # Step 1: get head
@@ -143,26 +84,27 @@ class WebInterface:
                 
             response = self.user_response 
             rewards = [None]*len(method_execs)
-            
+            user_choice=response.get('user_choice', None)
             # Handle different response types
-            if isinstance(response, dict) and 'type' in response:
-                if response['type'] == 'gui_edit':
+            if user_choice == 'gui_edit':
                     # User edited via GUI - return None to trigger new method creation from edited content
-                    self.last_edited_decomposition = response.get('edited_decomposition', {})
-                    return None, []
-                elif response['type'] == 'chatbot_edit':
+                self.last_edited_decomposition = response.get('edited_decomposition', {})
+                return user_choice, None, []
+            elif user_choice == 'chatbot_edit':
                     # User responded via chatbot - this triggers query_new_method_exec flow
-                    self.chatbot_response = response.get('chatbot_response', '')
-                    self.last_preconditions = response.get('preconditions', [])
-                    return None, []
-            elif isinstance(response, str) and response == "add method":
-                return None, []
-            elif isinstance(response, int):
+                self.chatbot_response = response.get('chatbot_response', '')
+                self.last_preconditions = response.get('preconditions', [])
+                return user_choice, None, []
+            elif user_choice == "add_method":
+                return user_choice, None, []
+            elif user_choice == 'approve':
                 # Legacy support for simple index
-                rewards[response] = 1.0
-                return method_execs[response], rewards
-            
-            return None, []
+                response_index = response.get('index', None)
+                print("response_index", response_index)
+                rewards[response_index] = 1.0
+                return user_choice, method_execs[response_index], rewards 
+            user_choice = 'add_method'
+            return user_choice, None, []
     
 
     def display_added_method(self, task_exec: TaskEx, 
@@ -214,21 +156,6 @@ class WebInterface:
     def check_for_break(self) -> bool:
         return False
         
-    def edit_decomposition(self,best_match_decomposition):
-        """
-        add_step()
-        delete_step()
-        change_order()
-        change_pred()
-        change_arg()
-    
-        """
-        self.sio.emit('message', {'type': 'edit_decomposition', 
-                                  'text': best_match_decomposition})
-        print('sent confirmation')
-        event = self.sio.receive()
-        print('received event:', event[1])
-        return
     
     def display_known_tasks(self, tasks: List[str]):
         text = "\n".join([f"({i}): {task}" for i, task in enumerate(tasks)])
@@ -267,50 +194,50 @@ class WebInterface:
         print("Decomposition analysis message emitted")
         return
 
-    def display_method_creation(self, task_name: str, subtasks: List[str], preconditions: List[str] = None):
-        """
-        Display when a new method is being created
-        Args:
-            task_name: The task name
-            subtasks: List of subtasks
-            preconditions: List of preconditions (optional)
-        """
-        subtasks_text = ", ".join(subtasks)
-        creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
+    # def display_method_creation(self, task_name: str, subtasks: List[str], preconditions: List[str] = None):
+    #     """
+    #     Display when a new method is being created
+    #     Args:
+    #         task_name: The task name
+    #         subtasks: List of subtasks
+    #         preconditions: List of preconditions (optional)
+    #     """
+    #     subtasks_text = ", ".join(subtasks)
+    #     creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
         
-        if preconditions and len(preconditions) > 0:
-            creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
+    #     if preconditions and len(preconditions) > 0:
+    #         creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
         
-        self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
-        print("Method creation message emitted")
-        return
+    #     self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
+    #     print("Method creation message emitted")
+    #     return
 
-    def display_edit_options(self, task_exec, method_execs):
-        """
-        Display editing options for existing decompositions
-        Args:
-            task_exec: The task being edited
-            method_execs: Available method executions
-        """
-        # Format the task
-        head = task_exec.as_dict()
-        task_name = head["name"]
-        match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+    # def display_edit_options(self, task_exec, method_execs):
+    #     """
+    #     Display editing options for existing decompositions
+    #     Args:
+    #         task_exec: The task being edited
+    #         method_execs: Available method executions
+    #     """
+    #     # Format the task
+    #     head = task_exec.as_dict()
+    #     task_name = head["name"]
+    #     match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
         
-        # Format available methods
-        methods_text = []
-        for i, method_exec in enumerate(method_execs):
-            method_dict = method_exec.as_dict()
-            child_list = method_dict.get("child_data", [])
-            subtasks = [f"{child['name']}({', '.join([str(m).replace('_', ' ') for m in child['match']])})" 
-                       for child in child_list]
-            methods_text.append(f"Option {i+1}: {', '.join(subtasks)}")
+    #     # Format available methods
+    #     methods_text = []
+    #     for i, method_exec in enumerate(method_execs):
+    #         method_dict = method_exec.as_dict()
+    #         child_list = method_dict.get("child_data", [])
+    #         subtasks = [f"{child['name']}({', '.join([str(m).replace('_', ' ') for m in child['match']])})" 
+    #                    for child in child_list]
+    #         methods_text.append(f"Option {i+1}: {', '.join(subtasks)}")
         
-        edit_text = f"Editing options for {task_name}({match}):\n" + "\n".join(methods_text)
+    #     edit_text = f"Editing options for {task_name}({match}):\n" + "\n".join(methods_text)
         
-        self.sio.emit('message', {'type': 'display_edit_options', 'text': edit_text})
-        print("Edit options message emitted")
-        return
+    #     self.sio.emit('message', {'type': 'display_edit_options', 'text': edit_text})
+    #     print("Edit options message emitted")
+    #     return
     
     def request_user_task(self) -> str:
         self.user_response = None  
