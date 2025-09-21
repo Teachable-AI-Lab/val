@@ -88,10 +88,11 @@ class ValAgent:
                     # If there are any MethodExs, wait for the user to assign them
                     #  with a reward label: 1, -1 (or not: None) and have the 
                     #  user_interface decide which method_exec will be applied
+                    available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
 
                     user_choice, next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
-                            task_exec, method_execs)
+                            task_exec, method_execs, available_actions, self.env.get_objects())
                         
                     # Generate and display explanation for the chosen method
                     if user_choice == 'approve':
@@ -105,8 +106,10 @@ class ValAgent:
                         next_method_exec = self.edit_from_gui(
                                 task_exec, edited_decomposition
                             )
+                        self.user_interface.display_added_method(task_exec, next_method_exec)
                         rewards.append(1)  # Give positive reward to the new method
                         method_execs.append(next_method_exec)
+                        print("showed the added method")
                         
                     #### edit from chatbot ####
                     elif user_choice == 'chatbot_edit':
@@ -203,34 +206,12 @@ class ValAgent:
         """
         # Extract subtasks from edited decomposition
         subtasks = []
-        if 'subtasks' in edited_decomposition:
-            for subtask_data in edited_decomposition['subtasks']:
-                # Parse subtask from the edited format
-                if isinstance(subtask_data, dict):
-                    if 'task_name' in subtask_data and 'args' in subtask_data:
-                        # New format with separated task_name and args
-                        task_name = subtask_data['task_name']
-                        task_args_list = subtask_data['args']
-                        subtask = Task(task_name, args=task_args_list)
-                        subtasks.append(subtask)
-                    elif 'Task' in subtask_data:
-                        # Legacy format - extract task name and arguments from the Task string
-                        task_str = subtask_data['Task']
-                        # Parse task_str like "moveTo onion" to get name and args
-                        parts = task_str.split()
-                        if len(parts) >= 1:
-                            task_name = parts[0]
-                            task_args_list = parts[1:] if len(parts) > 1 else []
-                            subtask = Task(task_name, args=task_args_list)
-                            subtasks.append(subtask)
-                elif isinstance(subtask_data, str):
-                    # Handle string format
-                    parts = subtask_data.split()
-                    if len(parts) >= 1:
-                        task_name = parts[0]
-                        task_args_list = parts[1:] if len(parts) > 1 else []
-                        subtask = Task(task_name, args=task_args_list)
-                        subtasks.append(subtask)
+        for subtask_group in edited_decomposition['subtasks']:
+            for subtask_data in subtask_group:
+                task_name = subtask_data['task_name']
+                task_args_list = subtask_data['args']
+                subtask = Task(task_name, args=task_args_list)
+                subtasks.append(subtask)
 
         # Use the generic method to create MethodEx (no preconditions for GUI)
         return self.create_method_exec(task_exec, subtasks)

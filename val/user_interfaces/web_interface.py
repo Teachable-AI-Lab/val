@@ -25,7 +25,7 @@ class WebInterface:
     
     def query_next_decomposition_with_edit(self, 
         task_exec: TaskEx, 
-        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+        method_execs: Sequence[MethodEx], available_actions: List[str], env_objects: List[str]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
         """
         Enhanced version that allows users to edit decomposition options
         Supports two edit modes:
@@ -36,7 +36,8 @@ class WebInterface:
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'response_decomposition_with_edit' 
-        
+        env_objects=list(set(env_objects))
+        available_actions=list(set(available_actions))
         # Skip if there are no method_execs 
         if(method_execs is None or len(method_execs) == 0):
             user_choice = 'add_method'
@@ -71,7 +72,9 @@ class WebInterface:
                     "V": match,  
                     "hash": head["id"]
                 },
-                "subtasks": subtasks
+                "subtasks": subtasks,
+                "available_actions": available_actions,
+                "env_objects": env_objects
             }
 
             self.user_response = None  
@@ -150,6 +153,7 @@ class WebInterface:
             self.sio.sleep(0.1)
             
         index = self.user_response 
+        print("prepared to return")
 
         return
     
@@ -296,7 +300,8 @@ class WebInterface:
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'correct_grounding_response'
-        
+        env_objects=list(set(env_objects))
+        available_actions=list(set(available_actions))
         self.sio.emit('message', {
             'type': 'correct_grounding',
             'text': f"Correct the grounding for: '{user_task}'",

@@ -91,7 +91,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         """
         self.layout = layout
         self.horizon = horizon
-        self.player_id = player_id
+        self.player_id = 0
         self.reset()
 
         if self.player_id >= len(self.base_env.state.players):
