@@ -55,9 +55,33 @@ class ValAgent:
 
             user_tasks = self.user_interface.request_user_task()
             tasks = [task for task in self.interpret(user_tasks)]
-            print(f"Tasks: {tasks}")
-            # planner = self.htn_interface.get_planner(tasks)
-            self.htn_interface.add_tasks(tasks)
+            
+            # Handle special responses from grounding correction
+            special_responses = [task for task in tasks if isinstance(task, str) and task in ["EDIT_DECOMPOSITION", "ADD_NEW_METHOD"]]
+            actual_tasks = [task for task in tasks if not isinstance(task, str)]
+            
+            # If all tasks are special responses, handle them
+            if len(special_responses) == len(tasks) and len(tasks) > 0:
+                if "EDIT_DECOMPOSITION" in special_responses:
+                    # User wants to edit decomposition - show edit interface
+                    self.user_interface.display_edit_options("Please describe how you want to edit the task decomposition.")
+                    return
+                elif "ADD_NEW_METHOD" in special_responses:
+                    # User wants to add new method - show add method interface
+                    self.user_interface.display_method_creation("Please describe the new method you want to add.")
+                    return
+            
+            # If no actual tasks, return
+            if not actual_tasks:
+                return
+            
+            # Log any special responses that were ignored
+            if special_responses:
+                print(f"Ignoring special responses: {special_responses} - continuing with actual tasks: {actual_tasks}")
+            
+            print(f"Tasks: {actual_tasks}")
+            # planner = self.htn_interface.get_planner(actual_tasks)
+            self.htn_interface.add_tasks(actual_tasks)
             #task here is a list of dicts. eg [{'name': 'moveTo', 'arguments': ['onion']}] 
 
             user_choice = None
@@ -77,12 +101,19 @@ class ValAgent:
 
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
+                    
+                    print(f"DEBUG: task_exec = {task_exec}")
+                    print(f"DEBUG: method_execs = {method_execs}")
+                    print(f"DEBUG: method_execs type = {type(method_execs)}")
+                    if method_execs:
+                        print(f"DEBUG: method_execs length = {len(method_execs)}")
 
                     
                     # if this is an unknown task, the user interface will return next_method_exec as None
                     # and it will go to query_new_method_exec
                     if method_execs is None:
                         method_execs = []
+                        print("DEBUG: method_execs was None, set to empty list")
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -97,8 +128,30 @@ class ValAgent:
                     # Generate and display explanation for the chosen method
                     if user_choice == 'approve':
                         print("user_choice", user_choice)
-                        # explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
-                        # self.user_interface.display_explanation(explanation)
+                        # Display decomposition analysis for transparency
+                        task_name = task_exec.name
+                        subtask_names = [f"{s.name}({', '.join(s.args)})" for s in next_method_exec.method.subtasks]
+                        
+                        # Create analysis text showing why this method was chosen
+                        analysis_text = f"""**Selected Method Analysis:**
+
+**Task:** {task_name}
+**Chosen Decomposition:** {', '.join(subtask_names)}
+
+**Available Options:** {len(method_execs)} method(s) were considered:
+"""
+                        for i, method_exec in enumerate(method_execs):
+                            subtasks_str = ', '.join([f"{s.name}({', '.join(s.args)})" for s in method_exec.method.subtasks])
+                            status = "✓ SELECTED" if method_exec == next_method_exec else "○ Available"
+                            analysis_text += f"  {i+1}. {status} {subtasks_str}\n"
+                        
+                        analysis_text += f"""
+**Reasoning:** This decomposition was selected from the available options above. The method breaks down the task into manageable subtasks that can be executed in sequence.
+
+**Preconditions:** {', '.join([str(p) for p in next_method_exec.method.preconditions]) if next_method_exec.method.preconditions else 'None specified'}
+"""
+                        
+                        self.user_interface.display_decomposition_analysis(task_name, analysis_text, subtask_names, [])
 
                     #### edit from gui ####
                     elif user_choice == 'gui_edit':
@@ -173,7 +226,15 @@ class ValAgent:
                 user_task, task_name, task_args, self.env.get_objects(), available_actions
             )
             
-            yield Task(str(corrected_task_name), args=list(corrected_task_args))
+            # Handle special responses from grounding correction
+            if corrected_task_name == "EDIT_DECOMPOSITION":
+                # User wants to edit decomposition - trigger edit flow
+                yield "EDIT_DECOMPOSITION"
+            elif corrected_task_name == "ADD_NEW_METHOD":
+                # User wants to add new method - trigger add method flow
+                yield "ADD_NEW_METHOD"
+            else:
+                yield Task(str(corrected_task_name), args=list(corrected_task_args))
             
             
     def query_new_method_exec(self, task_exec: TaskEx):
@@ -213,8 +274,16 @@ class ValAgent:
                 subtask = Task(task_name, args=task_args_list)
                 subtasks.append(subtask)
 
-        # Use the generic method to create MethodEx (no preconditions for GUI)
-        return self.create_method_exec(task_exec, subtasks)
+        # Extract preconditions if provided
+        preconditions = []
+        if 'preconditions' in edited_decomposition and edited_decomposition['preconditions']:
+            for precondition_name in edited_decomposition['preconditions']:
+                # Create simple preconditions - you might want to parse more complex ones
+                precondition = Fact(precondition_name, "=", True)
+                preconditions.append(precondition)
+        
+        # Use the generic method to create MethodEx with preconditions
+        return self.create_method_exec(task_exec, subtasks, preconditions)
     
     
     def edit_from_chat(self, task_exec: TaskEx, chatbot_response: str, preconditions: List[str]) -> MethodEx:
@@ -229,7 +298,7 @@ class ValAgent:
         """
         task_name = task_exec.task.name
         
-        # Display decomposition analysis (preconditions + thinking process)
+        # Parse preconditions
         parsed_preconditions = self.parse_preconditions(chatbot_response, task_name)
         precondition_names = [str(p) for p in parsed_preconditions]
         
