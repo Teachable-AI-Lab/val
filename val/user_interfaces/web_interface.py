@@ -33,62 +33,13 @@ class WebInterface:
         2. Chatbot edit: User responds via chatbot (triggers query_new_method_exec)
         Returns (chosen_or_edited_method_exec, rewards)
         """
-        print("query_next_decomposition_with_edit called")
-        print("task_exec:", task_exec)
-        print("method_execs:", method_execs)
-        print("method_execs type:", type(method_execs))
-        print("method_execs length:", len(method_execs) if method_execs else "None or empty")
-        print("available_actions:", available_actions)
-        print("env_objects:", env_objects)
-        
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'response_decomposition_with_edit' 
         env_objects=list(set(env_objects))
         available_actions=list(set(available_actions))
-        # For NEW_ACTION or unknown tasks, create a dummy decomposition to show options
+        # Skip if there are no method_execs 
         if(method_execs is None or len(method_execs) == 0):
-            # Create a dummy decomposition structure for NEW_ACTION
-            head = task_exec.as_dict()
-            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
-            
-            result = {
-                "head": {
-                    "name": head["name"],
-                    "V": match,  
-                    "hash": head["id"]
-                },
-                "subtasks": [],  # Empty subtasks for NEW_ACTION
-                "available_actions": available_actions,
-                "env_objects": env_objects
-            }
-
-            self.user_response = None  
-            self.response_received = False
-
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-            print("The message is emitted for NEW_ACTION")
-            while not self.response_received:
-                self.sio.sleep(0.1)
-                
-            response = self.user_response 
-            rewards = []
-            user_choice = response.get('user_choice', None)
-            
-            # Handle different response types for NEW_ACTION
-            if user_choice == 'gui_edit':
-                self.last_edited_decomposition = response.get('edited_decomposition', {})
-                return user_choice, None, []
-            elif user_choice == 'chatbot_edit':
-                self.chatbot_response = response.get('chatbot_response', '')
-                self.last_preconditions = response.get('preconditions', [])
-                return user_choice, None, []
-            elif user_choice == "add_method":
-                return user_choice, None, []
-            elif user_choice == 'approve':
-                # For NEW_ACTION, approve means add_method
-                return 'add_method', None, []
-            
             user_choice = 'add_method'
             return user_choice, None, []
         else:
@@ -247,41 +198,25 @@ class WebInterface:
         print("Decomposition analysis message emitted")
         return
 
-    def display_method_creation(self, message: str, task_name: str = None, subtasks: List[str] = None, preconditions: List[str] = None):
-        """
-        Display when a new method is being created
-        Args:
-            message: Simple message to display
-            task_name: The task name (optional)
-            subtasks: List of subtasks (optional)
-            preconditions: List of preconditions (optional)
-        """
-        if task_name and subtasks:
-            # Full method creation display
-            subtasks_text = ", ".join(subtasks)
-            creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
-            
-            if preconditions and len(preconditions) > 0:
-                creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
-        else:
-            # Simple message display
-            creation_text = f"⚙️ **Add New Method**\n\n{message}"
+    # def display_method_creation(self, task_name: str, subtasks: List[str], preconditions: List[str] = None):
+    #     """
+    #     Display when a new method is being created
+    #     Args:
+    #         task_name: The task name
+    #         subtasks: List of subtasks
+    #         preconditions: List of preconditions (optional)
+    #     """
+    #     subtasks_text = ", ".join(subtasks)
+    #     creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
         
-        self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
-        print("Method creation message emitted")
-        return
+    #     if preconditions and len(preconditions) > 0:
+    #         creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
+        
+    #     self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
+    #     print("Method creation message emitted")
+    #     return
 
-    def display_edit_options(self, message: str):
-        """
-        Display editing options for existing decompositions
-        Args:
-            message: Message to display
-        """
-        self.sio.emit('message', {'type': 'display_edit_options', 'text': f"✏️ **Edit Decomposition**\n\n{message}"})
-        print("Edit options message emitted")
-        return
-
-    # def display_edit_options_old(self, task_exec, method_execs):
+    # def display_edit_options(self, task_exec, method_execs):
     #     """
     #     Display editing options for existing decompositions
     #     Args:
@@ -379,17 +314,9 @@ class WebInterface:
         while not self.response_received:
             self.sio.sleep(0.1)
         
-        # Parse response - expected format: "action:object1,object2" or special commands
+        # Parse response - expected format: "action:object1,object2"
         response = self.user_response
-        if response == "EDIT_DECOMPOSITION":
-            # User wants to edit decomposition instead of correcting grounding
-            # Return a special marker that will trigger edit flow
-            return "EDIT_DECOMPOSITION", []
-        elif response == "ADD_NEW_METHOD":
-            # User wants to add new method instead of correcting grounding
-            # Return a special marker that will trigger add method flow
-            return "ADD_NEW_METHOD", []
-        elif ':' in response:
+        if ':' in response:
             corrected_task_name, objects_str = response.split(':', 1)
             corrected_task_args = [obj.strip() for obj in objects_str.split(',') if obj.strip()]
         else:
@@ -578,4 +505,4 @@ if __name__ == "__main__":
         TaskEx("task1", "arg1"),
         [MethodEx("method1", "arg1"), MethodEx("method2", "arg2")]
     ))
-
+    
