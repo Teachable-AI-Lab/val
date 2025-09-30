@@ -53,10 +53,50 @@ class WebInterface:
             print("No method_execs available, going to add_method")
             return 'add_method', None, []
 
-        # Send confirm_best_match_decomposition message to show tree structure
+        # First, send thinking analysis to chatbot
         head = task_exec.as_dict()
         match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+        task_name = head["name"]
+        task_args = [str(m).replace('_', ' ') for m in head['match']]
         
+        # Create thinking-style analysis text
+        objects_text = ', '.join(env_objects[:5])
+        if len(env_objects) > 5:
+            objects_text += f" and {len(env_objects) - 5} more..."
+        
+        # Get subtask names for the analysis
+        default_method = method_execs[0] if method_execs else None
+        if default_method:
+            subtask_names = [f"{s.name}({', '.join([str(arg) for arg in s.args])})" for s in default_method.method.subtasks]
+            analysis_text = f"""Thinking...
+
+The game environment contains {objects_text}.
+
+Based on my knowledge and the condition, I will decompose {task_name} to {', '.join(subtask_names)}.
+
+Is it correct?"""
+        else:
+            analysis_text = f"""Thinking...
+
+The game environment contains {objects_text}.
+
+I need to create a method for {task_name}({', '.join(task_args)}).
+
+Is it correct?"""
+        
+        # Send thinking analysis
+        self.sio.emit('message', {
+            'type': 'show_thinking_analysis_and_decomposition',
+            'text': {
+                'user_task': f"{task_name} {' '.join(task_args)}",
+                'task_name': task_name,
+                'task_args': task_args,
+                'analysis_text': analysis_text
+            }
+        })
+        print(f"Sent thinking analysis for {task_name}")
+        
+        # Then, send decomposition tree structure
         # Convert method_execs to subtasks format
         subtasks = []
         for method_exec in method_execs:
@@ -88,7 +128,7 @@ class WebInterface:
             'type': 'confirm_best_match_decomposition',
             'text': result
         })
-        print("The message is emitted")
+        print("Decomposition tree message emitted")
         
         # Wait for user response from chatbot buttons (Approve/Reject)
         self.user_response = None  
@@ -413,8 +453,101 @@ class WebInterface:
         else:
             corrected_task_name = task_name
             corrected_task_args = task_args
-            
+        
+        # After grounding correction, just return
+        # Both thinking analysis and decomposition tree will be shown together in the main loop
         return corrected_task_name, corrected_task_args
+
+    def show_thinking_analysis_and_decomposition_after_correction_OLD_BACKUP(self, user_task: str, task_name: str, task_args: List[str], available_actions: List[str], env_objects: List[str]):
+        """
+        Show thinking analysis and decomposition tree after grounding correction
+        """
+        # First show thinking analysis
+        self.sio.emit('message', {
+            'type': 'show_thinking_analysis_and_decomposition',
+            'text': {
+                'user_task': user_task,
+                'task_name': task_name,
+                'task_args': task_args
+            }
+        })
+        
+        # Then show decomposition tree - we need to check if there are existing decompositions
+        try:
+            from pyhtn.htn import Task, TaskEx
+            
+            # Create a basic task structure for display
+            task = Task(task_name, args=task_args)
+            
+            # Try to get existing method_execs for this task
+            # This should be similar to what happens in the main planning loop
+            method_execs = []
+            try:
+                # Create a temporary task execution to check for methods
+                state = self.env.get_state()
+                task_exec = TaskEx(task, state, match=task_args)
+                
+                # Try to get method executions for this task
+                if hasattr(self, 'htn_interface') and self.htn_interface:
+                    method_execs = self.htn_interface.get_method_execs_for_task(task_exec)
+                    print(f"Found {len(method_execs)} existing method_execs for task {task_name}")
+                else:
+                    print("No htn_interface available, using empty method_execs")
+            except Exception as e:
+                print(f"Could not get method_execs: {e}")
+                method_execs = []
+            
+            # Convert method_execs to subtasks format (similar to query_next_decomposition_with_edit)
+            subtasks = []
+            if method_execs and len(method_execs) > 0:
+                for method_exec in method_execs:
+                    method_dict = method_exec.as_dict()
+                    child_list = method_dict.get("child_data", [])
+                    
+                    formatted_children = [
+                        {
+                            "task_name": child["name"],
+                            "args": [str(m).replace('_', ' ') for m in child["match"]],
+                            "hash": child["id"]
+                        }
+                        for child in child_list
+                    ]
+                    subtasks.append(formatted_children)
+                print(f"Created {len(subtasks)} subtask groups")
+            else:
+                print("No existing method_execs found, showing empty structure")
+            
+            # Create the result structure
+            result = {
+                "head": {
+                    "name": task_name,
+                    "V": ' '.join(task_args) if task_args else '',
+                    "hash": f"{task_name}_{hash(' '.join(task_args))}"
+                },
+                "subtasks": subtasks,
+                "available_actions": available_actions,
+                "env_objects": env_objects
+            }
+            
+            # Send decomposition tree structure
+            self.sio.emit('message', {
+                'type': 'confirm_best_match_decomposition',
+                'text': result
+            })
+            print(f"Sent decomposition tree for task: {task_name}({task_args}) with {len(subtasks)} subtask groups")
+            
+        except Exception as e:
+            print(f"Error creating decomposition tree: {e}")
+            # Fallback: just send a basic message
+            self.sio.emit('message', {
+                'type': 'show_thinking_analysis_and_decomposition',
+                'text': {
+                    'user_task': user_task,
+                    'task_name': task_name,
+                    'task_args': task_args,
+                    'error': str(e)
+                }
+            })
 
 
 # ### previous version ###

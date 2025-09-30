@@ -104,35 +104,7 @@ class ValAgent:
                     #  user_interface decide which method_exec will be applied
                     available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
 
-                    # First display decomposition analysis for user understanding
-                    if method_execs and len(method_execs) > 0:
-                        # Display analysis for the first method (default choice)
-                        task_name = task_exec.task.name
-                        default_method = method_execs[0]
-                        subtask_names = [f"{s.name}({', '.join([str(arg) for arg in s.args])})" for s in default_method.method.subtasks]
-                        
-                        # Create thinking-style analysis text (like in the image)
-                        # Get environment objects for context
-                        env_objects = self.env.get_objects()
-                        objects_text = ', '.join(env_objects[:5])  # Show first 5 objects
-                        if len(env_objects) > 5:
-                            objects_text += f" and {len(env_objects) - 5} more..."
-                        
-                        analysis_text = f"""Thinking...
-
-The game environment contains {objects_text}.
-
-Based on my knowledge and the condition, I will decompose {task_name} to {', '.join(subtask_names)}.
-
-Is it correct?"""
-                        
-                        # Extract precondition information
-                        precondition_names = [str(p) for p in default_method.method.preconditions] if default_method.method.preconditions else []
-                        
-                        self.user_interface.display_decomposition_analysis(
-                            task_name, analysis_text, subtask_names, precondition_names
-                        )
-                    
+                    # Query decomposition with edit options (this will display the tree and wait for response)
                     user_choice, next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
                             task_exec, method_execs, available_actions, self.env.get_objects())
@@ -212,29 +184,15 @@ Is it correct?"""
             # Get available actions from htn_interface
             available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
             
+            # Correct grounding - this will show the grounding correction interface
             corrected_task_name, corrected_task_args = self.user_interface.correct_grounding(
                 user_task, task_name, task_args, self.env.get_objects(), available_actions
             )
             
-            # Display thinking analysis after grounding
-            self.display_thinking_analysis_after_grounding(
-                user_task, corrected_task_name, corrected_task_args
-            )
-            
-            # Wait for user confirmation of grounding
-            self.user_interface.user_response = None
-            self.user_interface.response_received = False
-            self.user_interface.expected_type = 'confirm_response'
-            
-            while not self.user_interface.response_received:
-                self.user_interface.sio.sleep(0.1)
-            
-            # If user approves, create and yield the task
-            if self.user_interface.user_response == 'yes':
-                yield Task(str(corrected_task_name), args=list(corrected_task_args))
-            else:
-                # User rejected, skip this task
-                continue
+            # Create task and yield it
+            # Note: We don't show thinking analysis here because it will be shown
+            # together with decomposition tree in the main loop
+            yield Task(str(corrected_task_name), args=list(corrected_task_args))
             
             
     def query_new_method_exec(self, task_exec: TaskEx):
@@ -277,6 +235,38 @@ Is it correct?"""
         self.user_interface.display_thinking_analysis(
             user_task, task_name, task_args, analysis_text
         )
+
+    def display_thinking_analysis_and_decomposition_tree(self, user_task: str, task_name: str, task_args: List[str], task_exec: TaskEx, method_execs: List[MethodEx]):
+        """
+        Display thinking analysis and decomposition tree after grounding
+        """
+        # Get environment objects for context
+        env_objects = self.env.get_objects()
+        objects_text = ', '.join(env_objects[:5])  # Show first 5 objects
+        if len(env_objects) > 5:
+            objects_text += f" and {len(env_objects) - 5} more..."
+        
+        # Create thinking-style analysis text
+        task_args_text = ', '.join(task_args) if task_args else 'no objects'
+        analysis_text = f"""Thinking...
+
+The game environment contains {objects_text}.
+
+Based on your input "{user_task}", I understood this as the action: {task_name}({task_args_text}).
+
+Is it correct?"""
+        
+        # Display the thinking analysis in chatbot
+        self.user_interface.display_thinking_analysis(
+            user_task, task_name, task_args, analysis_text
+        )
+        
+        # Display decomposition tree if methods are available
+        if method_execs and len(method_execs) > 0:
+            available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
+            self.user_interface.query_next_decomposition_with_edit(
+                task_exec, method_execs, available_actions, env_objects
+            )
     
 ####### edit functions: from chatbot and gui #######
 #edit functions are used to create a new method execution
