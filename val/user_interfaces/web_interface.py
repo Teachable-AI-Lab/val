@@ -25,90 +25,195 @@ class WebInterface:
     
     def query_next_decomposition_with_edit(self, 
         task_exec: TaskEx, 
-        method_execs: Sequence[MethodEx], available_actions: List[str], env_objects: List[str]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+        method_execs: Sequence[MethodEx], available_actions: List[str], env_objects: List[str]) -> Tuple[str, MethodEx, Sequence[Optional[float]]]:
         """
-        Enhanced version that allows users to edit decomposition options
-        Supports two edit modes:
-        1. GUI edit: User edits directly in the interface
-        2. Chatbot edit: User responds via chatbot (triggers query_new_method_exec)
-        Returns (chosen_or_edited_method_exec, rewards)
+        Query user for decomposition choice with edit options
+        
+        Args:
+            task_exec: The task execution to decompose
+            method_execs: Available method executions for this task
+            available_actions: List of available actions in the environment
+            env_objects: List of available objects in the environment
+            
+        Returns:
+            Tuple of (user_choice, chosen_method_exec, rewards)
         """
+        print("query_next_decomposition_with_edit called")
+        print("task_exec:", task_exec)
+        print("method_execs:", method_execs)
+        print("method_execs type:", type(method_execs))
+        print("method_execs length:", len(method_execs) if method_execs else "None or empty")
+        
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'response_decomposition_with_edit' 
-        env_objects=list(set(env_objects))
-        available_actions=list(set(available_actions))
-        # Skip if there are no method_execs 
+        
+        # For NEW_ACTION or unknown tasks, go directly to add_method
         if(method_execs is None or len(method_execs) == 0):
-            user_choice = 'add_method'
-            return user_choice, None, []
-        else:
-            ##### convert format ##### 
-            # Step 1: get head
-            head = task_exec.as_dict()
-            match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+            print("No method_execs available, going to add_method")
+            return 'add_method', None, []
 
-            # Step 2: build subtasks
-            subtasks = []
-            for method_exec in method_execs:
-                method_dict = method_exec.as_dict()
-                child_list = method_dict.get("child_data", [])
-                
-                # Convert each child dict to the desired format
-                formatted_children = [
-                    {
-                        "task_name": child["name"],
-                        "args": [str(m).replace('_', ' ') for m in child["match"]],
-                        "hash": child["id"]
-                    }
-                    for child in child_list
-                ]
-                subtasks.append(formatted_children)
-
-            # Step 3: combine everything into one dict
-            result = {
-                "head": {
-                    "name": head["name"],
-                    "V": match,  
-                    "hash": head["id"]
-                },
-                "subtasks": subtasks,
-                "available_actions": available_actions,
-                "env_objects": env_objects
-            }
-
-            self.user_response = None  
-            self.response_received = False
-
-            self.sio.emit('message', {'type': 'confirm_best_match_decomposition', 'text': result})
-            print("The message is emitted")
-            while not self.response_received:
-                self.sio.sleep(0.1)
-                
-            response = self.user_response 
-            rewards = [None]*len(method_execs)
-            user_choice=response.get('user_choice', None)
-            # Handle different response types
-            if user_choice == 'gui_edit':
-                    # User edited via GUI - return None to trigger new method creation from edited content
-                self.last_edited_decomposition = response.get('edited_decomposition', {})
-                return user_choice, None, []
-            elif user_choice == 'chatbot_edit':
-                    # User responded via chatbot - this triggers query_new_method_exec flow
-                self.chatbot_response = response.get('chatbot_response', '')
-                self.last_preconditions = response.get('preconditions', [])
-                return user_choice, None, []
-            elif user_choice == "add_method":
-                return user_choice, None, []
-            elif user_choice == 'approve':
-                # Legacy support for simple index
-                response_index = response.get('index', None)
-                print("response_index", response_index)
-                rewards[response_index] = 1.0
-                return user_choice, method_execs[response_index], rewards 
-            user_choice = 'add_method'
-            return user_choice, None, []
+        # Send confirm_best_match_decomposition message to show tree structure
+        head = task_exec.as_dict()
+        match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
+        
+        # Convert method_execs to subtasks format
+        subtasks = []
+        for method_exec in method_execs:
+            method_dict = method_exec.as_dict()
+            child_list = method_dict.get("child_data", [])
+            
+            formatted_children = [
+                {
+                    "task_name": child["name"],
+                    "args": [str(m).replace('_', ' ') for m in child["match"]],
+                    "hash": child["id"]
+                }
+                for child in child_list
+            ]
+            subtasks.append(formatted_children)
+        
+        result = {
+            "head": {
+                "name": head["name"],
+                "V": match,
+                "hash": head["id"]
+            },
+            "subtasks": subtasks,
+            "available_actions": available_actions,
+            "env_objects": env_objects
+        }
+        
+        self.sio.emit('message', {
+            'type': 'confirm_best_match_decomposition',
+            'text': result
+        })
+        print("The message is emitted")
+        
+        # Wait for user response from chatbot buttons (Approve/Reject)
+        self.user_response = None  
+        self.response_received = False 
+        self.expected_type = 'response_decomposition_with_edit'
+        
+        print("Waiting for user response from chatbot...")
+        while not self.response_received:
+            self.sio.sleep(0.1)
+            
+        response = self.user_response 
+        rewards = [0.0] * len(method_execs)
+        user_choice = response.get('user_choice', None)
+        response_index = response.get('index', 0)
+        
+        print("response_index", response_index)
+        print("user_choice", user_choice)
+        
+        # Handle different response types
+        if user_choice == 'gui_edit':
+            self.last_edited_decomposition = response.get('edited_decomposition', {})
+            return user_choice, method_execs[response_index], rewards
+        elif user_choice == 'chatbot_edit':
+            self.chatbot_response = response.get('chatbot_response', '')
+            self.last_preconditions = response.get('preconditions', [])
+            return user_choice, method_execs[response_index], rewards
+        elif user_choice == 'approve':
+            rewards[response_index] = 1.0
+            return user_choice, method_execs[response_index], rewards 
+        elif user_choice == 'reject':
+            # For now, treat reject as add_method - user wants to create new method
+            return 'add_method', None, []
+        
+        # Default to add_method
+        return 'add_method', None, []
     
+    def display_thinking_analysis(self, user_task: str, task_name: str, task_args: List[str], analysis_text: str):
+        """
+        Display thinking analysis after grounding in the chatbot
+        
+        Args:
+            user_task: Original user input
+            task_name: Extracted task name
+            task_args: Extracted task arguments
+            analysis_text: Thinking analysis text
+        """
+        print(f"Displaying thinking analysis for grounding")
+        print(f"User task: {user_task}")
+        print(f"Extracted: {task_name}({task_args})")
+        print(f"Analysis: {analysis_text}")
+        
+        # Send thinking analysis to frontend chatbot
+        self.sio.emit('message', {
+            'type': 'display_thinking_analysis',
+            'text': {
+                'user_task': user_task,
+                'task_name': task_name,
+                'task_args': task_args,
+                'analysis_text': analysis_text
+            }
+        })
+
+    def display_decomposition_analysis(self, task_name: str, analysis_text: str, subtask_names: List[str], precondition_names: List[str]):
+        """
+        Display decomposition analysis in the chatbot
+        
+        Args:
+            task_name: Name of the task being analyzed
+            analysis_text: Detailed analysis text
+            subtask_names: List of subtask names
+            precondition_names: List of precondition names
+        """
+        print(f"Displaying decomposition analysis for {task_name}")
+        print(f"Analysis: {analysis_text}")
+        print(f"Subtasks: {subtask_names}")
+        print(f"Preconditions: {precondition_names}")
+        
+        # Send analysis to frontend chatbot
+        self.sio.emit('message', {
+            'type': 'display_decomposition_analysis',
+            'text': {
+                'task_name': task_name,
+                'analysis_text': analysis_text,
+                'subtask_names': subtask_names,
+                'precondition_names': precondition_names
+            }
+        })
+
+    def display_edit_options(self, message: str):
+        """
+        Display edit options in the chatbot
+        
+        Args:
+            message: Message to display to user
+        """
+        print(f"Displaying edit options: {message}")
+        
+        # Send edit options to frontend chatbot
+        self.sio.emit('message', {
+            'type': 'display_edit_options',
+            'text': message
+        })
+
+    def display_method_creation(self, task_name: str, subtask_names: List[str], precondition_names: List[str]):
+        """
+        Display method creation process in the chatbot
+        
+        Args:
+            task_name: Name of the task being created
+            subtask_names: List of subtask names
+            precondition_names: List of precondition names
+        """
+        print(f"Displaying method creation for {task_name}")
+        print(f"Subtasks: {subtask_names}")
+        print(f"Preconditions: {precondition_names}")
+        
+        # Send method creation info to frontend chatbot
+        self.sio.emit('message', {
+            'type': 'display_method_creation',
+            'text': {
+                'task_name': task_name,
+                'subtask_names': subtask_names,
+                'precondition_names': precondition_names
+            }
+        })
 
     def display_added_method(self, task_exec: TaskEx, 
         method_exec: MethodEx):
@@ -167,56 +272,42 @@ class WebInterface:
                                   'text': "Those are the actions I know:" + text})
         return
 
-    def display_decomposition_analysis(self, task_name: str, chatbot_response: str, subtasks: List[str], preconditions: List[str] = None):
+
+    def display_method_creation(self, message: str, task_name: str = None, subtasks: List[str] = None, preconditions: List[str] = None):
         """
-        Display the complete decomposition analysis including precondition analysis and thinking process
+        Display when a new method is being created
         Args:
-            task_name: The task being decomposed
-            chatbot_response: Original chatbot response
-            subtasks: List of subtasks
+            message: Simple message to display
+            task_name: The task name (optional)
+            subtasks: List of subtasks (optional)
             preconditions: List of preconditions (optional)
         """
-        # Format subtasks
-        subtasks_text = ", ".join(subtasks)
-        
-        # Build comprehensive analysis message
-        analysis_parts = []
-        
-        # Add precondition analysis
-        if preconditions and len(preconditions) > 0:
-            analysis_parts.append(f"🔍 **Precondition Analysis:** Found conditions: {', '.join(preconditions)}")
+        if task_name and subtasks:
+            # Full method creation display
+            subtasks_text = ", ".join(subtasks)
+            creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
+            
+            if preconditions and len(preconditions) > 0:
+                creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
         else:
-            analysis_parts.append("🔍 **Precondition Analysis:** No specific conditions found")
+            # Simple message display
+            creation_text = f"⚙️ **Add New Method**\n\n{message}"
         
-        # Add thinking process
-        analysis_parts.append(f"🧠 **Thinking Process:** Learned that `{task_name}` should be decomposed to: {subtasks_text}")
-        
-        # Combine all parts
-        analysis_text = "\n\n".join(analysis_parts)
-        
-        self.sio.emit('message', {'type': 'display_decomposition_analysis', 'text': analysis_text})
-        print("Decomposition analysis message emitted")
+        self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
+        print("Method creation message emitted")
         return
 
-    # def display_method_creation(self, task_name: str, subtasks: List[str], preconditions: List[str] = None):
-    #     """
-    #     Display when a new method is being created
-    #     Args:
-    #         task_name: The task name
-    #         subtasks: List of subtasks
-    #         preconditions: List of preconditions (optional)
-    #     """
-    #     subtasks_text = ", ".join(subtasks)
-    #     creation_text = f"⚙️ **Creating New Method:** `{task_name}`\n\n**Subtasks:** {subtasks_text}"
-        
-    #     if preconditions and len(preconditions) > 0:
-    #         creation_text += f"\n\n**Preconditions:** {', '.join(preconditions)}"
-        
-    #     self.sio.emit('message', {'type': 'display_method_creation', 'text': creation_text})
-    #     print("Method creation message emitted")
-    #     return
+    def display_edit_options(self, message: str):
+        """
+        Display editing options for existing decompositions
+        Args:
+            message: Message to display
+        """
+        self.sio.emit('message', {'type': 'display_edit_options', 'text': f"✏️ **Edit Decomposition**\n\n{message}"})
+        print("Edit options message emitted")
+        return
 
-    # def display_edit_options(self, task_exec, method_execs):
+    # def display_edit_options_old(self, task_exec, method_execs):
     #     """
     #     Display editing options for existing decompositions
     #     Args:
@@ -505,4 +596,4 @@ if __name__ == "__main__":
         TaskEx("task1", "arg1"),
         [MethodEx("method1", "arg1"), MethodEx("method2", "arg2")]
     ))
-    
+

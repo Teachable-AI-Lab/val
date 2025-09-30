@@ -55,9 +55,16 @@ class ValAgent:
 
             user_tasks = self.user_interface.request_user_task()
             tasks = [task for task in self.interpret(user_tasks)]
-            print(f"Tasks: {tasks}")
-            # planner = self.htn_interface.get_planner(tasks)
-            self.htn_interface.add_tasks(tasks)
+            
+            # Filter out any special string responses
+            actual_tasks = [task for task in tasks if not isinstance(task, str)]
+            
+            # If no actual tasks, return
+            if not actual_tasks:
+                return
+            
+            print(f"Tasks: {actual_tasks}")
+            self.htn_interface.add_tasks(actual_tasks)
             #task here is a list of dicts. eg [{'name': 'moveTo', 'arguments': ['onion']}] 
 
             user_choice = None
@@ -77,12 +84,19 @@ class ValAgent:
 
                     # Get the method executions considered by the planner
                     task_exec, method_execs = self.htn_interface.get_next_method_execs()
+                    
+                    print(f"DEBUG: task_exec = {task_exec}")
+                    print(f"DEBUG: method_execs = {method_execs}")
+                    print(f"DEBUG: method_execs type = {type(method_execs)}")
+                    if method_execs:
+                        print(f"DEBUG: method_execs length = {len(method_execs)}")
 
                     
                     # if this is an unknown task, the user interface will return next_method_exec as None
                     # and it will go to query_new_method_exec
                     if method_execs is None:
                         method_execs = []
+                        print("DEBUG: method_execs was None, set to empty list")
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -90,15 +104,44 @@ class ValAgent:
                     #  user_interface decide which method_exec will be applied
                     available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
 
+                    # First display decomposition analysis for user understanding
+                    if method_execs and len(method_execs) > 0:
+                        # Display analysis for the first method (default choice)
+                        task_name = task_exec.task.name
+                        default_method = method_execs[0]
+                        subtask_names = [f"{s.name}({', '.join([str(arg) for arg in s.args])})" for s in default_method.method.subtasks]
+                        
+                        # Create thinking-style analysis text (like in the image)
+                        # Get environment objects for context
+                        env_objects = self.env.get_objects()
+                        objects_text = ', '.join(env_objects[:5])  # Show first 5 objects
+                        if len(env_objects) > 5:
+                            objects_text += f" and {len(env_objects) - 5} more..."
+                        
+                        analysis_text = f"""Thinking...
+
+The game environment contains {objects_text}.
+
+Based on my knowledge and the condition, I will decompose {task_name} to {', '.join(subtask_names)}.
+
+Is it correct?"""
+                        
+                        # Extract precondition information
+                        precondition_names = [str(p) for p in default_method.method.preconditions] if default_method.method.preconditions else []
+                        
+                        self.user_interface.display_decomposition_analysis(
+                            task_name, analysis_text, subtask_names, precondition_names
+                        )
+                    
                     user_choice, next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
                             task_exec, method_execs, available_actions, self.env.get_objects())
                         
-                    # Generate and display explanation for the chosen method
+                    # Handle user choice
                     if user_choice == 'approve':
                         print("user_choice", user_choice)
-                        # explanation = self.explain_decision(task_exec, method_execs, next_method_exec)
-                        # self.user_interface.display_explanation(explanation)
+                        # Display the approved decomposition tree
+                        self.user_interface.display_added_method(task_exec, next_method_exec)
 
                     #### edit from gui ####
                     elif user_choice == 'gui_edit':
@@ -173,7 +216,25 @@ class ValAgent:
                 user_task, task_name, task_args, self.env.get_objects(), available_actions
             )
             
-            yield Task(str(corrected_task_name), args=list(corrected_task_args))
+            # Display thinking analysis after grounding
+            self.display_thinking_analysis_after_grounding(
+                user_task, corrected_task_name, corrected_task_args
+            )
+            
+            # Wait for user confirmation of grounding
+            self.user_interface.user_response = None
+            self.user_interface.response_received = False
+            self.user_interface.expected_type = 'confirm_response'
+            
+            while not self.user_interface.response_received:
+                self.user_interface.sio.sleep(0.1)
+            
+            # If user approves, create and yield the task
+            if self.user_interface.user_response == 'yes':
+                yield Task(str(corrected_task_name), args=list(corrected_task_args))
+            else:
+                # User rejected, skip this task
+                continue
             
             
     def query_new_method_exec(self, task_exec: TaskEx):
@@ -191,6 +252,31 @@ class ValAgent:
 
         # Use the generic method to create MethodEx (no preconditions for manual input)
         return self.create_method_exec(task_exec, subtasks)
+    
+    def display_thinking_analysis_after_grounding(self, user_task: str, task_name: str, task_args: List[str]):
+        """
+        Display thinking analysis after grounding to show the user what was understood
+        """
+        # Get environment objects for context
+        env_objects = self.env.get_objects()
+        objects_text = ', '.join(env_objects[:5])  # Show first 5 objects
+        if len(env_objects) > 5:
+            objects_text += f" and {len(env_objects) - 5} more..."
+        
+        # Create thinking-style analysis text
+        task_args_text = ', '.join(task_args) if task_args else 'no objects'
+        analysis_text = f"""Thinking...
+
+The game environment contains {objects_text}.
+
+Based on your input "{user_task}", I understood this as the action: {task_name}({task_args_text}).
+
+Is it correct?"""
+        
+        # Display the thinking analysis in chatbot
+        self.user_interface.display_thinking_analysis(
+            user_task, task_name, task_args, analysis_text
+        )
     
 ####### edit functions: from chatbot and gui #######
 #edit functions are used to create a new method execution
@@ -213,8 +299,16 @@ class ValAgent:
                 subtask = Task(task_name, args=task_args_list)
                 subtasks.append(subtask)
 
-        # Use the generic method to create MethodEx (no preconditions for GUI)
-        return self.create_method_exec(task_exec, subtasks)
+        # Extract preconditions if provided
+        preconditions = []
+        if 'preconditions' in edited_decomposition and edited_decomposition['preconditions']:
+            for precondition_name in edited_decomposition['preconditions']:
+                # Create simple preconditions - you might want to parse more complex ones
+                precondition = Fact(precondition_name, "=", True)
+                preconditions.append(precondition)
+        
+        # Use the generic method to create MethodEx with preconditions
+        return self.create_method_exec(task_exec, subtasks, preconditions)
     
     
     def edit_from_chat(self, task_exec: TaskEx, chatbot_response: str, preconditions: List[str]) -> MethodEx:
@@ -229,7 +323,7 @@ class ValAgent:
         """
         task_name = task_exec.task.name
         
-        # Display decomposition analysis (preconditions + thinking process)
+        # Parse preconditions
         parsed_preconditions = self.parse_preconditions(chatbot_response, task_name)
         precondition_names = [str(p) for p in parsed_preconditions]
         
