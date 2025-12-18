@@ -136,6 +136,77 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         return objects
 
+
+#######################This is for baseline model which only has actions like go to, interact, wait 20min
+    def get_primary_actions(self) -> List[Tuple[str, List[str]]]:
+        domain= {}
+        descriptions = {}
+        ####### operators #######
+        domain["go to"] = [
+            Operator(
+                name='go to', 
+                args=(V('location'),),
+                # preconditions=[Fact(type='fact', object=V('location'))],
+                effects=[]
+            ),
+        ]
+        descriptions["go to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
+        
+        domain["interact"] = [
+            Operator(
+                name='interact',
+                args=(),
+                preconditions=[],
+                effects=[]
+            ),
+        ]
+        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
+        domain["wait 20min"] = [
+            Operator(
+                name='wait 20min',
+                args=(),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["wait 20min"] = "Waits for 20 time steps."
+        domain["left"] = [
+            Operator(
+                name=('left',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["left"] = "Moves one unit left."
+
+        domain["right"] = [
+            Operator(
+                name=('right',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["right"] = "Moves one unit right."
+
+        domain["up"] = [
+            Operator(
+                name=('up',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["up"] = "Moves one unit up."
+
+        domain["down"] = [
+            Operator(
+                name=('down',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["down"] = "Moves one unit down."
+        return domain, descriptions
+
     def get_actions(self) -> List[Tuple[str, List[str]]]:
         domain= {}
         descriptions = {}
@@ -257,41 +328,41 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["wait 20min"] = "Waits for 20 time steps."
 
-        # domain["left/0"] = [
-        #     Operator(
-        #         name=('left',),
-        #         preconditions=(),
-        #         effects=[]
-        #     ),
-        # ]
-        # descriptions["left/0"] = "Moves one unit left."
+        domain["left"] = [
+            Operator(
+                name=('left',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["left"] = "Moves one unit left."
 
-        # domain["right/0"] = [
-        #     Operator(
-        #         name=('right',),
-        #         preconditions=(),
-        #         effects=[]
-        #     ),
-        # ]
-        # descriptions["right/0"] = "Moves one unit right."
+        domain["right"] = [
+            Operator(
+                name=('right',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["right"] = "Moves one unit right."
 
-        # domain["up/0"] = [
-        #     Operator(
-        #         name=('up',),
-        #         preconditions=(),
-        #         effects=[]
-        #     ),
-        # ]
-        # descriptions["up/0"] = "Moves one unit up."
+        domain["up"] = [
+            Operator(
+                name=('up',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["up"] = "Moves one unit up."
 
-        # domain["down/0"] = [
-        #     Operator(
-        #         name=('down',),
-        #         preconditions=(),
-        #         effects=[]
-        #     ),
-        # ]
-        # descriptions["down/0"] = "Moves one unit down."
+        domain["down"] = [
+            Operator(
+                name=('down',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["down"] = "Moves one unit down."
 
         
    
@@ -429,10 +500,6 @@ if __name__ == "__main__":
     #for i in range(horizon):
     env.get_state()
     actions = env.get_actions()
-    env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="wait20", args=[])
     
     env.execute_action(action_name="go to", args=['onion'])
     env.execute_action(action_name="interact", args=['onion'])
@@ -441,12 +508,10 @@ if __name__ == "__main__":
     
     env.execute_action(action_name="interact", args=['pot'])
     env.execute_action(action_name="wait20", args=[])
-    env.execute_action(action_name="interact", args=['pot'])
 
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="wait20", args=[])
     env.execute_action(action_name="go to", args=['dish'])
     env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
     env.execute_action(action_name="go to", args=['pot'])
     env.execute_action(action_name="interact", args=['pot'])
     env.execute_action(action_name="go to", args=['serving pad'])

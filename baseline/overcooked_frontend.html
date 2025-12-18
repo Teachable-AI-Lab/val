@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overcooked AI - Game Control Interface</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .input-section, .output-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+        }
+
+        .output-section {
+            flex: 1;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .output-area {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1;
+            min-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .message.assistant {
+            background: #f1f8e9;
+            border-left: 4px solid #8bc34a;
+        }
+
+        .message.error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .message.system {
+            background: #f5f5f5;
+            border-left: 4px solid #9e9e9e;
+        }
+
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .message-content {
+            color: #555;
+            white-space: pre-wrap;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #4caf50;
+        }
+
+        .status-disconnected {
+            background: #f44336;
+        }
+
+        .status-processing {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .action-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .action-info strong {
+            color: #856404;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 15px;
+            }
+            
+            .input-section, .output-section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍳 Overcooked AI Game Control</h1>
+            <p>Enter natural language commands, and AI will help you execute game actions</p>
+            <p style="margin-top: 10px;">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Connecting...</span>
+            </p>
+        </div>
+
+        <div class="main-content">
+            <div class="output-section">
+                <h2 class="section-title">💬 Conversation History</h2>
+                <div class="output-area" id="outputArea">
+                    <div class="message system">
+                        <div class="message-header">System</div>
+                        <div class="message-content">Waiting for connection...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <h2 class="section-title">📝 Enter Command</h2>
+                <div class="input-group">
+                    <label for="userInput">Please enter the action you want to perform (e.g., get onion, go to pot, start cooking, etc.):</label>
+                    <textarea id="userInput" placeholder="e.g., Get an onion, then go to the pot to start cooking..."></textarea>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" id="sendBtn" onclick="sendMessage()">Send Command</button>
+                    <button class="btn-secondary" onclick="clearOutput()">Clear Output</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:4002');
+        const outputArea = document.getElementById('outputArea');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+
+        // Connection status management
+        socket.on('connect', () => {
+            updateStatus('connected', 'Connected');
+            addMessage('system', 'System', 'Successfully connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('disconnected', 'Disconnected');
+            addMessage('system', 'System', 'Disconnected from server');
+        });
+
+        // Receive server messages
+        socket.on('message', (data) => {
+            if (data.type === 'action_response') {
+                addMessage('assistant', 'AI Assistant', data.message);
+                if (data.action) {
+                    addActionInfo(data.action);
+                }
+                // Restore button state
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Command';
+                updateStatus('connected', 'Connected');
+            } else if (data.type === 'error') {
+                addMessage('error', 'Error', data.message);
+                // Restore button state
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Command';
+                updateStatus('connected', 'Connected');
+            } else if (data.type === 'status') {
+                addMessage('system', 'System', data.message);
+            }
+        });
+
+        function updateStatus(status, text) {
+            statusIndicator.className = 'status-indicator status-' + status;
+            statusText.textContent = text;
+        }
+
+        function addMessage(type, header, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <div class="message-header">${header}</div>
+                <div class="message-content">${escapeHtml(content)}</div>
+            `;
+            outputArea.appendChild(messageDiv);
+            outputArea.scrollTop = outputArea.scrollHeight;
+        }
+
+        function addActionInfo(action) {
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'action-info';
+            actionDiv.innerHTML = `
+                <strong>Executed Action:</strong> ${action.name}(${action.args.join(', ') || 'no args'})
+            `;
+            const lastMessage = outputArea.lastElementChild;
+            if (lastMessage) {
+                lastMessage.appendChild(actionDiv);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sendMessage() {
+            const input = userInput.value.trim();
+            if (!input) {
+                alert('Please enter a command');
+                return;
+            }
+
+            // Display user message
+            addMessage('user', 'You', input);
+
+            // Disable button and show processing status
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Processing...';
+            updateStatus('processing', 'Processing');
+
+            // Send to server
+            socket.emit('user_command', {
+                command: input,
+                timestamp: new Date().toISOString()
+            });
+
+            // Clear input box
+            userInput.value = '';
+        }
+
+        function clearOutput() {
+            outputArea.innerHTML = '';
+            addMessage('system', 'System', 'Output cleared');
+        }
+
+        // Send on Enter (Ctrl+Enter)
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
+
