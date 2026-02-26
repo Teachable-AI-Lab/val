@@ -77,7 +77,7 @@ def init_environment(enable_render=True):
         
         # Initialize environment with rendering enabled
         # pygame init must be in main thread
-        env = OvercookedAIEnv(player_id=0, horizon=100, layout="asymmetric_advantages", render=enable_render)
+        env = OvercookedAIEnv(player_id=0, horizon=5000, layout="asymmetric_advantages", render=enable_render)
         print("Environment initialized successfully")
         
         return True

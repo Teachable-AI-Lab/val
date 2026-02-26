@@ -84,7 +84,7 @@ class OvercookedRouteProblem(Problem):
 
 class OvercookedAIEnv(AbstractEnvInterface):
 
-    def __init__(self, player_id=0, horizon=100, layout="asymmetric_advantages", render=True):
+    def __init__(self, player_id=0, horizon=5000, layout="asymmetric_advantages", render=True):
         """
         Full list of layouts here:
         https://github.com/HumanCompatibleAI/overcooked_ai/tree/cb2e50cae95accbe4618879d88e565c87c54b1c3/src/overcooked_ai_py/data/layouts
@@ -495,12 +495,117 @@ class OvercookedAIEnv(AbstractEnvInterface):
         return True
 
 if __name__ == "__main__":
-    horizon = 100
+    horizon = 5000
     env = OvercookedAIEnv(player_id=0, horizon=horizon)
     #for i in range(horizon):
     env.get_state()
     actions = env.get_actions()
     
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait20", args=[])
+
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
     env.execute_action(action_name="go to", args=['onion'])
     env.execute_action(action_name="interact", args=['onion'])
     env.execute_action(action_name="go to", args=['pot'])

@@ -415,6 +415,76 @@ class OvercookedAIEnv(AbstractEnvInterface):
         descriptions["wait 20min"] = "Waits for 20 time steps."
    
         return domain, descriptions
+    
+    ######################This is for baseline model which only has actions like go to, interact, wait 20min
+    def get_primary_actions(self) -> List[Tuple[str, List[str]]]:
+        domain= {}
+        descriptions = {}
+        ####### operators #######
+        domain["go to"] = [
+            Operator(
+                name='go to', 
+                args=(V('location'),),
+                # preconditions=[Fact(type='fact', object=V('location'))],
+                effects=[]
+            ),
+        ]
+        descriptions["go to"] = "Goes to and faces the target object, where object is something like pot, onion etc."
+        
+        domain["interact"] = [
+            Operator(
+                name='interact',
+                args=(),
+                preconditions=[],
+                effects=[]
+            ),
+        ]
+        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
+        domain["wait 20min"] = [
+            Operator(
+                name='wait 20min',
+                args=(),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["wait 20min"] = "Waits for 20 time steps."
+        domain["left"] = [
+            Operator(
+                name=('left',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["left"] = "Moves one unit left."
+
+        domain["right"] = [
+            Operator(
+                name=('right',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["right"] = "Moves one unit right."
+
+        domain["up"] = [
+            Operator(
+                name=('up',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["up"] = "Moves one unit up."
+
+        domain["down"] = [
+            Operator(
+                name=('down',),
+                preconditions=(),
+                effects=[]
+            ),
+        ]
+        descriptions["down"] = "Moves one unit down."
+        return domain, descriptions
 
     def get_player_pos_and_or(self):
         return (self.base_env.state.players[self.player_id].position,
