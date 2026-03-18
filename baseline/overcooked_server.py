@@ -1,6 +1,5 @@
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO, emit
-import yaml
 import json
 import re
 import os
@@ -10,6 +9,7 @@ from typing import List, Tuple, Optional
 
 from val.env_interfaces.overcooked_ai.overcooked_ai_env import OvercookedAIEnv
 from val.gpt_completer import GPTCompleter
+from val.utils import get_openai_config
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -21,17 +21,13 @@ gpt_completer = None
 conversation_history = []  # Store recent conversation history
 MAX_HISTORY_LENGTH = 20  # Maximum number of conversation turns to keep
 
-# Load API key
-def load_api_key():
+# Load OpenAI-compatible config
+def load_openai_config():
     try:
-        # Look for keys.yaml in parent directory
-        keys_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'keys.yaml')
-        with open(keys_path, 'r', encoding='utf-8') as f:
-            keys = yaml.safe_load(f)
-            return keys.get('open_ai_key', '')
+        return get_openai_config()
     except Exception as e:
-        print(f"Error loading API key: {e}")
-        return ''
+        print(f"Error loading OpenAI config: {e}")
+        return {"api_key": "", "base_url": None, "model": None}
 
 # Pygame rendering loop (async version)
 async def run_render(env):
@@ -69,11 +65,12 @@ async def run_render(env):
 def init_environment(enable_render=True):
     global env, gpt_completer
     try:
-        api_key = load_api_key()
+        config = load_openai_config()
+        api_key = config.get("api_key")
         if not api_key:
             print("Warning: No API key found. GPT features will not work.")
         
-        gpt_completer = GPTCompleter(api_key) if api_key else None
+        gpt_completer = GPTCompleter(config) if api_key else None
         
         # Initialize environment with rendering enabled
         # pygame init must be in main thread
@@ -154,23 +151,24 @@ Current User Input: "{user_command}"
 
 IMPORTANT INSTRUCTIONS:
 1. If the user gives a command to DO something (like "cook onion", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
-2. Complex tasks need multiple steps. For example:
-   - "cook onion" means: get onion → go to pot → add onion → wait → get dish → plate → deliver
+2. Complex tasks need multiple steps. Use pot1 or pot2 when going to a pot (e.g. go to pot1, go to pot2). For example:
+   - "cook onion" means: get onion → go to pot1 (or pot2) → add onion → wait → get dish → go to pot1/pot2 → plate → deliver
    - "get onion" means: go to onion → interact
-   - "make soup" means: get onion → go to pot → interact → wait → get dish → go to pot → interact → go to serving pad → interact
+   - "make soup" means: get onion → go to pot1 (or pot2) → interact → wait → get dish → go to pot1 (or pot2) → interact → go to serving pad → interact
 3. Always think step by step and break down complex commands into the basic actions above.
 4. If the user asks a QUESTION or makes a STATEMENT (not a command to do something), provide a helpful text response.
 
 Response Format:
-- For ACTION commands: Return a JSON array: [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, ...]
+- For ACTION commands: Return a JSON object with "explanation" and "actions". Briefly explain in one or two sentences WHY you are doing these steps (e.g. which subgoal each part serves), then list the action array. Use "pot1" or "pot2" (not "pot") when the target is a pot.
+  Example: {{"explanation": "I'll get an onion first, then bring it to the pot to cook.", "actions": [{{"action": "go to", "args": ["onion"]}}, ...]}}
 - For QUESTIONS/STATEMENTS: Return: {{"type": "text", "message": "Your helpful response"}}
 
-Examples of ACTION commands (return action arrays):
+Examples of ACTION commands (return object with explanation + actions):
 User: "go get onion"
-Return: [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}]
+Return: {{"explanation": "Going to the onion and interacting to pick it up.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}]}}
 
 User: "cook onion"
-Return: [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot"]}}, {{"action": "interact", "args": []}}, {{"action": "interact", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot"]}}, {{"action": "interact", "args": []}}]
+Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}, {{"action": "interact", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}]}}
 
 
 Examples of QUESTIONS/STATEMENTS (return text response):
@@ -186,6 +184,7 @@ Return: {{"type": "text", "message": "Great! If the pot is ready, you can get a 
 CRITICAL: 
 - If the user says something like "cook", "make", "get", "deliver" - these are ACTION commands. Break them down into basic actions.
 - Always return valid JSON. Never return plain text for action commands.
+- For ACTION commands, always include a brief "explanation" (why you are doing these steps) before listing "actions".
 - Think about what steps are needed to complete the task, then return all steps as an action array.
 
 Now respond to: "{user_command}"
@@ -193,15 +192,16 @@ Now respond to: "{user_command}"
     return prompt
 
 # Parse GPT response - returns either actions or text response
-def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str]]]], Optional[str]]:
+def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str]]]], Optional[str], Optional[str]]:
     """Parse GPT response and extract either actions or text response
     
     Returns:
-        (actions, text_response): If actions, returns (actions_list, None). 
-        If text response, returns (None, text_message).
+        (actions, text_response, explanation): If actions, returns (actions_list, None, explanation_or_None). 
+        If text response, returns (None, text_message, None).
     """
     actions = []
     text_response = None
+    explanation = None
     
     try:
         # Try to parse JSON directly
@@ -219,9 +219,26 @@ def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str
         # Check if it's a text response
         if isinstance(parsed, dict) and parsed.get('type') == 'text':
             text_response = parsed.get('message', '')
-            return (None, text_response)
+            return (None, text_response, None)
         
-        # Check if it's an action array
+        # Check if it's the new format: object with "explanation" and "actions"
+        if isinstance(parsed, dict) and 'actions' in parsed:
+            explanation = parsed.get('explanation') or None
+            if isinstance(explanation, str):
+                explanation = explanation.strip() or None
+            arr = parsed['actions']
+            if isinstance(arr, list):
+                for item in arr:
+                    if isinstance(item, dict) and 'action' in item:
+                        action_name = item['action']
+                        args = item.get('args', [])
+                        if not isinstance(args, list):
+                            args = [args] if args else []
+                        actions.append((action_name, args))
+                if actions:
+                    return (actions, None, explanation)
+        
+        # Check if it's an action array (legacy format)
         if isinstance(parsed, list):
             for item in parsed:
                 if isinstance(item, dict) and 'action' in item:
@@ -231,7 +248,7 @@ def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str
                         args = [args] if args else []
                     actions.append((action_name, args))
             if actions:
-                return (actions, None)
+                return (actions, None, None)
         
         # Check if it's a single action object
         elif isinstance(parsed, dict) and 'action' in parsed:
@@ -240,7 +257,7 @@ def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str
             if not isinstance(args, list):
                 args = [args] if args else []
             actions.append((action_name, args))
-            return (actions, None)
+            return (actions, None, None)
             
     except json.JSONDecodeError:
         # If JSON parsing fails, try regex extraction for actions
@@ -262,10 +279,10 @@ def parse_gpt_response(response: str) -> Tuple[Optional[List[Tuple[str, List[str
                 
                 actions.append((action_name, args))
             if actions:
-                return (actions, None)
+                return (actions, None, None)
     
     # If no actions found and no text response, return None for both
-    return (None, None)
+    return (None, None, None)
 
 # Process user command
 def process_user_command(user_command: str) -> dict:
@@ -297,7 +314,7 @@ def process_user_command(user_command: str) -> dict:
             )
             
             # Parse GPT response
-            actions, text_response = parse_gpt_response(gpt_response)
+            actions, text_response, explanation = parse_gpt_response(gpt_response)
             
             # Handle text response (questions/explanations)
             if text_response:
@@ -356,7 +373,7 @@ def process_user_command(user_command: str) -> dict:
                         'error': str(e)
                     })
             
-            # Build response message
+            # Build response message (include brief explanation if present)
             action_summary = []
             for act in executed_actions:
                 if act['success']:
@@ -364,7 +381,10 @@ def process_user_command(user_command: str) -> dict:
                 else:
                     action_summary.append(f"✗ {act['name']}({', '.join(act['args']) if act['args'] else 'no args'}) - {act.get('error', 'Unknown error')}")
             
-            message = f"Processed your command: {user_command}\n\nExecuted Actions:\n" + "\n".join(action_summary)
+            message = f"Processed your command: {user_command}\n\n"
+            if explanation:
+                message += f"Why: {explanation}\n\n"
+            message += "Executed Actions:\n" + "\n".join(action_summary)
             
             # Update conversation history
             conversation_history.append({

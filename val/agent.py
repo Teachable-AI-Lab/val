@@ -1,5 +1,6 @@
 from typing import List
 from typing import Optional
+from typing import Union
 
 from val.utils import load_prompt
 from val.utils import task_to_gpt_str
@@ -25,7 +26,7 @@ class ValAgent:
                  env: AbstractEnvInterface,
                  user_interface_class,
                  htn_interface_class,
-                 openai_key: str):
+                 openai_key: Union[str, dict]):
 
         self.segment_prompt = load_prompt("prompts/chat_segmenter.txt")
         self.grounding_prompt = load_prompt("prompts/unified_grounding.txt")

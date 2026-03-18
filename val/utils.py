@@ -26,31 +26,56 @@ def task_to_gpt_str(task: Task, description: str) -> str:
     else:
         return f'{task.name}({",".join([arg.name for arg in task.args])})'
 
-def get_openai_key() -> str:
-    file_path = "keys.yaml"
-    key = "open_ai_key"
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            data = yaml.safe_load(file)
-            # Check if the key exists in the YAML file
-            if key in data:
-                if data[key] == '<openai key placeholder>':
-                    error_msg = f"Key '{key}' in the existing YAML file is a placeholder."
-                    print(error_msg)
-                return data[key]
+def get_openai_config() -> dict:
+    """
+    Load OpenAI-compatible client config from keys.yaml.
 
-            else:
-                error_msg = f"Key '{key}' not found in the existing YAML file."
-                print(error_msg)
-                data[key] = '<openai key placeholder>'
-                with open(file_path, 'w') as file:
-                    yaml.safe_dump(data, file)
-                return '<openai key placeholder>'
-    else:
-        # Create a new YAML file with a placeholder
-        data = {key: '<openai key placeholder>'}
-        with open(file_path, 'w') as file:
+    Supported keys (all optional except api key):
+    - open_ai_key / api_key
+    - open_ai_base_url / base_url
+    - open_ai_model / model
+    """
+    file_path = "keys.yaml"
+    if not os.path.exists(file_path):
+        data = {"open_ai_key": "<openai key placeholder>"}
+        with open(file_path, "w") as file:
             yaml.safe_dump(data, file)
-        error_msg = f"File not found. Created a new YAML file with a placeholder for '{key}'."
-        print(error_msg)
+        print("File not found. Created a new YAML file with a placeholder for 'open_ai_key'.")
+        return {"api_key": "<openai key placeholder>", "base_url": None, "model": None}
+
+    with open(file_path, "r") as file:
+        data = yaml.safe_load(file) or {}
+
+    api_key = data.get("open_ai_key") or data.get("api_key")
+    base_url = data.get("open_ai_base_url") or data.get("base_url")
+    model = data.get("open_ai_model") or data.get("model")
+
+    if not api_key:
+        print("Key 'open_ai_key' not found in keys.yaml.")
+        data["open_ai_key"] = "<openai key placeholder>"
+        with open(file_path, "w") as file:
+            yaml.safe_dump(data, file)
+        api_key = "<openai key placeholder>"
+
+    if api_key == "<openai key placeholder>":
+        print("Key 'open_ai_key' in keys.yaml is a placeholder.")
+
+    return {
+        "api_key": api_key,
+        "base_url": base_url,
+        "model": model,
+    }
+
+
+def get_openai_key() -> Union[str, dict]:
+    # Backward-compatible API. Existing callers can keep using this function.
+    return get_openai_config()
+
+
+def get_legacy_openai_key() -> str:
+    """
+    Return only API key string for legacy call sites that need a raw string.
+    """
+    cfg = get_openai_config()
+    return cfg["api_key"]
 
