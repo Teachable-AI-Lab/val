@@ -61,26 +61,7 @@ class OvercookedRouteProblem(Problem):
 
         player_idx, pos, orr = state_node.state
         facing = (pos[0] + orr[0], pos[1] + orr[1])
-        target = state_node.extra.mdp.terrain_mtx[facing[1]][facing[0]]
-
-        if goal == "onion":
-            return target == 'O'
-        if goal == "dish":
-            return target == 'D'
-        if goal == "tomato":
-            return target == 'T'
-        if goal == "serving pad":
-            return target == 'S'
-        if goal == "pot":
-            return target == 'P'
-
-        counter_objects = self.base_env.mdp.get_counter_objects_dict(self.base_env.state)
-        if target in counter_objects:
-            for ox, oy in counter_objects[target]:
-                if ox == target[0] and oy == target[1]:
-                    return True
-    
-        return False
+        return facing == goal
 
 class OvercookedAIEnv(AbstractEnvInterface):
 
@@ -112,6 +93,10 @@ class OvercookedAIEnv(AbstractEnvInterface):
         self.motion_planner = MotionPlanner(self.mdp)
 
     def render_state(self):
+        # Pump the OS event queue so macOS doesn't show the spinning beachball
+        # and the window doesn't get hidden behind others.
+        pygame.event.pump()
+
         surface = self.visualizer.render_state(state=self.base_env.state,
                                                grid=self.base_env.mdp.terrain_mtx,
                                                hud_data=StateVisualizer.default_hud_data(
@@ -133,6 +118,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         for ele in self.get_state():
             if 'object' in ele:
                 objects.append(ele['object'])
+        print("objects", objects)
 
         return objects
 
@@ -395,7 +381,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 'y': player.position[1],
                 'orientation': orientation,
                 'is_me': str(i == self.player_id),
-                'holding': player.held_object
+                'holding': player.held_object.name if player.held_object else None
             })
 
         # Static environment objects
@@ -450,8 +436,19 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
     def get_route_plan(self, target):
         pos, orr = self.get_player_pos_and_or()
+        state = self.get_state()
+        target_obj = None
+        for ele in state:
+            if ele['id'] == target:
+                target_obj = ele
+
+        if not target_obj:
+            return None
+
         problem = OvercookedRouteProblem((self.player_id, pos, orr),
-                                         goal=target, extra=self.base_env)
+                                         goal=(target_obj['x'],
+                                               target_obj['y']),
+                                         extra=self.base_env)
         try:
             sol = next(best_first_search(problem))
             return sol.path()
@@ -469,11 +466,14 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 command = [(0, 0) for _ in self.base_env.state.players]
                 command[self.player_id] = action
                 self.base_env.step(command)
+                if self.render:
+                    self.render_state()
         elif action_name == "wait 20min":
             for i in range(20):
                 command = [(0, 0) for _ in self.base_env.state.players]
                 self.base_env.step(command)
-
+                if self.render:
+                    self.render_state()
         else:
             command = [(0, 0) for _ in self.base_env.state.players]
             if action_name == "up":
@@ -486,11 +486,10 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 command[self.player_id] = (1, 0)
             if action_name == "interact":
                 command[self.player_id] = 'interact'
-                
-            self.base_env.step(command)
 
-        if self.render:
-            self.render_state()
+            self.base_env.step(command)
+            if self.render:
+                self.render_state()
 
         return True
 

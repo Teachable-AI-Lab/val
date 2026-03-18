@@ -36,6 +36,7 @@ dependencies = [
     "tabulate",
     "openai",
     "PyYAML",
+    "python-dotenv",
     "websocket-client"
 ]
 

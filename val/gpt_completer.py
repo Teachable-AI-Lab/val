@@ -5,13 +5,15 @@ import os
 import sys
 # import torch
 
-openai_model = "gpt-4"
-
-
 class GPTCompleter:
 
-    def __init__(self, openai_key):
-        self.client = OpenAI(api_key=openai_key)
+    def __init__(self, openai_key, openai_url=None, model=None, max_context_tokens=None):
+        if openai_url:
+            self.client = OpenAI(base_url=openai_url, api_key=openai_key)
+        else:
+            self.client = OpenAI(api_key=openai_key)
+        self.model = model
+        self.max_context_tokens = max_context_tokens
         self.cache = dict()
 
         if not os.path.exists('api_cache'):
@@ -36,14 +38,15 @@ class GPTCompleter:
             key = hash(('chat', prompt, rep_pen, max_length, stop))
             key = int(hashlib.md5(str(('chat', prompt, rep_pen, max_length, stop)).encode('utf-8')).hexdigest(), 16)
             if key not in self.cache:
-                self.cache[key] = self.client.chat.completions.create(
-                        model=openai_model,
+                content = self.client.chat.completions.create(
+                        model=self.model,
                         messages=annotated_msgs,
                         max_tokens=max_length,
                         temperature=temp,
                         frequency_penalty=rep_pen,
                         stop=stop,
                         ).choices[0].message.content
+                self.cache[key] = content or ""
                 with open('api_cache/%d' % key, 'w') as f:
                     f.write(self.cache[key])
             # print('RESP:')
@@ -51,7 +54,7 @@ class GPTCompleter:
             return self.cache[key]
         else:
             res = self.client.chat.completions.create(
-                    model=openai_model,
+                    model=self.model,
                     messages=annotated_msgs,
                     max_tokens=max_length,
                     temperature=temp,

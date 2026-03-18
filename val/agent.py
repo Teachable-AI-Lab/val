@@ -25,7 +25,10 @@ class ValAgent:
                  env: AbstractEnvInterface,
                  user_interface_class,
                  htn_interface_class,
-                 openai_key: str):
+                 openai_key: str,
+                 openai_url: str = None,
+                 openai_model: str = None,
+                 max_context_tokens: int = None):
 
         self.segment_prompt = load_prompt("prompts/chat_segmenter.txt")
         self.grounding_prompt = load_prompt("prompts/unified_grounding.txt")
@@ -39,7 +42,7 @@ class ValAgent:
         self.ground_prompt = load_prompt('prompts/chat_ground.txt')
         self.explanation_prompt = load_prompt('prompts/newprompts/1st try.txt')
 
-        self.gpt = GPTCompleter(openai_key)
+        self.gpt = GPTCompleter(openai_key, openai_url, model=openai_model, max_context_tokens=max_context_tokens)
 
         self.user_interface = user_interface_class()
         self.env = env

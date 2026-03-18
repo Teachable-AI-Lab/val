@@ -5,7 +5,7 @@ from val.agent import ValAgent
 from val.user_interfaces.console_interface import ConsoleUserInterface
 from val.user_interfaces.web_interface import WebInterface
 from val.htn_interfaces.py_htn_interface import PyHtnInterface
-from val.utils import get_openai_key
+from val.utils import get_env_config
 
 
 
@@ -21,12 +21,16 @@ async def run_render(env):
 
 
 async def main():
-    openai_key = get_openai_key()
+    cfg = get_env_config()
     env = OvercookedAIEnv(player_id=1, render=True)
     #user_interface = ConsoleUserInterface
     user_interface = WebInterface
     htn_interface = PyHtnInterface
-    agent = ValAgent(env, user_interface, htn_interface, openai_key)
+    agent = ValAgent(env, user_interface, htn_interface,
+                     openai_key=cfg["OPENAI_API_KEY"],
+                     openai_url=cfg["OPENAI_BASE_URL"],
+                     openai_model=cfg["OPENAI_MODEL"],
+                     max_context_tokens=int(cfg["MAX_CONTEXT_TOKENS"] or 100_000))
 
     print("🤖 XAI-Enhanced VAL Agent with Overcooked")
     print("="*90)

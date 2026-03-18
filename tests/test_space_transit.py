@@ -5,11 +5,11 @@ from val.user_interfaces.web_interface import WebInterface
 from val.user_interfaces.speech_to_text_interface import SpeechInterface
 from val.env_interfaces.space_transit.space_transit_env import SpaceTransitEnv 
 from val.htn_interfaces.basic_htn_interface import BasicHtnInterface
-from val.utils import get_openai_key
+from val.utils import get_env_config
 
 if __name__ == "__main__":
-    
-    openai_key = get_openai_key()
+
+    cfg = get_env_config()
 
     env = SpaceTransitEnv()
     user_interface = ConsoleUserInterface
@@ -18,7 +18,10 @@ if __name__ == "__main__":
     # htn_interface = BasicHtnInterface
     htn_interface = PyHtnInterface
 
-
-    agent = ValAgent(env, user_interface, htn_interface, openai_key)
+    agent = ValAgent(env, user_interface, htn_interface,
+                     openai_key=cfg["OPENAI_API_KEY"],
+                     openai_url=cfg["OPENAI_BASE_URL"],
+                     openai_model=cfg["OPENAI_MODEL"],
+                     max_context_tokens=int(cfg["MAX_CONTEXT_TOKENS"] or 100_000))
     agent.start()
 
