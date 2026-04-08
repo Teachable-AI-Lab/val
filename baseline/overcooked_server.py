@@ -66,6 +66,7 @@ def init_environment(enable_render=True):
     global env, gpt_completer
     try:
         config = load_openai_config()
+        print(f"Using API profile: {config.get('profile', 'default')}")
         api_key = config.get("api_key")
         if not api_key:
             print("Warning: No API key found. GPT features will not work.")
@@ -535,4 +536,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-

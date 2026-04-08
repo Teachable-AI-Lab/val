@@ -3,9 +3,15 @@ import yaml
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
+from typing import Optional
+from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Union
-from pyhtn.htn import Task
+
+if TYPE_CHECKING:
+    from pyhtn.htn import Task
+else:
+    Task = Any
 
 
 def load_prompt(prompt_fn: str) -> str:
@@ -26,56 +32,127 @@ def task_to_gpt_str(task: Task, description: str) -> str:
     else:
         return f'{task.name}({",".join([arg.name for arg in task.args])})'
 
-def get_openai_config() -> dict:
-    """
-    Load OpenAI-compatible client config from keys.yaml.
-
-    Supported keys (all optional except api key):
-    - open_ai_key / api_key
-    - open_ai_base_url / base_url
-    - open_ai_model / model
-    """
-    file_path = "keys.yaml"
-    if not os.path.exists(file_path):
-        data = {"open_ai_key": "<openai key placeholder>"}
-        with open(file_path, "w") as file:
-            yaml.safe_dump(data, file)
-        print("File not found. Created a new YAML file with a placeholder for 'open_ai_key'.")
-        return {"api_key": "<openai key placeholder>", "base_url": None, "model": None}
-
-    with open(file_path, "r") as file:
-        data = yaml.safe_load(file) or {}
-
-    api_key = data.get("open_ai_key") or data.get("api_key")
-    base_url = data.get("open_ai_base_url") or data.get("base_url")
-    model = data.get("open_ai_model") or data.get("model")
-
-    if not api_key:
-        print("Key 'open_ai_key' not found in keys.yaml.")
-        data["open_ai_key"] = "<openai key placeholder>"
-        with open(file_path, "w") as file:
-            yaml.safe_dump(data, file)
-        api_key = "<openai key placeholder>"
-
-    if api_key == "<openai key placeholder>":
-        print("Key 'open_ai_key' in keys.yaml is a placeholder.")
-
+def _default_keys_data() -> dict:
     return {
-        "api_key": api_key,
-        "base_url": base_url,
-        "model": model,
+        "active_profile": "openai",
+        "profiles": {
+            "openai": {
+                "api_key": "<openai key placeholder>",
+                "model": "gpt-4",
+            }
+        }
     }
 
 
-def get_openai_key() -> Union[str, dict]:
+def _load_keys_yaml(file_path: str) -> dict:
+    if not os.path.exists(file_path):
+        data = _default_keys_data()
+        with open(file_path, "w") as file:
+            yaml.safe_dump(data, file, sort_keys=False)
+        print("File not found. Created a new YAML file with an 'openai' profile placeholder.")
+        return data
+
+    with open(file_path, "r") as file:
+        return yaml.safe_load(file) or {}
+
+
+def _extract_api_settings(data: Optional[dict]) -> dict:
+    data = data or {}
+    return {
+        "api_key": data.get("open_ai_key") or data.get("api_key"),
+        "base_url": data.get("open_ai_base_url") or data.get("base_url"),
+        "model": data.get("open_ai_model") or data.get("model"),
+    }
+
+
+def _apply_env_overrides(config: dict) -> dict:
+    config = dict(config)
+    env_api_key = os.getenv("OPENAI_API_KEY")
+    env_base_url = os.getenv("OPENAI_BASE_URL")
+    env_model = os.getenv("OPENAI_MODEL")
+
+    if env_api_key:
+        config["api_key"] = env_api_key
+    if env_base_url:
+        config["base_url"] = env_base_url
+    if env_model:
+        config["model"] = env_model
+
+    return config
+
+
+def get_openai_config(profile_name: Optional[str] = None) -> dict:
+    """
+    Load OpenAI-compatible client config from keys.yaml.
+
+    Supported formats:
+    1. Legacy flat config:
+       - open_ai_key / api_key
+       - open_ai_base_url / base_url
+       - open_ai_model / model
+    2. Profile-based config:
+       active_profile: lab
+       profiles:
+         openai:
+           api_key: ...
+           model: gpt-4
+         lab:
+           api_key: ...
+           base_url: https://...
+           model: models/...
+
+    Profile selection order:
+    - explicit profile_name argument
+    - VAL_API_PROFILE environment variable
+    - active_profile from keys.yaml
+    - first profile in keys.yaml
+
+    Environment overrides for the selected profile:
+    - OPENAI_API_KEY
+    - OPENAI_BASE_URL
+    - OPENAI_MODEL
+    """
+    file_path = "keys.yaml"
+    data = _load_keys_yaml(file_path)
+
+    selected_profile = profile_name or os.getenv("VAL_API_PROFILE")
+    profiles = data.get("profiles") or {}
+
+    if profiles:
+        selected_profile = selected_profile or data.get("active_profile")
+        if not selected_profile:
+            selected_profile = next(iter(profiles))
+
+        if selected_profile not in profiles:
+            raise KeyError(f"Profile '{selected_profile}' not found in keys.yaml. Available profiles: {', '.join(profiles.keys())}")
+
+        config = _extract_api_settings(profiles[selected_profile])
+        config["profile"] = selected_profile
+    else:
+        config = _extract_api_settings(data)
+        config["profile"] = selected_profile or "default"
+
+    config = _apply_env_overrides(config)
+
+    api_key = config.get("api_key")
+
+    if api_key == "<openai key placeholder>":
+        print("Key 'open_ai_key' in keys.yaml is a placeholder.")
+    elif not api_key:
+        print("No API key configured for the selected profile.")
+
+    return config
+
+
+def get_openai_key(profile_name: Optional[str] = None) -> Union[str, dict]:
     # Backward-compatible API. Existing callers can keep using this function.
-    return get_openai_config()
+    return get_openai_config(profile_name=profile_name)
 
 
-def get_legacy_openai_key() -> str:
+def get_legacy_openai_key(profile_name: Optional[str] = None) -> str:
     """
     Return only API key string for legacy call sites that need a raw string.
     """
-    cfg = get_openai_config()
+    cfg = get_openai_config(profile_name=profile_name)
     return cfg["api_key"]
 

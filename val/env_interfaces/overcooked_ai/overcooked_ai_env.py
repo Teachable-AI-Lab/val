@@ -145,6 +145,28 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('deliver')
                 ]
             ),
+            Method(
+                name='cook',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('get', V('object')),
+                    Task('boil',V('object')),
+                    Task('get', 'dish'),
+                    Task('plate'),
+                    Task('deliver')
+                ]
+            ),
+            Method(
+                name='cook',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('get', V('object')),
+                    Task('boil',V('object')),
+                    Task('deliver')
+                ]
+            ),
         ]
         descriptions["cook"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
 
@@ -176,7 +198,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('interact')
                 ]
             ),
-            # Method 2: Already holding object, use empty pot2
+            #Method 2: Already holding object, use empty pot2
             Method(
                 name='boil',
                 args=(V('object'),),
@@ -189,97 +211,97 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('interact')
                 ]
             ),
-            # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
-                    Fact(id='pot1', object='pot1', status='1_items')
-                ],
-                subtasks=[
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 4: Already holding object, add to pot2 with 1 item (completes recipe)
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
-                    Fact(id='pot2', object='pot2', status='1_items')
-                ],
-                subtasks=[
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 5: Don't have object, get it first, then use empty pot1
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-                    Fact(id='pot1', object='pot1', status='empty')
-                ],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 6: Don't have object, get it first, then use empty pot2
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-                    Fact(id='pot2', object='pot2', status='empty')
-                ],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 7: Don't have object, get it, add to pot1 with 1 item (completes recipe)
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-                    Fact(id='pot1', object='pot1', status='1_items')
-                ],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 8: Don't have object, get it, add to pot2 with 1 item (completes recipe)
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-                    Fact(id='pot2', object='pot2', status='1_items')
-                ],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 9: Fallback - just interact (for when already at pot)
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[],
-                subtasks=[
-                    Task('interact')
-                ]
-            )
+            # # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
+            #         Fact(id='pot1', object='pot1', status='1_items')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 4: Already holding object, add to pot2 with 1 item (completes recipe)
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
+            #         Fact(id='pot2', object='pot2', status='1_items')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 5: Don't have object, get it first, then use empty pot1
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+            #         Fact(id='pot1', object='pot1', status='empty')
+            #     ],
+            #     subtasks=[
+            #         Task('get', V('object')),
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 6: Don't have object, get it first, then use empty pot2
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+            #         Fact(id='pot2', object='pot2', status='empty')
+            #     ],
+            #     subtasks=[
+            #         Task('get', V('object')),
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 7: Don't have object, get it, add to pot1 with 1 item (completes recipe)
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+            #         Fact(id='pot1', object='pot1', status='1_items')
+            #     ],
+            #     subtasks=[
+            #         Task('get', V('object')),
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 8: Don't have object, get it, add to pot2 with 1 item (completes recipe)
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+            #         Fact(id='pot2', object='pot2', status='1_items')
+            #     ],
+            #     subtasks=[
+            #         Task('get', V('object')),
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 9: Fallback - just interact (for when already at pot)
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[],
+            #     subtasks=[
+            #         Task('interact')
+            #     ]
+            # )
         ]
         descriptions["boil"] = "Boil the ingredient by moving to a pot and interacting with it. Automatically selects pot1 or pot2 based on availability and current state."
 
