@@ -185,7 +185,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         # ENHANCED BOIL METHODS WITH POT SELECTION AND PLAYER HOLDING LOGIC
         domain["boil"] = [
-            # Method 1: Already holding object, use empty pot1
+            #Method 1: Already holding object, use empty pot1
             Method(
                 name='boil',
                 args=(V('object'),),
@@ -211,19 +211,21 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('interact')
                 ]
             ),
-            # # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
-            # Method(
-            #     name='boil',
-            #     args=(V('object'),),
-            #     preconditions=[
-            #         Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
-            #         Fact(id='pot1', object='pot1', status='1_items')
-            #     ],
-            #     subtasks=[
-            #         Task('go to', 'pot1'),
-            #         Task('interact')
-            #     ]
-            # ),
+            # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[
+                    Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
+                    Fact(id='pot1', object='pot1', status='empty')
+                ],
+                subtasks=[
+                    Task('go to', 'pot1'),
+                    Task('interact'),
+                    Task('interact')
+                ]
+            ),
+
             # # Method 4: Already holding object, add to pot2 with 1 item (completes recipe)
             # Method(
             #     name='boil',
@@ -307,90 +309,90 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
         # ENHANCED PLATE METHODS WITH POT SELECTION
         domain["plate"] = [
-            # Method 1: Already have dish, plate from ready pot1
-            Method(
-                name='plate',
-                preconditions=[
-                    Fact(player_holding='dish'),
-                    Fact(id='pot1', object='pot1', status='ready')
-                ],
-                subtasks=[
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 2: Already have dish, plate from ready pot2
-            Method(
-                name='plate',
-                preconditions=[
-                    Fact(player_holding='dish'),
-                    Fact(id='pot2', object='pot2', status='ready')
-                ],
-                subtasks=[
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 3: Already have dish, plate from cooking pot1 (if ready soon)
-            Method(
-                name='plate',
-                preconditions=[
-                    Fact(player_holding='dish'),
-                    Fact(id='pot1', object='pot1', status='cooking')
-                ],
-                subtasks=[
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 4: Already have dish, plate from cooking pot2 (if ready soon)
-            Method(
-                name='plate',
-                preconditions=[
-                    Fact(player_holding='dish'),
-                    Fact(id='pot2', object='pot2', status='cooking')
-                ],
-                subtasks=[
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 5: Don't have dish, get it first, then plate from ready pot1
-            Method(
-                name='plate',
-                preconditions=[
-                    NOT(Fact(player_holding='dish')),
-                    Fact(id='pot1', object='pot1', status='ready')
-                ],
-                subtasks=[
-                    Task('get', 'dish'),
-                    Task('go to', 'pot1'),
-                    Task('interact')
-                ]
-            ),
-            # Method 6: Don't have dish, get it first, then plate from ready pot2
-            Method(
-                name='plate',
-                preconditions=[
-                    NOT(Fact(player_holding='dish')),
-                    Fact(id='pot2', object='pot2', status='ready')
-                ],
-                subtasks=[
-                    Task('get', 'dish'),
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
-            # Method 7: Fallback - get dish and go to any pot
-            Method(
-                name='plate',
-                preconditions=[],
-                subtasks=[
-                    Task('get', 'dish'),
-                    Task('go to', 'pot'),
-                    Task('interact')
-                ]
-            ),
+            # # Method 1: Already have dish, plate from ready pot1
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         Fact(player_holding='dish'),
+            #         Fact(id='pot1', object='pot1', status='empty')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 2: Already have dish, plate from ready pot2
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         Fact(player_holding='dish'),
+            #         Fact(id='pot2', object='pot2', status='empty')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 3: Already have dish, plate from cooking pot1 (if ready soon)
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         Fact(player_holding='dish'),
+            #         Fact(id='pot1', object='pot1', status='cooking')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 4: Already have dish, plate from cooking pot2 (if ready soon)
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         Fact(player_holding='dish'),
+            #         Fact(id='pot2', object='pot2', status='cooking')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 5: Don't have dish, get it first, then plate from ready pot1
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         NOT(Fact(player_holding='dish')),
+            #         Fact(id='pot1', object='pot1', status='ready')
+            #     ],
+            #     subtasks=[
+            #         Task('get', 'dish'),
+            #         Task('go to', 'pot1'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 6: Don't have dish, get it first, then plate from ready pot2
+            # Method(
+            #     name='plate',
+            #     preconditions=[
+            #         NOT(Fact(player_holding='dish')),
+            #         Fact(id='pot2', object='pot2', status='ready')
+            #     ],
+            #     subtasks=[
+            #         Task('get', 'dish'),
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
+            # # Method 7: Fallback - get dish and go to any pot
+            # Method(
+            #     name='plate',
+            #     preconditions=[],
+            #     subtasks=[
+            #         Task('get', 'dish'),
+            #         Task('go to', 'pot'),
+            #         Task('interact')
+            #     ]
+            # ),
         ]
         descriptions["plate"] = "Plate the soup by going to a ready pot with a dish. Automatically selects pot1 or pot2 based on which pot has ready soup."
         
