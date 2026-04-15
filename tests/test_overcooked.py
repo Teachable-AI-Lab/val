@@ -38,15 +38,8 @@ async def main():
 # async def run_action_loop(env):
 #     import random
 #     while True:
-#         env.execute_action(action_name="go_to", args=['onion'])  # 或 random.choice(["up", "down", "left", "right"])
+#         env.execute_action(action_name="go_to", args=['onion'])  #random.choice(["up", "down", "left", "right"])
 #         await asyncio.sleep(0.5)
-
-# async def main():
-#     env = OvercookedAIEnv(player_id=1, render=True)
-#     await asyncio.gather(
-#         run_render(env),
-#         run_action_loop(env)
-#     )
 
 
 if __name__ == "__main__":
