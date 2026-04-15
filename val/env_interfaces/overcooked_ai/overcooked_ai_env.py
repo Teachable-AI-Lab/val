@@ -140,30 +140,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 subtasks=[
                     Task('get', V('object')),
                     Task('boil',V('object')),
-                    Task('get', 'dish'),
                     Task('plate'),
-                    Task('deliver')
-                ]
-            ),
-            Method(
-                name='cook',
-                args=(V('object'),),
-                preconditions=[],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('boil',V('object')),
-                    Task('get', 'dish'),
-                    Task('plate'),
-                    Task('deliver')
-                ]
-            ),
-            Method(
-                name='cook',
-                args=(V('object'),),
-                preconditions=[],
-                subtasks=[
-                    Task('get', V('object')),
-                    Task('boil',V('object')),
                     Task('deliver')
                 ]
             ),
@@ -198,19 +175,19 @@ class OvercookedAIEnv(AbstractEnvInterface):
                     Task('interact')
                 ]
             ),
-            #Method 2: Already holding object, use empty pot2
-            Method(
-                name='boil',
-                args=(V('object'),),
-                preconditions=[
-                    Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
-                    Fact(id='pot2', object='pot2', status='empty')
-                ],
-                subtasks=[
-                    Task('go to', 'pot2'),
-                    Task('interact')
-                ]
-            ),
+            # #Method 2: Already holding object, use empty pot2
+            # Method(
+            #     name='boil',
+            #     args=(V('object'),),
+            #     preconditions=[
+            #         Fact(player_holding=V('object')),  # Already have the object (PRIORITY)
+            #         Fact(id='pot2', object='pot2', status='empty')
+            #     ],
+            #     subtasks=[
+            #         Task('go to', 'pot2'),
+            #         Task('interact')
+            #     ]
+            # ),
             # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
             Method(
                 name='boil',
@@ -222,7 +199,8 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 subtasks=[
                     Task('go to', 'pot1'),
                     Task('interact'),
-                    Task('interact')
+                    Task('interact'),
+                    Task('wait 20min')
                 ]
             ),
 
@@ -357,7 +335,19 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #         Task('interact')
             #     ]
             # ),
-            # # Method 5: Don't have dish, get it first, then plate from ready pot1
+            # Method 5: Don't have dish, get it first, then plate from ready pot1
+            Method(
+                name='plate',
+                preconditions=[
+                    NOT(Fact(player_holding='dish')),
+                ],
+                subtasks=[
+                    Task('get', 'dish'),
+                    Task('go to', 'pot2'),
+                    Task('interact')
+                ]
+            ),
+            # Method 6: Don't have dish, get it first, then plate from ready pot2
             # Method(
             #     name='plate',
             #     preconditions=[
@@ -367,19 +357,6 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     subtasks=[
             #         Task('get', 'dish'),
             #         Task('go to', 'pot1'),
-            #         Task('interact')
-            #     ]
-            # ),
-            # # Method 6: Don't have dish, get it first, then plate from ready pot2
-            # Method(
-            #     name='plate',
-            #     preconditions=[
-            #         NOT(Fact(player_holding='dish')),
-            #         Fact(id='pot2', object='pot2', status='ready')
-            #     ],
-            #     subtasks=[
-            #         Task('get', 'dish'),
-            #         Task('go to', 'pot2'),
             #         Task('interact')
             #     ]
             # ),
@@ -396,17 +373,17 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["plate"] = "Plate the soup by going to a ready pot with a dish. Automatically selects pot1 or pot2 based on which pot has ready soup."
         
-        domain["deliver"] = [
-            Method(
-                name='deliver',
-                preconditions=(),
-                subtasks=[
-                    Task('go to', 'serving pad'),
-                    Task('interact')
-                ]
-            ),
-        ]
-        descriptions["deliver"] = "Go to the serving pad and interact with it to deliver the soup."
+        # domain["deliver"] = [
+        #     Method(
+        #         name='deliver',
+        #         preconditions=(),
+        #         subtasks=[
+        #             Task('go to', 'serving pad'),
+        #             Task('interact')
+        #         ]
+        #     ),
+        # ]
+        # descriptions["deliver"] = "Go to the serving pad and interact with it to deliver the soup."
         
         ####### operators #######
         domain["go to"] = [

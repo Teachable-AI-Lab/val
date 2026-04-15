@@ -85,7 +85,7 @@ class AbstractUserInterface:
         """
         raise NotImplementedError("Not implemented yet")
 
-    def ask_subtasks(self, user_task: str) -> str:
+    def ask_subtasks(self, user_task: str, task_exec=None) -> str:
         """
         Takes a user task, asks how to do it, returns response.
         """

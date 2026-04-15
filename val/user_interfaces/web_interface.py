@@ -1,4 +1,5 @@
 import socketio
+from html import escape
 from socketio.exceptions import TimeoutError
 from typing import List
 from typing import Optional
@@ -385,12 +386,22 @@ Is it correct?"""
         print('received')
         return self.user_response 
     
-    def ask_subtasks(self, user_task: str) -> str:
+    def ask_subtasks(self, user_task: str, task_exec: Optional[TaskEx] = None) -> str:
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'confirm_response'
-        self.sio.emit('message', {'type': 'ask_subtasks', 
-                                  'text': f"What are the steps for completing the task '{user_task}'?"})
+        task_hash = None
+        if task_exec is not None:
+            try:
+                task_hash = task_exec.as_dict().get("id")
+            except Exception:
+                task_hash = None
+
+        self.sio.emit('message', {
+            'type': 'ask_subtasks',
+            'text': f"What are the steps for completing the task '{user_task}'?",
+            'task_hash': task_hash
+        })
         while not self.response_received:
             self.sio.sleep(0.1)
         print('received response:', self.user_response)
@@ -414,9 +425,18 @@ Is it correct?"""
         self.user_response = None
         self.response_received = False
         self.expected_type = 'confirm_response' 
-        formatted_steps = ', '.join(steps)
+        question_text = (
+            "This is the step of your command, right?"
+            if len(steps) == 1
+            else "These are the individual steps of your command, right?"
+        )
+        formatted_steps = '<br>'.join(
+            f"{index}. {escape(str(step))}"
+            for index, step in enumerate(steps, start=1)
+        )
+        message_text = f"{question_text}<br><br>{formatted_steps}"
         self.sio.emit('message', {'type': 'segment_confirmation', 
-                                  'text': f"These are the individual steps of your command: '{formatted_steps}', right?",
+                                  'text': message_text,
                                   'steps': steps})
         while not self.response_received:
             self.sio.sleep(0.1)

@@ -209,7 +209,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         user_task = input(f"How can I help you today? ")
         return user_task
 
-    def ask_subtasks(self, user_task: str) -> str:
+    def ask_subtasks(self, user_task: str, task_exec=None) -> str:
         steps = input(f"What are the steps for completing the task '{user_task}'? ")
         return steps
 
@@ -223,8 +223,14 @@ class ConsoleUserInterface(AbstractUserInterface):
     def segment_confirmation(self, steps: List[str]) -> bool:
         if self.disable_segment_confirmation:
             return True   
-        print("These are the individual steps of your command, right?")
-        [print(index,step) for index, step in enumerate(steps, start=1)]
+        question_text = (
+            "This is the step of your command, right?"
+            if len(steps) == 1
+            else "These are the individual steps of your command, right?"
+        )
+        print(question_text)
+        for index, step in enumerate(steps, start=1):
+            print(f"{index}. {step}")
         while True:
             users_choice = input("Please enter 'y' or 'n': ").strip().lower()
             if users_choice in ['y', 'n']:

@@ -204,7 +204,7 @@ class ValAgent:
         task = task_exec.task 
         task_args = task_exec.match 
         verbalized_task = self.verbalize_gpt(task, task_args)
-        user_subtasks = self.user_interface.ask_subtasks(verbalized_task)
+        user_subtasks = self.user_interface.ask_subtasks(verbalized_task, task_exec=task_exec)
         subtasks = []
         for subtask in self.interpret(user_subtasks):
             subtasks.append(subtask)
