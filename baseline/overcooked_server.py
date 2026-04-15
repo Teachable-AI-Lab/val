@@ -75,7 +75,7 @@ def init_environment(enable_render=True):
         
         # Initialize environment with rendering enabled
         # pygame init must be in main thread
-        env = OvercookedAIEnv(player_id=0, horizon=5000, layout="asymmetric_advantages", render=enable_render)
+        env = OvercookedAIEnv(player_id=0, horizon=5000, layout="counter_circuit_o_1order", render=enable_render)
         print("Environment initialized successfully")
         
         return True
@@ -153,9 +153,9 @@ Current User Input: "{user_command}"
 IMPORTANT INSTRUCTIONS:
 1. If the user gives a command to DO something (like "cook onion", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
 2. Complex tasks need multiple steps. Use pot1 or pot2 when going to a pot (e.g. go to pot1, go to pot2). For example:
-   - "cook onion" means: get onion → go to pot1 (or pot2) → add onion → wait → get dish → go to pot1/pot2 → plate → deliver
+   - "cook onion" means: get onion → go to pot1 → interact  → get dish → go to pot2 (the opposite from previous step) → plate → deliver
    - "get onion" means: go to onion → interact
-   - "make soup" means: get onion → go to pot1 (or pot2) → interact → wait → get dish → go to pot1 (or pot2) → interact → go to serving pad → interact
+   - "make soup" means: get onion → go to pot1 → interact → get dish → go to pot2 (the opposite from previous step) → interact 
 3. Always think step by step and break down complex commands into the basic actions above.
 4. If the user asks a QUESTION or makes a STATEMENT (not a command to do something), provide a helpful text response.
 
@@ -177,10 +177,8 @@ User: "What can I do?"
 Return: {{"type": "text", "message": "You can move around, interact with objects like onions, pots, and serving stations. Try commands like 'go to onion' or 'cook onion'."}}
 
 User: "I want to make soup"
-Return: {{"type": "text", "message": "I'll help you make soup! The steps are: 1) Get an onion, 2) Go to the pot and add it, 3) Wait for it to cook, 4) Get a dish, 5) Plate the soup, 6) Deliver it. Say 'cook onion' and I'll do it for you!"}}
+Return: {{"type": "text", "message": "I'll help you make soup! The steps are: 1) Get an onion, 2) Go to the pot and add it, 3) Get a dish, 4) Plate the soup. Say 'cook onion' and I'll do it for you!"}}
 
-User: "The pot is ready"
-Return: {{"type": "text", "message": "Great! If the pot is ready, you can get a dish and then interact with the pot to plate the soup."}}
 
 CRITICAL: 
 - If the user says something like "cook", "make", "get", "deliver" - these are ACTION commands. Break them down into basic actions.
