@@ -384,7 +384,8 @@ class ValAgent:
             
             explanation = self.gpt.get_chat_gpt_completion(prompt)
             print(f"DEBUG: Generated explanation length: {len(explanation)}")
-            return explanation.removeprefix("Explanation:").strip()
+            explanation = explanation.removeprefix("Explanation:").strip()
+            return explanation
         except Exception as e:
             print(f"ERROR generating explanation: {e}")
             return f"Error generating explanation: {e}"

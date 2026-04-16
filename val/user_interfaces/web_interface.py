@@ -69,41 +69,6 @@ class WebInterface:
         if len(env_objects) > 5:
             objects_text += f" and {len(env_objects) - 5} more..."
         
-        # Get subtask names for the analysis
-        default_method = method_execs[0] if method_execs else None
-        if decision_explanation:
-            analysis_text = decision_explanation
-        elif default_method:
-            subtask_names = [f"{s.name}({', '.join([str(arg) for arg in s.args])})" for s in default_method.method.subtasks]
-            analysis_text = f"""Thinking...
-
-The game environment contains {objects_text}.
-
-Based on my knowledge and the condition, I will decompose {task_name} to {', '.join(subtask_names)}.
-
-Is it correct?"""
-        else:
-            analysis_text = f"""Thinking...
-
-The game environment contains {objects_text}.
-
-I need to create a method for {task_name}({', '.join(task_args)}).
-
-Is it correct?"""
-        
-        # Send thinking analysis
-        self.sio.emit('message', {
-            'type': 'show_thinking_analysis_and_decomposition',
-            'text': {
-                'user_task': f"{task_name} {' '.join(task_args)}",
-                'task_name': task_name,
-                'task_args': task_args,
-                'analysis_text': analysis_text
-            }
-        })
-        print(f"Sent thinking analysis for {task_name}")
-        
-        # Then, send decomposition tree structure
         # Convert method_execs to subtasks format
         subtasks = []
         for method_exec in method_execs:
@@ -119,6 +84,22 @@ Is it correct?"""
                 for child in child_list
             ]
             subtasks.append(formatted_children)
+
+        analysis_text = decision_explanation
+        
+        # Send thinking analysis
+        self.sio.emit('message', {
+            'type': 'show_thinking_analysis_and_decomposition',
+            'text': {
+                'user_task': f"{task_name} {' '.join(task_args)}",
+                'task_name': task_name,
+                'task_args': task_args,
+                'analysis_text': analysis_text,
+                'subtasks': subtasks
+            }
+        })
+        
+        # Then, send decomposition tree structure
         
         result = {
             "head": {
@@ -260,32 +241,6 @@ Is it correct?"""
         print("Edit options message emitted")
         return
 
-    # def display_edit_options_old(self, task_exec, method_execs):
-    #     """
-    #     Display editing options for existing decompositions
-    #     Args:
-    #         task_exec: The task being edited
-    #         method_execs: Available method executions
-    #     """
-    #     # Format the task
-    #     head = task_exec.as_dict()
-    #     task_name = head["name"]
-    #     match = ' '.join(str(m).replace('_', ' ') for m in head['match'])
-        
-    #     # Format available methods
-    #     methods_text = []
-    #     for i, method_exec in enumerate(method_execs):
-    #         method_dict = method_exec.as_dict()
-    #         child_list = method_dict.get("child_data", [])
-    #         subtasks = [f"{child['name']}({', '.join([str(m).replace('_', ' ') for m in child['match']])})" 
-    #                    for child in child_list]
-    #         methods_text.append(f"Option {i+1}: {', '.join(subtasks)}")
-        
-    #     edit_text = f"Editing options for {task_name}({match}):\n" + "\n".join(methods_text)
-        
-    #     self.sio.emit('message', {'type': 'display_edit_options', 'text': edit_text})
-    #     print("Edit options message emitted")
-    #     return
     
     def request_user_task(self) -> str:
         self.user_response = None  
@@ -390,270 +345,7 @@ Is it correct?"""
         # Both thinking analysis and decomposition tree will be shown together in the main loop
         return corrected_task_name, corrected_task_args
 
-    def show_thinking_analysis_and_decomposition_after_correction_OLD_BACKUP(self, user_task: str, task_name: str, task_args: List[str], available_actions: List[str], env_objects: List[str]):
-        """
-        Show thinking analysis and decomposition tree after grounding correction
-        """
-        # First show thinking analysis
-        self.sio.emit('message', {
-            'type': 'show_thinking_analysis_and_decomposition',
-            'text': {
-                'user_task': user_task,
-                'task_name': task_name,
-                'task_args': task_args
-            }
-        })
-        
-        # Then show decomposition tree - we need to check if there are existing decompositions
-        try:
-            from pyhtn.htn import Task, TaskEx
-            
-            # Create a basic task structure for display
-            task = Task(task_name, args=task_args)
-            
-            # Try to get existing method_execs for this task
-            # This should be similar to what happens in the main planning loop
-            method_execs = []
-            try:
-                # Create a temporary task execution to check for methods
-                state = self.env.get_state()
-                task_exec = TaskEx(task, state, match=task_args)
-                
-                # Try to get method executions for this task
-                if hasattr(self, 'htn_interface') and self.htn_interface:
-                    method_execs = self.htn_interface.get_method_execs_for_task(task_exec)
-                    print(f"Found {len(method_execs)} existing method_execs for task {task_name}")
-                else:
-                    print("No htn_interface available, using empty method_execs")
-            except Exception as e:
-                print(f"Could not get method_execs: {e}")
-                method_execs = []
-            
-            # Convert method_execs to subtasks format (similar to query_next_decomposition_with_edit)
-            subtasks = []
-            if method_execs and len(method_execs) > 0:
-                for method_exec in method_execs:
-                    method_dict = method_exec.as_dict()
-                    child_list = method_dict.get("child_data", [])
-                    
-                    formatted_children = [
-                        {
-                            "task_name": child["name"],
-                            "args": [str(m).replace('_', ' ') for m in child["match"]],
-                            "hash": child["id"]
-                        }
-                        for child in child_list
-                    ]
-                    subtasks.append(formatted_children)
-                print(f"Created {len(subtasks)} subtask groups")
-            else:
-                print("No existing method_execs found, showing empty structure")
-            
-            # Create the result structure
-            result = {
-                "head": {
-                    "name": task_name,
-                    "V": ' '.join(task_args) if task_args else '',
-                    "hash": f"{task_name}_{hash(' '.join(task_args))}"
-                },
-                "subtasks": subtasks,
-                "available_actions": available_actions,
-                "env_objects": env_objects
-            }
-            
-            # Send decomposition tree structure
-            self.sio.emit('message', {
-                'type': 'confirm_best_match_decomposition',
-                'text': result
-            })
-            print(f"Sent decomposition tree for task: {task_name}({task_args}) with {len(subtasks)} subtask groups")
-            
-        except Exception as e:
-            print(f"Error creating decomposition tree: {e}")
-            # Fallback: just send a basic message
-            self.sio.emit('message', {
-                'type': 'show_thinking_analysis_and_decomposition',
-                'text': {
-                    'user_task': user_task,
-                    'task_name': task_name,
-                    'task_args': task_args,
-                    'error': str(e)
-                }
-            })
-
-
-# ### previous version ###
-#     def map_confirmation(self, user_task: str, task_name: str) -> bool:
-#         if self.disable_map_confirmation:
-#             return True 
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         self.sio.emit('message', {
-#             'type': 'map_confirmation', 
-#             'text': f"I think that '{user_task}' is the action '{task_name}'. Is that right?"
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return 'yes' == self.user_response
-
-#     def map_correction(self, user_task: str, known_tasks: List[str]) -> Optional[int]:
-#         known_tasks.append('None of these above')
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         self.sio.emit('message', {
-#             'type': 'map_correction',
-#             'text': f"Which of these is the best choice for '{user_task}'?", 
-#             'user_task': user_task,
-#             'known_tasks': known_tasks
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         response = int(self.user_response)
-#         if response == len(known_tasks) - 1:
-#             print("none")
-#             return None
-#         return response
-
-#     def map_new_method_confirmation(self, user_task: str) -> bool:
-#         if self.disable_map_new_method_confirmation:
-#             return True
-#         self.user_response = None  
-#         self.response_received = False
-#         self.expected_type = 'confirm_response'  
-#         self.sio.emit('message', {
-#             'type': 'map_new_method_confirmation',
-#             'text': f"The task '{user_task}' is a new method. Is that right?"
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return 'yes' == self.user_response
-
-#     def ground_confirmation(self, task_name: str, task_args: List[str]) -> bool:
-#         if self.disable_ground_confirmation:
-#             return True 
-#         self.user_response = None  
-#         self.response_received = False
-#         self.expected_type = 'confirm_response'  
-#         self.sio.emit('message', {
-#             'type': 'ground_confirmation',
-#             'task_name': task_name,
-#             'task_args': ', '.join(task_args),
-#             'text': f"The task is {task_name}({task_args}). Is that right? "
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return 'yes' == self.user_response
-
-#     def ground_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         self.sio.emit('message', {
-#             'type': 'ground_correction',
-#             'text': f"Could you help me pick the actual object? {task_name}",
-#             'task_args': task_args,
-#             'env_objects': env_objects
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return self.user_response
-
-#     def gen_confirmation(self, user_task: str, task_name: str, task_args: List[str]) -> bool:
-#         if self.disable_gen_confirmation:
-#             return True
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         formatted_args = ', '.join(task_args)
-#         self.sio.emit('message', {
-#             'type': 'gen_confirmation',
-#             'text': f"{user_task} is {task_name}({formatted_args}). Is that right?",
-#             'task_args': task_args
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return 'yes' == self.user_response
-
-#     def gen_correction(self, task_name: str, task_args: List[str], env_objects: List[str]) -> List[str]:
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         self.sio.emit('message', {
-#             'type': 'gen_correction',
-#             'text': f"Could you help me pick the actual object? {task_name}:",
-#             'task_args': task_args,
-#             'env_objects': env_objects
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return self.user_response
-
-#     def confirm_task_execution(self, user_task: str) -> bool:
-#         if self.disable_confirm_task_execution:
-#             return True
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'confirm_response' 
-#         self.sio.emit('message', {
-#             'type': 'confirm_task_execution',
-#             'text': f"Should I execute {user_task}?"
-#         })
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-#         print('received response:', self.user_response)
-#         return 'yes' == self.user_response
     
-
-    
-#     def correct_decomposition(self, task_str: str, method_options: List[str], 
-#                            chosen_method_exec, method_execs) -> tuple:
-#         """
-#         Allow user to correct the decomposition choice
-#         Returns (corrected_method_exec, corrected_rewards)
-#         """
-#         self.user_response = None  
-#         self.response_received = False 
-#         self.expected_type = 'correct_decomposition_response'
-        
-#         self.sio.emit('message', {
-#             'type': 'correct_decomposition',
-#             'text': f"Correct the decomposition for: {task_str}",
-#             'method_options': method_options,
-#             'current_choice': method_execs.index(chosen_method_exec) if chosen_method_exec in method_execs else -1
-#         })
-        
-#         while not self.response_received:
-#             self.sio.sleep(0.1)
-        
-#         # Parse response - expected format: "method_index:reward"
-#         response = self.user_response
-#         if ':' in response:
-#             method_index_str, reward_str = response.split(':', 1)
-#             try:
-#                 method_index = int(method_index_str)
-#                 reward = float(reward_str)
-#                 if 0 <= method_index < len(method_execs):
-#                     corrected_method_exec = method_execs[method_index]
-#                     corrected_rewards = [None] * len(method_execs)
-#                     corrected_rewards[method_index] = reward
-#                     return corrected_method_exec, corrected_rewards
-#             except (ValueError, IndexError):
-#                 pass
-        
-#         # Return original choice if parsing fails
-#         rewards = [None] * len(method_execs)
-#         if chosen_method_exec in method_execs:
-#             rewards[method_execs.index(chosen_method_exec)] = 1.0
-#         return chosen_method_exec, rewards
     
 if __name__ == "__main__":
     web_interface = WebInterface()
