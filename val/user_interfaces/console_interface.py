@@ -96,12 +96,13 @@ class ConsoleUserInterface(AbstractUserInterface):
 
     def query_next_decomposition_with_edit(self, 
         task_exec: TaskEx, 
-        method_execs: Sequence[MethodEx]) -> Tuple[MethodEx, Sequence[Optional[float]]]:
+        method_execs: Sequence[MethodEx],
+        available_actions: Optional[List[str]] = None,
+        env_objects: Optional[List[str]] = None,
+        decision_explanation: Optional[str] = None) -> Tuple[MethodEx, Sequence[Optional[float]]]:
         """
         Enhanced version that allows users to edit decomposition options
-        Supports two edit modes:
-        1. GUI edit: User edits directly in the interface
-        2. Chatbot edit: User responds via chatbot (triggers query_new_method_exec)
+        Supports GUI edit: user edits directly in the interface.
         Returns (chosen_or_edited_method_exec, rewards)
         """
         if(method_execs is None or len(method_execs) == 0):
@@ -122,6 +123,9 @@ class ConsoleUserInterface(AbstractUserInterface):
             else:
                 return None, []
         else:
+            if decision_explanation:
+                print(f"\n{decision_explanation}")
+                
             print(f"\nTask: {task_exec}")
             print("Available decomposition methods:")
             

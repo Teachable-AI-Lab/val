@@ -1,0 +1,15 @@
+You are explaining why an HTN planner chose one decomposition method.
+
+Keep the explanation short and user-facing:
+- Use 1-2 sentences.
+- Use at most 45 words.
+- Do not repeat the full task, method list, current state, or chosen method.
+- Do not include labels like "Task:" or "Explanation:".
+- Mention only the key reason the chosen method is appropriate.
+
+Task: %s
+Available methods: %s
+Current state: %s
+Chosen method: %s
+
+Short explanation:

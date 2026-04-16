@@ -22,12 +22,10 @@ class AbstractUserInterface:
     def query_next_decomposition_and_rewards(self):
         raise NotImplementedError("Not implemented yet")        
 
-    def query_next_decomposition_with_edit(self, task_exec, method_execs):
+    def query_next_decomposition_with_edit(self, task_exec, method_execs, *args, **kwargs):
         """
         Enhanced version that allows users to edit decomposition options
-        Supports two edit modes:
-        1. GUI edit: User edits directly in the interface
-        2. Chatbot edit: User responds via chatbot (triggers query_new_method_exec)
+        Supports GUI edit: user edits directly in the interface.
         Returns (chosen_or_edited_method_exec, rewards)
         """
         raise NotImplementedError("Not implemented yet")

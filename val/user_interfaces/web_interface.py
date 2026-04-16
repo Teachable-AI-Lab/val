@@ -26,7 +26,10 @@ class WebInterface:
     
     def query_next_decomposition_with_edit(self, 
         task_exec: TaskEx, 
-        method_execs: Sequence[MethodEx], available_actions: List[str], env_objects: List[str]) -> Tuple[str, MethodEx, Sequence[Optional[float]]]:
+        method_execs: Sequence[MethodEx],
+        available_actions: List[str],
+        env_objects: List[str],
+        decision_explanation: Optional[str] = None) -> Tuple[str, MethodEx, Sequence[Optional[float]]]:
         """
         Query user for decomposition choice with edit options
         
@@ -35,6 +38,7 @@ class WebInterface:
             method_execs: Available method executions for this task
             available_actions: List of available actions in the environment
             env_objects: List of available objects in the environment
+            decision_explanation: Optional explanation for the default method choice
             
         Returns:
             Tuple of (user_choice, chosen_method_exec, rewards)
@@ -67,7 +71,9 @@ class WebInterface:
         
         # Get subtask names for the analysis
         default_method = method_execs[0] if method_execs else None
-        if default_method:
+        if decision_explanation:
+            analysis_text = decision_explanation
+        elif default_method:
             subtask_names = [f"{s.name}({', '.join([str(arg) for arg in s.args])})" for s in default_method.method.subtasks]
             analysis_text = f"""Thinking...
 
@@ -152,10 +158,6 @@ Is it correct?"""
         if user_choice == 'gui_edit':
             self.last_edited_decomposition = response.get('edited_decomposition', {})
             return user_choice, method_execs[response_index], rewards
-        elif user_choice == 'chatbot_edit':
-            self.chatbot_response = response.get('chatbot_response', '')
-            self.last_preconditions = response.get('preconditions', [])
-            return user_choice, method_execs[response_index], rewards
         elif user_choice == 'approve':
             rewards[response_index] = 1.0
             return user_choice, method_execs[response_index], rewards 
@@ -166,96 +168,6 @@ Is it correct?"""
         # Default to add_method
         return 'add_method', None, []
     
-    def display_thinking_analysis(self, user_task: str, task_name: str, task_args: List[str], analysis_text: str):
-        """
-        Display thinking analysis after grounding in the chatbot
-        
-        Args:
-            user_task: Original user input
-            task_name: Extracted task name
-            task_args: Extracted task arguments
-            analysis_text: Thinking analysis text
-        """
-        print(f"Displaying thinking analysis for grounding")
-        print(f"User task: {user_task}")
-        print(f"Extracted: {task_name}({task_args})")
-        print(f"Analysis: {analysis_text}")
-        
-        # Send thinking analysis to frontend chatbot
-        self.sio.emit('message', {
-            'type': 'display_thinking_analysis',
-            'text': {
-                'user_task': user_task,
-                'task_name': task_name,
-                'task_args': task_args,
-                'analysis_text': analysis_text
-            }
-        })
-
-    def display_decomposition_analysis(self, task_name: str, analysis_text: str, subtask_names: List[str], precondition_names: List[str]):
-        """
-        Display decomposition analysis in the chatbot
-        
-        Args:
-            task_name: Name of the task being analyzed
-            analysis_text: Detailed analysis text
-            subtask_names: List of subtask names
-            precondition_names: List of precondition names
-        """
-        print(f"Displaying decomposition analysis for {task_name}")
-        print(f"Analysis: {analysis_text}")
-        print(f"Subtasks: {subtask_names}")
-        print(f"Preconditions: {precondition_names}")
-        
-        # Send analysis to frontend chatbot
-        self.sio.emit('message', {
-            'type': 'display_decomposition_analysis',
-            'text': {
-                'task_name': task_name,
-                'analysis_text': analysis_text,
-                'subtask_names': subtask_names,
-                'precondition_names': precondition_names
-            }
-        })
-
-    def display_edit_options(self, message: str):
-        """
-        Display edit options in the chatbot
-        
-        Args:
-            message: Message to display to user
-        """
-        print(f"Displaying edit options: {message}")
-        
-        # Send edit options to frontend chatbot
-        self.sio.emit('message', {
-            'type': 'display_edit_options',
-            'text': message
-        })
-
-    def display_method_creation(self, task_name: str, subtask_names: List[str], precondition_names: List[str]):
-        """
-        Display method creation process in the chatbot
-        
-        Args:
-            task_name: Name of the task being created
-            subtask_names: List of subtask names
-            precondition_names: List of precondition names
-        """
-        print(f"Displaying method creation for {task_name}")
-        print(f"Subtasks: {subtask_names}")
-        print(f"Preconditions: {precondition_names}")
-        
-        # Send method creation info to frontend chatbot
-        self.sio.emit('message', {
-            'type': 'display_method_creation',
-            'text': {
-                'task_name': task_name,
-                'subtask_names': subtask_names,
-                'precondition_names': precondition_names
-            }
-        })
-
     def display_added_method(self, task_exec: TaskEx, 
         method_exec: MethodEx):
         self.user_response = None  
