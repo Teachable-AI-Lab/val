@@ -1,6 +1,7 @@
 from typing import List
 from typing import Tuple
 import copy
+import time
 from random import choice
 
 from pprint import pprint
@@ -24,6 +25,33 @@ from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
 from pyhtn.conditions.fact import Fact
 from pyhtn.conditions.conditions import NOT
 from pyhtn.domain.variable import V
+
+
+def _get_counter_locations(mdp):
+    return [
+        (x, y)
+        for y, row in enumerate(mdp.terrain_mtx)
+        for x, terrain in enumerate(row)
+        if terrain == "X"
+    ]
+
+
+def _get_occupied_counter_locations(mdp, state):
+    counter_objects = mdp.get_counter_objects_dict(state)
+    return {
+        (x, y)
+        for object_locations in counter_objects.values()
+        for x, y in object_locations
+    }
+
+
+def _get_empty_counter_locations(mdp, state):
+    occupied_counters = _get_occupied_counter_locations(mdp, state)
+    return [
+        pos
+        for pos in _get_counter_locations(mdp)
+        if pos not in occupied_counters
+    ]
 
 
 class OvercookedRouteProblem(Problem):
@@ -66,17 +94,23 @@ class OvercookedRouteProblem(Problem):
         if goal == "pot":
             return target == 'P'
 
-        counter_objects = self.base_env.mdp.get_counter_objects_dict(self.base_env.state)
-        if target in counter_objects:
-            for ox, oy in counter_objects[target]:
-                if ox == target[0] and oy == target[1]:
+        if goal in ["counter", "empty counter", "empty_counter"]:
+            return target == "X" and facing in _get_empty_counter_locations(
+                state_node.extra.mdp,
+                state_node.extra.state
+            )
+
+        counter_objects = state_node.extra.mdp.get_counter_objects_dict(state_node.extra.state)
+        if goal in counter_objects:
+            for ox, oy in counter_objects[goal]:
+                if (ox, oy) == facing:
                     return True
     
         return False
 
 class OvercookedAIEnv(AbstractEnvInterface):
 
-    def __init__(self, player_id=0, horizon=5000, layout="asymmetric_advantages", render=True):
+    def __init__(self, player_id=0, horizon=5000, layout="asymmetric_advantages", render=True, action_delay_ms=0):
         """
         Full list of layouts here:
         https://github.com/HumanCompatibleAI/overcooked_ai/tree/cb2e50cae95accbe4618879d88e565c87c54b1c3/src/overcooked_ai_py/data/layouts
@@ -84,6 +118,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         self.layout = layout
         self.horizon = horizon
         self.player_id = player_id
+        self.action_delay_ms = action_delay_ms
         self.reset()
 
         if self.player_id >= len(self.base_env.state.players):
@@ -116,6 +151,10 @@ class OvercookedAIEnv(AbstractEnvInterface):
         self.screen.blit(surface, (0, 0))
         pygame.display.flip()
         self.clock.tick(10)
+
+    def _pause_after_action(self):
+        if self.action_delay_ms > 0:
+            time.sleep(self.action_delay_ms / 1000.0)
 
     def get_objects(self) -> List[str]:
         objects = []
@@ -159,6 +198,21 @@ class OvercookedAIEnv(AbstractEnvInterface):
             )
         ]
         descriptions["get"] = "Get an object by interacting with and moving to the object's location."
+
+        domain["drop"] = [
+            Method(
+                name='drop',
+                preconditions=[
+                    NOT(Fact(player_holding='nothing')),
+                    Fact(object='counter', status='empty')
+                ],
+                subtasks=[
+                    Task('go to', 'counter'),
+                    Task('interact'),
+                ]
+            )
+        ]
+        descriptions["drop"] = "Drop the held object on an empty counter by moving to the counter and interacting."
 
         # ENHANCED BOIL METHODS WITH POT SELECTION AND PLAYER HOLDING LOGIC
         domain["boil"] = [
@@ -590,6 +644,15 @@ class OvercookedAIEnv(AbstractEnvInterface):
             for x, y in counter_objects[obj_type]:
                 state.append({'id': f'{obj_type}_{x}_{y}', 'object': obj_type, 'x': x, 'y': y})
 
+        # Empty counters are valid interaction targets for dropping held objects.
+        for x, y in _get_empty_counter_locations(self.base_env.mdp, self.base_env.state):
+            state.append({'id': f'counter_{x}_{y}',
+                        'object': 'counter',
+                        'x': x,
+                        'y': y,
+                        'status': 'empty',
+                        'terrain': 'X'})
+
         # Terrain
         for x in range(self.base_env.mdp.width):
             for y in range(self.base_env.mdp.height):
@@ -668,6 +731,14 @@ class OvercookedAIEnv(AbstractEnvInterface):
             args = list(args)
         print(f"[ENV] Executing: {action_name}({args})")
 
+        if action_name == "drop":
+            if self.base_env.state.players[self.player_id].held_object is None:
+                print("[ENV] Cannot drop: player is not holding anything")
+                return False
+            if not self.execute_action("go to", ["counter"]):
+                return False
+            return self.execute_action("interact", [])
+
         if action_name == "go to" and len(args) == 1:
             target = args[0]
             
@@ -693,7 +764,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             else:
                 action_plan = self.get_route_plan(target)
             
-            if action_plan:
+            if action_plan is not None:
                 for action in action_plan:
                     command = [(0, 0) for _ in self.base_env.state.players]
                     command[self.player_id] = action
@@ -726,32 +797,38 @@ class OvercookedAIEnv(AbstractEnvInterface):
         if self.render:
             self.render_state()
 
+        self._pause_after_action()
+
         return True
 
 if __name__ == "__main__":
     horizon = 5000
-    env = OvercookedAIEnv(player_id=0, horizon=horizon)
+    env = OvercookedAIEnv(player_id=0, horizon=horizon, layout="bonus_order_test", action_delay_ms=200)
     env.get_state()
-    actions = env.get_actions()
-    env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="wait20", args=[])
-    
+    actions = env.get_actions()    
     env.execute_action(action_name="go to", args=['onion'])
     env.execute_action(action_name="interact", args=['onion'])
-    env.execute_action(action_name="go to", args=['pot1'])
-    env.execute_action(action_name="interact", args=['pot'])
-    
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="wait20", args=[])
-    env.execute_action(action_name="interact", args=['pot'])
-
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="wait20", args=[])
-    env.execute_action(action_name="go to", args=['dish'])
-    env.execute_action(action_name="interact", args=['dish'])
-    env.execute_action(action_name="go to", args=['pot2'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="go to", args=['serving pad'])
-    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['counter'])
+    env.execute_action(action_name="interact", args=['counter'])
+    # env.execute_action(action_name="go to", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="wait 20min", args=[])
+    # env.execute_action(action_name="go to", args=['dish'])
+    # env.execute_action(action_name="interact", args=['dish'])
+    # env.execute_action(action_name="go to", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="go to", args=['serving pad'])
+    # env.execute_action(action_name="interact", args=['serving pad'])
+    # env.execute_action(action_name="go to", args=['onion'])
+    # env.execute_action(action_name="interact", args=['onion'])
+    # env.execute_action(action_name="go to", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="wait 20min", args=[])
+    # env.execute_action(action_name="go to", args=['dish'])
+    # env.execute_action(action_name="interact", args=['dish'])
+    # env.execute_action(action_name="go to", args=['pot'])
+    # env.execute_action(action_name="interact", args=['pot'])
+    # env.execute_action(action_name="go to", args=['serving pad'])
+    # env.execute_action(action_name="interact", args=['serving pad'])

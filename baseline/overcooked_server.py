@@ -5,6 +5,7 @@ import re
 import os
 import asyncio
 import pygame
+from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 
 from val.env_interfaces.overcooked_ai.overcooked_ai_env import OvercookedAIEnv
@@ -19,7 +20,23 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 env = None
 gpt_completer = None
 conversation_history = []  # Store recent conversation history
-MAX_HISTORY_LENGTH = 20  # Maximum number of conversation turns to keep
+MAX_HISTORY_LENGTH = 5  # Maximum number of conversation turns to keep
+LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'log.html'))
+
+
+def append_user_log(event):
+    """Append user interaction logs as JSON lines."""
+    payload = event if isinstance(event, dict) else {"message": str(event)}
+    payload.setdefault("server_timestamp", datetime.now(timezone.utc).isoformat())
+    payload.setdefault("source", "overcooked_baseline")
+
+    try:
+        with open(LOG_PATH, 'a', encoding='utf-8') as log_file:
+            log_file.write(json.dumps(payload, ensure_ascii=False) + '\n')
+        return {"ok": True}
+    except Exception as e:
+        print(f"Error writing user log: {e}")
+        return {"error": str(e)}
 
 # Load OpenAI-compatible config
 def load_openai_config():
@@ -169,7 +186,7 @@ User: "go get onion"
 Return: {{"explanation": "Going to the onion and interacting to pick it up.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}]}}
 
 User: "cook onion"
-Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}, {{"action": "interact", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}]}}
+Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot2"]}}, {{"action": "interact", "args": []}}]}}
 
 
 Examples of QUESTIONS/STATEMENTS (return text response):
@@ -437,6 +454,13 @@ def handle_message(data):
     """Handle general messages"""
     emit('message', data, broadcast=True)
 
+
+@socketio.on('on_log')
+@socketio.on('on log')
+def handle_user_log(data):
+    return append_user_log(data)
+
+
 @socketio.on('user_command')
 def handle_user_command(data):
     """Handle user command"""
@@ -448,6 +472,13 @@ def handle_user_command(data):
             'message': 'Command cannot be empty'
         })
         return
+
+    append_user_log({
+        "event_type": "user_query",
+        "function_name": "handle_user_command",
+        "user_query": user_command,
+        "client_timestamp": data.get("timestamp"),
+    })
     
     # Send processing status
     emit('message', {

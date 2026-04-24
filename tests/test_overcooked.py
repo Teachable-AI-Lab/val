@@ -34,13 +34,12 @@ async def main():
         run_render(env)                  # Keep rendering frames on the main thread
     )
 
-# Below is an optional test action loop if you want to debug behavior directly.
+# #Below is an optional test action loop if you want to debug behavior directly.
 # async def run_action_loop(env):
 #     import random
 #     while True:
 #         env.execute_action(action_name="go_to", args=['onion'])  #random.choice(["up", "down", "left", "right"])
 #         await asyncio.sleep(0.5)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

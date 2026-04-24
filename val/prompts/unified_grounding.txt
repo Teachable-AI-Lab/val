@@ -19,22 +19,12 @@ ACTION: NEW_ACTION
 OBJECTS: <comma_separated_objects>
 
 Examples:
-Input: "move to the onion"
+Input: "go to the onion"
 Output: 
-ACTION: moveTo
+ACTION: goTo
 OBJECTS: onion
 
-Input: "cook the tomato in the pot"
+Input: "cook the tomato"
 Output:
 ACTION: cook
-OBJECTS: tomato,pot
-
-Input: "pick up the knife"
-Output:
-ACTION: pickUp
-OBJECTS: knife
-
-Input: "put the plate on the table"
-Output:
-ACTION: put
-OBJECTS: plate,table 
+OBJECTS: tomato

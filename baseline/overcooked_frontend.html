@@ -291,7 +291,6 @@
         const sendBtn = document.getElementById('sendBtn');
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
-
         // Connection status management
         socket.on('connect', () => {
             updateStatus('connected', 'Connected');

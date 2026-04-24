@@ -1,10 +1,54 @@
 import socketio
+import json
+import os
 from html import escape
+from datetime import datetime, timezone
 from socketio.exceptions import TimeoutError
 from typing import List
 from typing import Optional
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
 from typing import List, Sequence, Optional, Tuple
+
+LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'log.html'))
+
+
+def _clean_text(value):
+    return ' '.join(str(value).replace('_', ' ').split())
+
+
+def _task_phrase(name, args=None):
+    parts = [_clean_text(name)]
+    parts.extend(_clean_text(arg) for arg in (args or []) if str(arg).strip())
+    return ' '.join(part for part in parts if part)
+
+
+def _simplify_task_dict(task_dict):
+    if not isinstance(task_dict, dict):
+        return _clean_text(task_dict)
+
+    name = task_dict.get('name') or task_dict.get('task_name') or ''
+    args = task_dict.get('match')
+    if args is None:
+        args = task_dict.get('args', [])
+    if not args and task_dict.get('V'):
+        args = [task_dict.get('V')]
+    return _task_phrase(name, args)
+
+
+def _simplify_method_exec(method_exec):
+    method_dict = method_exec.as_dict()
+    return [
+        _simplify_task_dict(child)
+        for child in method_dict.get("child_data", [])
+    ]
+
+
+def _simplify_gui_subtasks(subtasks):
+    return [
+        _task_phrase(task.get('task_name'), task.get('args', []))
+        for task in subtasks
+        if isinstance(task, dict)
+    ]
 
 class WebInterface:
             
@@ -13,7 +57,73 @@ class WebInterface:
         self.sio.connect(url)
         self.user_response = None
         self.response_received = False
+        self.expected_type = None
+        self.pending_interaction = None
         self.sio.on('message', self.on_message)
+
+    def _append_log(self, payload):
+        entry = {
+            "event_type": "webinterface_user_response",
+            "server_timestamp": datetime.now(timezone.utc).isoformat(),
+            "source": "val_web_interface",
+            **payload,
+        }
+        try:
+            with open(LOG_PATH, 'a', encoding='utf-8') as log_file:
+                log_file.write(json.dumps(entry, ensure_ascii=False) + '\n')
+        except Exception as e:
+            print("Failed to write web interface log:", e)
+
+    def _set_pending_interaction(self, function_name, prompt):
+        self.pending_interaction = {
+            "function_name": function_name,
+            "prompt": prompt,
+        }
+
+    def _summarize_response(self, response):
+        if not isinstance(response, dict):
+            return {"user_action": response}
+
+        summary = {
+            "user_action": response.get("user_choice", response),
+        }
+        if "index" in response:
+            summary["index"] = response.get("index")
+
+        edited = response.get("edited_decomposition")
+        if isinstance(edited, dict):
+            summary["edited_method"] = {
+                "head": _simplify_task_dict(edited.get("head", {})),
+                "subtasks": _simplify_gui_subtasks((edited.get("subtasks") or [[]])[0]),
+            }
+        return summary
+
+    def _log_received_response(self, response):
+        if self.pending_interaction is None:
+            return
+
+        pending = self.pending_interaction
+        response_summary = self._summarize_response(response)
+        prompt = pending.get("prompt", {})
+        function_name = pending.get("function_name", "unknown")
+
+        if function_name == "request_user_task":
+            response_summary["user_query"] = _clean_text(response)
+        elif function_name in {"ask_subtasks", "ask_rephrase"}:
+            response_summary["user_text"] = _clean_text(response)
+
+        if isinstance(response, dict):
+            index = response.get("index", 0)
+            methods = prompt.get("methods") or []
+            if isinstance(index, int) and 0 <= index < len(methods):
+                response_summary["selected_method"] = methods[index]
+
+        self._append_log({
+            "function_name": function_name,
+            "prompt": prompt,
+            "response": response_summary,
+        })
+        self.pending_interaction = None
 
     # This function is called when the client receives a message from the server 
     # change from previous version: event = self.sio.receive(), which is synchronous blocking call to wait for a server event 
@@ -21,6 +131,7 @@ class WebInterface:
         print("Received message:", data)
         if isinstance(data, dict) and 'response' in data and data.get('type') == self.expected_type:
             self.user_response = data['response']
+            self._log_received_response(self.user_response)
             self.response_received = True 
     
     
@@ -111,6 +222,14 @@ class WebInterface:
             "available_actions": available_actions,
             "env_objects": env_objects
         }
+
+        self._set_pending_interaction("query_next_decomposition_with_edit", {
+            "head": _task_phrase(head["name"], task_args),
+            "methods": [
+                {"index": index, "subtasks": _simplify_method_exec(method_exec)}
+                for index, method_exec in enumerate(method_execs)
+            ],
+        })
         
         self.sio.emit('message', {
             'type': 'confirm_best_match_decomposition',
@@ -245,6 +364,9 @@ class WebInterface:
     def request_user_task(self) -> str:
         self.user_response = None  
         self.response_received = False 
+        self._set_pending_interaction("request_user_task", {
+            "question": "How can I help you today?"
+        })
         self.sio.emit('message', {'type': 'request_user_task', 'text': 'How can I help you today?'})
         print("The message is emitted")
         self.expected_type = 'confirm_response'
@@ -264,6 +386,10 @@ class WebInterface:
             except Exception:
                 task_hash = None
 
+        self._set_pending_interaction("ask_subtasks", {
+            "user_task": _clean_text(user_task),
+            "question": f"What are the steps for completing the task '{user_task}'?",
+        })
         self.sio.emit('message', {
             'type': 'ask_subtasks',
             'text': f"What are the steps for completing the task '{user_task}'?",
@@ -278,6 +404,10 @@ class WebInterface:
         self.user_response = None  
         self.response_received = False
         self.expected_type = 'confirm_response' 
+        self._set_pending_interaction("ask_rephrase", {
+            "user_tasks": _clean_text(user_tasks),
+            "question": f"Sorry about that. Can you rephrase the tasks '{user_tasks}'?",
+        })
         self.sio.emit('message', {
             'type': 'ask_rephrase', 
             'text': f"Sorry about that. Can you rephrase the tasks '{user_tasks}'?"
@@ -302,6 +432,10 @@ class WebInterface:
             for index, step in enumerate(steps, start=1)
         )
         message_text = f"{question_text}<br><br>{formatted_steps}"
+        self._set_pending_interaction("segment_confirmation", {
+            "question": question_text,
+            "steps": [_clean_text(step) for step in steps],
+        })
         self.sio.emit('message', {'type': 'segment_confirmation', 
                                   'text': message_text,
                                   'steps': steps})
@@ -320,6 +454,10 @@ class WebInterface:
         self.expected_type = 'correct_grounding_response'
         env_objects=list(set(env_objects))
         available_actions=list(set(available_actions))
+        self._set_pending_interaction("correct_grounding", {
+            "user_task": _clean_text(user_task),
+            "current_grounding": _task_phrase(task_name, task_args),
+        })
         self.sio.emit('message', {
             'type': 'correct_grounding',
             'text': f"Correct the grounding for: '{user_task}'",
