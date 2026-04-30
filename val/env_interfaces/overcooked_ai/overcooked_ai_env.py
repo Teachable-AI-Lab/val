@@ -110,7 +110,8 @@ class OvercookedRouteProblem(Problem):
 
 class OvercookedAIEnv(AbstractEnvInterface):
 
-    def __init__(self, player_id=0, horizon=5000, layout="asymmetric_advantages", render=True, action_delay_ms=0):
+    def __init__(self, player_id=0, horizon=5000, layout="asymmetric_advantages", render=True, action_delay_ms=0,
+                 show_all_players=False):
         """
         Full list of layouts here:
         https://github.com/HumanCompatibleAI/overcooked_ai/tree/cb2e50cae95accbe4618879d88e565c87c54b1c3/src/overcooked_ai_py/data/layouts
@@ -119,6 +120,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
         self.horizon = horizon
         self.player_id = player_id
         self.action_delay_ms = action_delay_ms
+        self.show_all_players = show_all_players
         self.reset()
 
         if self.player_id >= len(self.base_env.state.players):
@@ -138,11 +140,27 @@ class OvercookedAIEnv(AbstractEnvInterface):
         self.base_env = OvercookedEnv.from_mdp(self.mdp, horizon=self.horizon)
         self.motion_planner = MotionPlanner(self.mdp)
 
+    def _get_render_state(self):
+        if self.show_all_players:
+            return self.base_env.state
+
+        render_state = self.base_env.state.deepcopy()
+        render_state.players = (render_state.players[self.player_id],)
+        return render_state
+
     def render_state(self):
-        surface = self.visualizer.render_state(state=self.base_env.state,
-                                               grid=self.base_env.mdp.terrain_mtx,
-                                               hud_data=StateVisualizer.default_hud_data(
-                                                   self.base_env.state))
+        render_state = self._get_render_state()
+        player_colors = self.visualizer.player_colors
+        if not self.show_all_players:
+            self.visualizer.player_colors = [player_colors[self.player_id]]
+
+        try:
+            surface = self.visualizer.render_state(state=render_state,
+                                                   grid=self.base_env.mdp.terrain_mtx,
+                                                   hud_data=StateVisualizer.default_hud_data(
+                                                       self.base_env.state))
+        finally:
+            self.visualizer.player_colors = player_colors
 
         rendered_width, rendered_height = surface.get_size()
         if (rendered_width, rendered_height) != self.screen.get_size():
@@ -810,25 +828,55 @@ if __name__ == "__main__":
     env.execute_action(action_name="interact", args=['onion'])
     env.execute_action(action_name="go to", args=['counter'])
     env.execute_action(action_name="interact", args=['counter'])
-    # env.execute_action(action_name="go to", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="wait 20min", args=[])
-    # env.execute_action(action_name="go to", args=['dish'])
-    # env.execute_action(action_name="interact", args=['dish'])
-    # env.execute_action(action_name="go to", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="go to", args=['serving pad'])
-    # env.execute_action(action_name="interact", args=['serving pad'])
-    # env.execute_action(action_name="go to", args=['onion'])
-    # env.execute_action(action_name="interact", args=['onion'])
-    # env.execute_action(action_name="go to", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="wait 20min", args=[])
-    # env.execute_action(action_name="go to", args=['dish'])
-    # env.execute_action(action_name="interact", args=['dish'])
-    # env.execute_action(action_name="go to", args=['pot'])
-    # env.execute_action(action_name="interact", args=['pot'])
-    # env.execute_action(action_name="go to", args=['serving pad'])
-    # env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait 20min", args=[])
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait 20min", args=[])
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['counter'])
+    env.execute_action(action_name="interact", args=['counter'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait 20min", args=[])
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="go to", args=['onion'])
+    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="wait 20min", args=[])
+    env.execute_action(action_name="go to", args=['dish'])
+    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="go to", args=['pot'])
+    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="go to", args=['serving pad'])
+    env.execute_action(action_name="interact", args=['serving pad'])

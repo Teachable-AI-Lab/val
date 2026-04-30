@@ -5,6 +5,7 @@ from dataclasses import field
 from typing import Any
 from typing import Optional
 from typing import TYPE_CHECKING
+from typing import List
 from typing import Tuple
 from typing import Union
 
@@ -31,6 +32,12 @@ def task_to_gpt_str(task: Task, description: str) -> str:
         return f'{task.name}({",".join([arg.name for arg in task.args])}) - {description}'
     else:
         return f'{task.name}({",".join([arg.name for arg in task.args])})'
+
+
+def normalize_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
+    if task_name.strip().lower() == "interact":
+        return []
+    return task_args
 
 def _default_keys_data() -> dict:
     return {

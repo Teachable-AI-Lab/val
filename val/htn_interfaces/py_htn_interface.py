@@ -125,7 +125,9 @@ class PyHtnInterface(AbstractHtnInterface):
 
 
     def add_tasks(self, tasks):
-        self.planner.add_tasks(tasks)
+        # HtnPlanner2 inserts default-priority root tasks at the front of its
+        # queue, so add them in reverse to preserve the user's command order.
+        self.planner.add_tasks(list(reversed(tasks)))
 
     def get_next_method_execs(self):#all_methods: bool = False):
 

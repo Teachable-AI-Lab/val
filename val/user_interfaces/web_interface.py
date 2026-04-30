@@ -8,6 +8,7 @@ from typing import List
 from typing import Optional
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
 from typing import List, Sequence, Optional, Tuple
+from val.utils import normalize_grounding_args
 
 LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'log.html'))
 
@@ -478,6 +479,7 @@ class WebInterface:
         else:
             corrected_task_name = task_name
             corrected_task_args = task_args
+        corrected_task_args = normalize_grounding_args(corrected_task_name, corrected_task_args)
         
         # After grounding correction, just return
         # Both thinking analysis and decomposition tree will be shown together in the main loop

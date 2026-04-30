@@ -3,6 +3,7 @@ from typing import Optional
 from typing import Union
 
 from val.utils import load_prompt
+from val.utils import normalize_grounding_args
 from val.utils import task_to_gpt_str
 
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
@@ -443,7 +444,7 @@ class ValAgent:
                 if objects_str:
                     task_args = [obj.strip() for obj in objects_str.split(',')]
         
-        return task_name, task_args
+        return task_name, normalize_grounding_args(task_name, task_args)
 
     def verbalize_gpt(self, task_ungrounded: Task, task_args: List[str]) -> str:
         """

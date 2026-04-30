@@ -2,6 +2,7 @@ from typing import List, Sequence, Optional, Tuple
 
 from val.utils import Task
 from val.user_interfaces.abstract_interface import AbstractUserInterface
+from val.utils import normalize_grounding_args
 from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx, tree_dict_to_str
 
 
@@ -345,6 +346,7 @@ class ConsoleUserInterface(AbstractUserInterface):
         else:
             corrected_task_name = task_name
             corrected_task_args = task_args
+        corrected_task_args = normalize_grounding_args(corrected_task_name, corrected_task_args)
             
         return corrected_task_name, corrected_task_args
 
