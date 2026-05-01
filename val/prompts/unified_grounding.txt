@@ -21,7 +21,7 @@ OBJECTS: <comma_separated_objects>
 Examples:
 Input: "go to the onion"
 Output: 
-ACTION: goTo
+ACTION: go to
 OBJECTS: onion
 
 Input: "cook the tomato"

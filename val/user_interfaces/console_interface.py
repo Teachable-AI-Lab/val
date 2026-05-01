@@ -209,6 +209,9 @@ class ConsoleUserInterface(AbstractUserInterface):
         for i, subtask in enumerate(method_exec.method.subtasks, start=1):
             print(f"  {i}. {subtask.name}")
 
+    def finish_task(self) -> None:
+        input("Task completed. Press Enter to finish the task.")
+
                
     def request_user_task(self) -> str:
         user_task = input(f"How can I help you today? ")

@@ -35,7 +35,7 @@ def task_to_gpt_str(task: Task, description: str) -> str:
 
 
 def normalize_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
-    if task_name.strip().lower() == "interact":
+    if task_name.strip().lower() == "act":
         return []
     return task_args
 

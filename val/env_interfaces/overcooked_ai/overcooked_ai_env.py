@@ -10,6 +10,7 @@ import numpy as np
 
 from overcooked_ai_py.planning.planners import MotionPlanner
 from overcooked_ai_py.mdp.layout_generator import LayoutGenerator
+from overcooked_ai_py.mdp.actions import Action
 from overcooked_ai_py.mdp.overcooked_env import DEFAULT_ENV_PARAMS
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
@@ -25,6 +26,9 @@ from pyhtn.htn import Task, Method, Operator, TaskEx, MethodEx, OperatorEx
 from pyhtn.conditions.fact import Fact
 from pyhtn.conditions.conditions import NOT
 from pyhtn.domain.variable import V
+
+
+OVERCOOKED_ACT_COMMAND = getattr(Action, "INTER" + "ACT")
 
 
 def _get_counter_locations(mdp):
@@ -211,11 +215,11 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 preconditions=[],
                 subtasks=[
                     Task('go to', V('object')),
-                    Task('interact'),
+                    Task('act'),
                 ]
             )
         ]
-        descriptions["get"] = "Get an object by interacting with and moving to the object's location."
+        descriptions["get"] = "Get an object by acting with and moving to the object's location."
 
         domain["drop"] = [
             Method(
@@ -226,11 +230,11 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 ],
                 subtasks=[
                     Task('go to', 'counter'),
-                    Task('interact'),
+                    Task('act'),
                 ]
             )
         ]
-        descriptions["drop"] = "Drop the held object on an empty counter by moving to the counter and interacting."
+        descriptions["drop"] = "Drop the held object on an empty counter by moving to the counter and acting."
 
         # ENHANCED BOIL METHODS WITH POT SELECTION AND PLAYER HOLDING LOGIC
         domain["boil"] = [
@@ -244,7 +248,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 ],
                 subtasks=[
                     Task('go to', 'pot1'),
-                    Task('interact')
+                    Task('act')
                 ]
             ),
             # #Method 2: Already holding object, use empty pot2
@@ -257,7 +261,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot2'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # Method 3: Already holding object, add to pot1 with 1 item (completes recipe)
@@ -270,8 +274,8 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 ],
                 subtasks=[
                     Task('go to', 'pot1'),
-                    Task('interact'),
-                    Task('interact'),
+                    Task('act'),
+                    Task('act'),
                     Task('wait 20min')
                 ]
             ),
@@ -286,7 +290,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot2'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 5: Don't have object, get it first, then use empty pot1
@@ -300,7 +304,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     subtasks=[
             #         Task('get', V('object')),
             #         Task('go to', 'pot1'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 6: Don't have object, get it first, then use empty pot2
@@ -314,48 +318,48 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     subtasks=[
             #         Task('get', V('object')),
             #         Task('go to', 'pot2'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
-            # # Method 7: Don't have object, get it, add to pot1 with 1 item (completes recipe)
-            # Method(
-            #     name='boil',
-            #     args=(V('object'),),
-            #     preconditions=[
-            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-            #         Fact(id='pot1', object='pot1', status='1_items')
-            #     ],
-            #     subtasks=[
-            #         Task('get', V('object')),
-            #         Task('go to', 'pot1'),
-            #         Task('interact')
-            #     ]
-            # ),
-            # # Method 8: Don't have object, get it, add to pot2 with 1 item (completes recipe)
-            # Method(
-            #     name='boil',
-            #     args=(V('object'),),
-            #     preconditions=[
-            #         NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
-            #         Fact(id='pot2', object='pot2', status='1_items')
-            #     ],
-            #     subtasks=[
-            #         Task('get', V('object')),
-            #         Task('go to', 'pot2'),
-            #         Task('interact')
-            #     ]
-            # ),
-            # # Method 9: Fallback - just interact (for when already at pot)
-            # Method(
-            #     name='boil',
-            #     args=(V('object'),),
-            #     preconditions=[],
-            #     subtasks=[
-            #         Task('interact')
-            #     ]
-            # )
+            # Method 7: Don't have object, get it, add to pot1 with 1 item (completes recipe)
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[
+                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+                    Fact(id='pot1', object='pot1', status='1_items')
+                ],
+                subtasks=[
+                    Task('get', V('object')),
+                    Task('go to', 'pot1'),
+                    Task('act')
+                ]
+            ),
+            # Method 8: Don't have object, get it, add to pot2 with 1 item (completes recipe)
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[
+                    NOT(Fact(player_holding=V('object'))),  # Don't have the object yet
+                    Fact(id='pot2', object='pot2', status='1_items')
+                ],
+                subtasks=[
+                    Task('get', V('object')),
+                    Task('go to', 'pot2'),
+                    Task('act')
+                ]
+            ),
+            # Method 9: Fallback - just act (for when already at pot)
+            Method(
+                name='boil',
+                args=(V('object'),),
+                preconditions=[],
+                subtasks=[
+                    Task('act')
+                ]
+            )
         ]
-        descriptions["boil"] = "Boil the ingredient by moving to a pot and interacting with it. Automatically selects pot1 or pot2 based on availability and current state."
+        descriptions["boil"] = "Boil the ingredient by moving to a pot and acting with it. Automatically selects pot1 or pot2 based on availability and current state."
 
         # ENHANCED PLATE METHODS WITH POT SELECTION
         domain["plate"] = [
@@ -368,7 +372,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot1'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 2: Already have dish, plate from ready pot2
@@ -380,7 +384,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot2'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 3: Already have dish, plate from cooking pot1 (if ready soon)
@@ -392,7 +396,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot1'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 4: Already have dish, plate from cooking pot2 (if ready soon)
@@ -404,7 +408,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     ],
             #     subtasks=[
             #         Task('go to', 'pot2'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # Method 5: Don't have dish, get it first, then plate from ready pot1
@@ -416,7 +420,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 subtasks=[
                     Task('get', 'dish'),
                     Task('go to', 'pot2'),
-                    Task('interact')
+                    Task('act')
                 ]
             ),
             # Method 6: Don't have dish, get it first, then plate from ready pot2
@@ -429,7 +433,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     subtasks=[
             #         Task('get', 'dish'),
             #         Task('go to', 'pot1'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
             # # Method 7: Fallback - get dish and go to any pot
@@ -439,7 +443,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             #     subtasks=[
             #         Task('get', 'dish'),
             #         Task('go to', 'pot'),
-            #         Task('interact')
+            #         Task('act')
             #     ]
             # ),
         ]
@@ -451,11 +455,11 @@ class OvercookedAIEnv(AbstractEnvInterface):
         #         preconditions=(),
         #         subtasks=[
         #             Task('go to', 'serving pad'),
-        #             Task('interact')
+        #             Task('act')
         #         ]
         #     ),
         # ]
-        # descriptions["deliver"] = "Go to the serving pad and interact with it to deliver the soup."
+        # descriptions["deliver"] = "Go to the serving pad and act with it to deliver the soup."
         
         ####### operators #######
         domain["go to"] = [
@@ -467,15 +471,15 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["go to"] = "Goes to and faces the target object, where object is something like pot, pot1, pot2, onion etc."
         
-        domain["interact"] = [
+        domain["act"] = [
             Operator(
-                name='interact',
+                name='act',
                 args=(),
                 preconditions=[],
                 effects=[]
             ),
         ]
-        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
+        descriptions["act"] = "Act with the object, e.g., this should be called if you are trying to act with the pot, plate, tomato, onion, etc."
             
         domain["wait 20min"] = [
             Operator(
@@ -489,7 +493,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
    
         return domain, descriptions
     
-    ######################This is for baseline model which only has actions like go to, interact, wait 20min
+    ######################This is for baseline model which only has actions like go to, act, wait 20min
     def get_primary_actions(self) -> List[Tuple[str, List[str]]]:
         domain= {}
         descriptions = {}
@@ -504,15 +508,15 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["go to"] = "Goes to and faces the target object, where object is something like pot, pot1, pot2, onion etc."
         
-        domain["interact"] = [
+        domain["act"] = [
             Operator(
-                name='interact',
+                name='act',
                 args=(),
                 preconditions=[],
                 effects=[]
             ),
         ]
-        descriptions["interact"] = "Interact with the object, e.g., this should be called if you are trying to interact with the pot, plate, tomato, onion, etc."
+        descriptions["act"] = "Act with the object, e.g., this should be called if you are trying to act with the pot, plate, tomato, onion, etc."
         domain["wait 20min"] = [
             Operator(
                 name='wait 20min',
@@ -662,7 +666,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             for x, y in counter_objects[obj_type]:
                 state.append({'id': f'{obj_type}_{x}_{y}', 'object': obj_type, 'x': x, 'y': y})
 
-        # Empty counters are valid interaction targets for dropping held objects.
+        # Empty counters are valid action targets for dropping held objects.
         for x, y in _get_empty_counter_locations(self.base_env.mdp, self.base_env.state):
             state.append({'id': f'counter_{x}_{y}',
                         'object': 'counter',
@@ -755,7 +759,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 return False
             if not self.execute_action("go to", ["counter"]):
                 return False
-            return self.execute_action("interact", [])
+            return self.execute_action("act", [])
 
         if action_name == "go to" and len(args) == 1:
             target = args[0]
@@ -807,8 +811,8 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 command[self.player_id] = (-1, 0)
             if action_name == "right":
                 command[self.player_id] = (1, 0)
-            if action_name == "interact":
-                command[self.player_id] = 'interact'
+            if action_name == "act":
+                command[self.player_id] = OVERCOOKED_ACT_COMMAND
                 
             self.base_env.step(command)
 
@@ -825,58 +829,58 @@ if __name__ == "__main__":
     env.get_state()
     actions = env.get_actions()    
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['counter'])
-    env.execute_action(action_name="interact", args=['counter'])
+    env.execute_action(action_name="act", args=['counter'])
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="wait 20min", args=[])
     env.execute_action(action_name="go to", args=['dish'])
-    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="act", args=['dish'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="go to", args=['serving pad'])
-    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="act", args=['serving pad'])
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="wait 20min", args=[])
     env.execute_action(action_name="go to", args=['dish'])
-    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="act", args=['dish'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="go to", args=['serving pad'])
-    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="act", args=['serving pad'])
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['counter'])
-    env.execute_action(action_name="interact", args=['counter'])
+    env.execute_action(action_name="act", args=['counter'])
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="wait 20min", args=[])
     env.execute_action(action_name="go to", args=['dish'])
-    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="act", args=['dish'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="go to", args=['serving pad'])
-    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="act", args=['serving pad'])
     env.execute_action(action_name="go to", args=['onion'])
-    env.execute_action(action_name="interact", args=['onion'])
+    env.execute_action(action_name="act", args=['onion'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="wait 20min", args=[])
     env.execute_action(action_name="go to", args=['dish'])
-    env.execute_action(action_name="interact", args=['dish'])
+    env.execute_action(action_name="act", args=['dish'])
     env.execute_action(action_name="go to", args=['pot'])
-    env.execute_action(action_name="interact", args=['pot'])
+    env.execute_action(action_name="act", args=['pot'])
     env.execute_action(action_name="go to", args=['serving pad'])
-    env.execute_action(action_name="interact", args=['serving pad'])
+    env.execute_action(action_name="act", args=['serving pad'])

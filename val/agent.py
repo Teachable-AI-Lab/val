@@ -79,6 +79,7 @@ class ValAgent:
                     trace.print_trace()
 
                     if(self.htn_interface.is_exhausted()):
+                        self.user_interface.finish_task()
                         break
 
                     # Get the method executions considered by the planner

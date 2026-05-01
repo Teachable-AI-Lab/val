@@ -47,6 +47,12 @@ class AbstractUserInterface:
         """
         raise NotImplementedError("Not implemented yet")
 
+    def finish_task(self) -> None:
+        """
+        Notify the user that the current task is complete before accepting a new task.
+        """
+        raise NotImplementedError("Not implemented yet")
+
     def correct_grounding(self, user_task: str, task_name: str, task_args: List[str], env_objects: List[str], available_actions: List[str]) -> tuple[str, List[str]]:
         """
         Allow user to correct the grounding result (action and objects)

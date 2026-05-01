@@ -25,7 +25,7 @@ LOG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'log.ht
 
 
 def append_user_log(event):
-    """Append user interaction logs as JSON lines."""
+    """Append user action logs as JSON lines."""
     payload = event if isinstance(event, dict) else {"message": str(event)}
     payload.setdefault("server_timestamp", datetime.now(timezone.utc).isoformat())
     payload.setdefault("source", "overcooked_baseline")
@@ -170,9 +170,9 @@ Current User Input: "{user_command}"
 IMPORTANT INSTRUCTIONS:
 1. If the user gives a command to DO something (like "cook onion", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
 2. Complex tasks need multiple steps. Use pot1 or pot2 when going to a pot (e.g. go to pot1, go to pot2). For example:
-   - "cook onion" means: get onion → go to pot1 → interact  → get dish → go to pot2 (the opposite from previous step) → plate → deliver
-   - "get onion" means: go to onion → interact
-   - "make soup" means: get onion → go to pot1 → interact → get dish → go to pot2 (the opposite from previous step) → interact 
+   - "cook onion" means: get onion → go to pot1 → act  → get dish → go to pot2 (the opposite from previous step) → plate → deliver
+   - "get onion" means: go to onion → act
+   - "make soup" means: get onion → go to pot1 → act → get dish → go to pot2 (the opposite from previous step) → act 
 3. Always think step by step and break down complex commands into the basic actions above.
 4. If the user asks a QUESTION or makes a STATEMENT (not a command to do something), provide a helpful text response.
 
@@ -183,15 +183,15 @@ Response Format:
 
 Examples of ACTION commands (return object with explanation + actions):
 User: "go get onion"
-Return: {{"explanation": "Going to the onion and interacting to pick it up.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}]}}
+Return: {{"explanation": "Going to the onion and acting to pick it up.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "act", "args": []}}]}}
 
 User: "cook onion"
-Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "interact", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "interact", "args": []}}, {{"action": "go to", "args": ["pot2"]}}, {{"action": "interact", "args": []}}]}}
+Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "act", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "act", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "act", "args": []}}, {{"action": "go to", "args": ["pot2"]}}, {{"action": "act", "args": []}}]}}
 
 
 Examples of QUESTIONS/STATEMENTS (return text response):
 User: "What can I do?"
-Return: {{"type": "text", "message": "You can move around, interact with objects like onions, pots, and serving stations. Try commands like 'go to onion' or 'cook onion'."}}
+Return: {{"type": "text", "message": "You can move around, act with objects like onions, pots, and serving stations. Try commands like 'go to onion' or 'cook onion'."}}
 
 User: "I want to make soup"
 Return: {{"type": "text", "message": "I'll help you make soup! The steps are: 1) Get an onion, 2) Go to the pot and add it, 3) Get a dish, 4) Plate the soup. Say 'cook onion' and I'll do it for you!"}}

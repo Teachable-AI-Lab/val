@@ -315,6 +315,22 @@ class WebInterface:
         print("prepared to return")
 
         return
+
+    def finish_task(self) -> None:
+        self.user_response = None
+        self.response_received = False
+        self.expected_type = 'finish_task_response'
+        self._set_pending_interaction("finish_task", {
+            "question": "The task is complete. Click Finish Task to start a new task."
+        })
+        self.sio.emit('message', {
+            'type': 'task_completed',
+            'text': 'The task is complete.'
+        })
+        print("Task completion message emitted")
+        while not self.response_received:
+            self.sio.sleep(0.1)
+        return
     
     def check_for_break(self) -> bool:
         return False
