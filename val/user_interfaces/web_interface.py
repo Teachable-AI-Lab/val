@@ -199,26 +199,16 @@ class WebInterface:
 
         analysis_text = decision_explanation
         
-        # Send thinking analysis
-        self.sio.emit('message', {
-            'type': 'show_thinking_analysis_and_decomposition',
-            'text': {
-                'user_task': f"{task_name} {' '.join(task_args)}",
-                'task_name': task_name,
-                'task_args': task_args,
-                'analysis_text': analysis_text,
-                'subtasks': subtasks
-            }
-        })
-        
-        # Then, send decomposition tree structure
-        
         result = {
             "head": {
                 "name": head["name"],
                 "V": match,
                 "hash": head["id"]
             },
+            "user_task": f"{task_name} {' '.join(task_args)}",
+            "task_name": task_name,
+            "task_args": task_args,
+            "analysis_text": analysis_text,
             "subtasks": subtasks,
             "available_actions": available_actions,
             "env_objects": env_objects
@@ -236,7 +226,7 @@ class WebInterface:
             'type': 'confirm_best_match_decomposition',
             'text': result
         })
-        print("Decomposition tree message emitted")
+        print("Decomposition analysis and tree message emitted")
         
         # Wait for user response from chatbot buttons (Approve/Reject)
         self.user_response = None  
