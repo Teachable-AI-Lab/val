@@ -168,9 +168,9 @@ Objects in the environment:
 Current User Input: "{user_command}"
 
 IMPORTANT INSTRUCTIONS:
-1. If the user gives a command to DO something (like "cook onion", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
+1. If the user gives a command to DO something (like "Finish onion order", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
 2. Complex tasks need multiple steps. Use pot1 or pot2 when going to a pot (e.g. go to pot1, go to pot2). For example:
-   - "cook onion" means: get onion → go to pot1 → act  → get dish → go to pot2 (the opposite from previous step) → plate → deliver
+   - "Finish onion order" means: bind the displayed onion order to the internal onion object, then get onion → go to pot1 → act  → get dish → go to pot2 (the opposite from previous step) → plate → deliver
    - "get onion" means: go to onion → act
    - "make soup" means: get onion → go to pot1 → act → get dish → go to pot2 (the opposite from previous step) → act 
 3. Always think step by step and break down complex commands into the basic actions above.
@@ -185,20 +185,20 @@ Examples of ACTION commands (return object with explanation + actions):
 User: "go get onion"
 Return: {{"explanation": "Going to the onion and acting to pick it up.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "act", "args": []}}]}}
 
-User: "cook onion"
+User: "Finish onion order"
 Return: {{"explanation": "I'll fetch an onion, add it to the pot, wait for cooking, then get a dish and plate the soup.", "actions": [{{"action": "go to", "args": ["onion"]}}, {{"action": "act", "args": []}}, {{"action": "go to", "args": ["pot1"]}}, {{"action": "act", "args": []}}, {{"action": "wait 20min", "args": []}}, {{"action": "go to", "args": ["dish"]}}, {{"action": "act", "args": []}}, {{"action": "go to", "args": ["pot2"]}}, {{"action": "act", "args": []}}]}}
 
 
 Examples of QUESTIONS/STATEMENTS (return text response):
 User: "What can I do?"
-Return: {{"type": "text", "message": "You can move around, act with objects like onions, pots, and serving stations. Try commands like 'go to onion' or 'cook onion'."}}
+Return: {{"type": "text", "message": "You can move around, act with objects like onions, pots, and serving stations. Try commands like 'go to onion' or 'Finish onion order'."}}
 
 User: "I want to make soup"
-Return: {{"type": "text", "message": "I'll help you make soup! The steps are: 1) Get an onion, 2) Go to the pot and add it, 3) Get a dish, 4) Plate the soup. Say 'cook onion' and I'll do it for you!"}}
+Return: {{"type": "text", "message": "I'll help you make soup! The steps are: 1) Get an onion, 2) Go to the pot and add it, 3) Get a dish, 4) Plate the soup. Say 'Finish onion order' and I'll do it for you!"}}
 
 
 CRITICAL: 
-- If the user says something like "cook", "make", "get", "deliver" - these are ACTION commands. Break them down into basic actions.
+- If the user says something like "finish", "make", "get", "deliver" - these are ACTION commands. Break them down into basic actions.
 - Always return valid JSON. Never return plain text for action commands.
 - For ACTION commands, always include a brief "explanation" (why you are doing these steps) before listing "actions".
 - Think about what steps are needed to complete the task, then return all steps as an action array.

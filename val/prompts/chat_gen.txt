@@ -11,7 +11,7 @@ Your task is to:
 **Important Notes**:
 - The first argument (e.g., `player`) represents the agent performing the action.
 - Only include arguments that are relevant to the action described by the phrase.
-- Avoid including arguments that are constant and will never vary (e.g., the pot in the "cook" action).
+- Avoid including arguments that are constant and will never vary (e.g., the pot in the "finish" action).
 - Respond only with the predicate-argument structure. Do not include any additional words or explanations.
 
 Let’s begin with the following examples:

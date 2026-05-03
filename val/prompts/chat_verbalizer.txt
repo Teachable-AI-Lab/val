@@ -15,3 +15,7 @@ transport(apple, there)
 ***
 transport an apple there
 ***
+finish(onion)
+***
+Finish onion order
+***

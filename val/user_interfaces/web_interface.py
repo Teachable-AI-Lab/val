@@ -18,8 +18,13 @@ def _clean_text(value):
 
 
 def _task_phrase(name, args=None):
-    parts = [_clean_text(name)]
-    parts.extend(_clean_text(arg) for arg in (args or []) if str(arg).strip())
+    cleaned_name = _clean_text(name)
+    cleaned_args = [_clean_text(arg) for arg in (args or []) if str(arg).strip()]
+    if cleaned_name.lower() == 'finish' and cleaned_args == ['onion']:
+        return 'Finish onion order'
+
+    parts = [cleaned_name]
+    parts.extend(cleaned_args)
     return ' '.join(part for part in parts if part)
 
 

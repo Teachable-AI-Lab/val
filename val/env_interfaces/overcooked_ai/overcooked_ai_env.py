@@ -187,15 +187,19 @@ class OvercookedAIEnv(AbstractEnvInterface):
             if 'object' in ele:
                 objects.append(ele['object'])
 
+        for order in self.base_env.state.all_orders:
+            if order._ingredients.count('onion') > 0:
+                objects.append('onion order')
+
         return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
         domain= {}
         descriptions = {}
         
-        domain["cook"] = [
+        domain["finish"] = [
             Method(
-                name='cook',
+                name='finish',
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
@@ -206,7 +210,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
                 ]
             ),
         ]
-        descriptions["cook"] = "Cook soup by sequentially getting, boiling, plating, and delivering the soup."
+        descriptions["finish"] = "Finish an order by getting the ingredient, boiling it, plating the soup, and delivering it."
 
         domain["get"] = [
             Method(
@@ -798,7 +802,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             for i in range(20):
                 command = [(0, 0) for _ in self.base_env.state.players]
                 self.base_env.step(command)
-        elif action_name in ["get", "boil", "plate", "deliver", "cook"]:
+        elif action_name in ["get", "boil", "plate", "deliver", "finish"]:
             # These are high-level HTN methods, not directly executable
             return False
         else:
