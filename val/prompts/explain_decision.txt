@@ -6,9 +6,11 @@ Keep the explanation short and user-facing:
 - Do not repeat the full task, method list, current state, or chosen method.
 - Do not include labels like "Task:" or "Explanation:".
 - Mention only the key reason the chosen method is appropriate.
+- Consider each method's preconditions and whether they match the current state.
 
 Task: %s
 Available methods: %s
+Method preconditions: %s
 Current state: %s
 Chosen method: %s
 

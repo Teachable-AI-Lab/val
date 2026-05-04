@@ -325,10 +325,12 @@ class ValAgent:
         
         # Format available methods
         method_strs = []
+        precondition_strs = []
         try:
             for i, method_exec in enumerate(method_execs):
                 if method_exec is None or method_exec.method is None:
                     method_strs.append(f"Method {i+1}: [INVALID_METHOD]")
+                    precondition_strs.append(f"Method {i+1}: [INVALID_METHOD]")
                     continue
                     
                 subtasks = []
@@ -339,11 +341,18 @@ class ValAgent:
                         subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
                         subtasks.append(subtask_str)
                 method_strs.append(f"Method {i+1}: [{', '.join(subtasks)}]")
+
+                preconditions = getattr(method_exec.method, "preconditions", None) or []
+                precondition_str = ", ".join(str(precondition) for precondition in preconditions)
+                precondition_strs.append(f"Method {i+1}: [{precondition_str or 'none'}]")
             available_methods_str = "; ".join(method_strs)
+            method_preconditions_str = "; ".join(precondition_strs)
             print(f"DEBUG: Available methods: {available_methods_str}")
+            print(f"DEBUG: Method preconditions: {method_preconditions_str}")
         except Exception as e:
             print(f"ERROR formatting methods: {e}")
             available_methods_str = "Error formatting methods"
+            method_preconditions_str = "Error formatting preconditions"
         
         # Format chosen method
         try:
@@ -380,7 +389,13 @@ class ValAgent:
         
         # Generate explanation using GPT
         try:
-            prompt = self.explanation_prompt % (task_str, available_methods_str, current_state_str, chosen_method_str)
+            prompt = self.explanation_prompt % (
+                task_str,
+                available_methods_str,
+                method_preconditions_str,
+                current_state_str,
+                chosen_method_str
+            )
             print(f"DEBUG: Generated prompt length: {len(prompt)}")
         
             

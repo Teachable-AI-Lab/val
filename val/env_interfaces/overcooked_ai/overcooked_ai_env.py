@@ -216,7 +216,9 @@ class OvercookedAIEnv(AbstractEnvInterface):
             Method(
                 name='get',
                 args=(V('object'),),
-                preconditions=[],
+                preconditions=[
+                    Fact(player_holding='nothing')
+                ],
                 subtasks=[
                     Task('go to', V('object')),
                     Task('act'),
