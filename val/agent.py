@@ -3,6 +3,8 @@ from typing import Optional
 from typing import Union
 
 from val.utils import load_prompt
+from val.utils import display_grounding_args
+from val.utils import get_display_objects
 from val.utils import normalize_grounding_args
 from val.utils import task_to_gpt_str
 
@@ -179,8 +181,9 @@ class ValAgent:
             available_actions = [task.name for task, _ in self.htn_interface.get_tasks()]
             
             # Correct grounding - this will show the grounding correction interface
+            display_task_args = display_grounding_args(task_name, task_args)
             corrected_task_name, corrected_task_args = self.user_interface.correct_grounding(
-                user_task, task_name, task_args, self.env.get_objects(), available_actions
+                user_task, task_name, display_task_args, get_display_objects(self.env.get_objects()), available_actions
             )
             
             # Create task and yield it
@@ -224,6 +227,7 @@ class ValAgent:
             for subtask_data in subtask_group:
                 task_name = subtask_data['task_name']
                 task_args_list = subtask_data['args']
+                task_args_list = normalize_grounding_args(task_name, task_args_list)
                 subtask = Task(task_name, args=task_args_list)
                 subtasks.append(subtask)
 
@@ -429,7 +433,7 @@ class ValAgent:
         # Get available tasks and objects
         known_tasks = [t for t, _ in self.htn_interface.get_tasks()]
         task_descriptions = [desc for _, desc in self.htn_interface.get_tasks()]
-        objects = self.env.get_objects()
+        objects = get_display_objects(self.env.get_objects())
         
         # Create task list for prompt
         task_list = [f"[{chr(ord('a')+i)}] {task_to_gpt_str(task, task_descriptions[i])}"

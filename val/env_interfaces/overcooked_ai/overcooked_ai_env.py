@@ -180,16 +180,17 @@ class OvercookedAIEnv(AbstractEnvInterface):
 
     def get_objects(self) -> List[str]:
         objects = []
-        for i, p in enumerate(self.base_env.state.players):
-            objects.append(f"player{i}")
 
         for ele in self.get_state():
-            if 'object' in ele:
-                objects.append(ele['object'])
+            obj = ele.get('object')
+            if obj and 'player' not in str(obj).lower():
+                objects.append(obj)
 
         for order in self.base_env.state.all_orders:
             if order._ingredients.count('onion') > 0:
                 objects.append('onion order')
+            if order._ingredients.count('tomato') > 0:
+                objects.append('tomato order')
 
         return objects
 

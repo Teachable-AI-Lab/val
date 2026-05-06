@@ -34,14 +34,35 @@ def task_to_gpt_str(task: Task, description: str) -> str:
         return f'{task.name}({",".join([arg.name for arg in task.args])})'
 
 
+DISPLAY_OBJECT_BINDINGS = {
+    "onion order": "onion",
+    "tomato order": "tomato",
+}
+
+
 def normalize_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
     if task_name.strip().lower() == "act":
         return []
 
-    object_bindings = {
-        "onion order": "onion",
-    }
-    return [object_bindings.get(arg.strip().lower(), arg) for arg in task_args]
+    return [DISPLAY_OBJECT_BINDINGS.get(arg.strip().lower(), arg) for arg in task_args]
+
+
+def display_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
+    if task_name.strip().lower() == "finish":
+        reverse_bindings = {backend_name: display_name for display_name, backend_name in DISPLAY_OBJECT_BINDINGS.items()}
+        return [reverse_bindings.get(arg.strip().lower(), arg) for arg in task_args]
+    return task_args
+
+
+def get_display_objects(env_objects: List[str]) -> List[str]:
+    display_objects = list(env_objects)
+    normalized_objects = {obj.strip().lower() for obj in env_objects}
+
+    for display_name, backend_name in DISPLAY_OBJECT_BINDINGS.items():
+        if backend_name in normalized_objects and display_name not in normalized_objects:
+            display_objects.append(display_name)
+
+    return display_objects
 
 def _default_keys_data() -> dict:
     return {
