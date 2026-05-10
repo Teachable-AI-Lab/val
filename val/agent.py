@@ -1,3 +1,5 @@
+import json
+
 from typing import List
 from typing import Optional
 from typing import Union
@@ -45,6 +47,56 @@ class ValAgent:
         self.user_interface = user_interface_class()
         self.env = env
         self.htn_interface = htn_interface_class(self, self.env)
+        self.method_rewards = {}
+
+    def _stable_json_key(self, value):
+        return json.dumps(value, sort_keys=True, default=str)
+
+    def _condition_key(self, task_exec: TaskEx):
+        task_dict = task_exec.as_dict()
+        return self._stable_json_key({
+            "task_name": task_dict.get("name"),
+            "task_match": list(task_dict.get("match", [])),
+        })
+
+    def _method_reward_key(self, method_exec: MethodEx):
+        method = method_exec.method
+        return self._stable_json_key({
+            "method_name": method.name,
+            "method_args": list(getattr(method, "args", [])),
+            "preconditions": [str(precondition) for precondition in (getattr(method, "preconditions", None) or [])],
+            "match": list(getattr(method_exec, "match", [])),
+            "children": [
+                {
+                    "name": subtask.name,
+                    "args": list(getattr(subtask, "args", [])),
+                }
+                for subtask in getattr(method, "subtasks", [])
+            ],
+        })
+
+    def _method_reward(self, task_exec: TaskEx, method_exec: MethodEx):
+        return self.method_rewards.get(self._condition_key(task_exec), {}).get(
+            self._method_reward_key(method_exec),
+            0.0,
+        )
+
+    def _rank_method_execs(self, task_exec: TaskEx, method_execs: List[MethodEx]):
+        return sorted(
+            method_execs,
+            key=lambda method_exec: -self._method_reward(task_exec, method_exec),
+        )
+
+    def _apply_method_reward(self, task_exec: TaskEx, method_exec: MethodEx, reward):
+        if reward is None or reward == 0:
+            return
+
+        condition_key = self._condition_key(task_exec)
+        method_key = self._method_reward_key(method_exec)
+        rewards_for_condition = self.method_rewards.setdefault(condition_key, {})
+        rewards_for_condition[method_key] = (
+            rewards_for_condition.get(method_key, 0.0) + reward
+        )
 
     def start(self):
         while True:
@@ -99,6 +151,8 @@ class ValAgent:
                     if method_execs is None:
                         method_execs = []
                         print("DEBUG: method_execs was None, set to empty list")
+                    elif method_execs:
+                        method_execs = self._rank_method_execs(task_exec, method_execs)
    
 
                     # If there are any MethodExs, wait for the user to assign them
@@ -152,8 +206,7 @@ class ValAgent:
 
                     # Apply any rewards that were assigned 
                     for method_exec, reward in zip(method_execs, rewards):
-                        method = method_exec.method
-                        # method.cond_lrn.ifit(method_exec, 1)
+                        self._apply_method_reward(task_exec, method_exec, reward)
                     
 
             except FailedPlanException:

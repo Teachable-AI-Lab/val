@@ -186,7 +186,7 @@ class WebInterface:
         if len(env_objects) > 5:
             objects_text += f" and {len(env_objects) - 5} more..."
         
-        # Convert method_execs to subtasks format
+        # Convert method_execs to subtasks format.
         subtasks = []
         for method_exec in method_execs:
             method_dict = method_exec.as_dict()
@@ -246,6 +246,10 @@ class WebInterface:
         rewards = [0.0] * len(method_execs)
         user_choice = response.get('user_choice', None)
         response_index = response.get('index', 0)
+        if isinstance(response_index, str) and response_index.isdigit():
+            response_index = int(response_index)
+        if not isinstance(response_index, int) or response_index < 0 or response_index >= len(method_execs):
+            response_index = 0
         
         print("response_index", response_index)
         print("user_choice", user_choice)
