@@ -186,12 +186,6 @@ class OvercookedAIEnv(AbstractEnvInterface):
             if obj and 'player' not in str(obj).lower():
                 objects.append(obj)
 
-        for order in self.base_env.state.all_orders:
-            if order._ingredients.count('onion') > 0:
-                objects.append('onion order')
-            if order._ingredients.count('tomato') > 0:
-                objects.append('tomato order')
-
         return objects
 
     def get_actions(self) -> List[Tuple[str, List[str]]]:
@@ -210,21 +204,18 @@ class OvercookedAIEnv(AbstractEnvInterface):
         ]
         descriptions["cook"] = "Cook soup by sequentially getting the ingredient and boiling the ingredient."
 
-        
-        domain["finish"] = [
+        domain["replace"] = [
             Method(
-                name='finish',
+                name='replace',
                 args=(V('object'),),
                 preconditions=[],
                 subtasks=[
                     Task('get', V('object')),
-                    Task('boil',V('object')),
-                    Task('plate'),
-                    Task('deliver')
+                    Task('drop', V('object')),
                 ]
-            ),
+            )
         ]
-        descriptions["finish"] = "Finish an order by getting the ingredient, boiling it, plating the soup, and delivering it."
+        descriptions["get"] = "Get an object by acting with and moving to the object's location."
 
         domain["get"] = [
             Method(
@@ -309,46 +300,6 @@ class OvercookedAIEnv(AbstractEnvInterface):
             ),
         ]
         descriptions["boil"] = "Boil the ingredient by moving to a pot and acting with it. Automatically selects pot1 or pot2 based on availability and current state."
-
-        # ENHANCED PLATE METHODS WITH POT SELECTION
-        domain["plate"] = [
-            Method(
-                name='plate',
-                preconditions=[
-                    Fact(player_holding='dish'),
-                    Fact(id='pot2', object='pot2', status='ready')
-                ],
-                subtasks=[
-                    Task('go to', 'pot2'),
-                    Task('act')
-                ]
-            ),
-            # Method 5: Don't have dish, get it first, then plate from ready pot1
-            Method(
-                name='plate',
-                preconditions=[
-                    NOT(Fact(player_holding='dish')),
-                ],
-                subtasks=[
-                    Task('get', 'dish'),
-                    Task('go to', 'pot2'),
-                    Task('act')
-                ]
-            ),
-        ]
-        descriptions["plate"] = "Plate the soup by going to a ready pot with a dish. Automatically selects pot1 or pot2 based on which pot has ready soup."
-        
-        # domain["deliver"] = [
-        #     Method(
-        #         name='deliver',
-        #         preconditions=(),
-        #         subtasks=[
-        #             Task('go to', 'serving pad'),
-        #             Task('act')
-        #         ]
-        #     ),
-        # ]
-        # descriptions["deliver"] = "Go to the serving pad and act with it to deliver the soup."
         
         ####### operators #######
         domain["go to"] = [
@@ -687,7 +638,7 @@ class OvercookedAIEnv(AbstractEnvInterface):
             for i in range(20):
                 command = [(0, 0) for _ in self.base_env.state.players]
                 self.base_env.step(command)
-        elif action_name in ["get", "boil", "plate", "deliver", "finish"]:
+        elif action_name in ["get", "boil", "plate", "deliver"]:
             # These are high-level HTN methods, not directly executable
             return False
         else:

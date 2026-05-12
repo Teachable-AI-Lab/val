@@ -34,9 +34,20 @@ def task_to_gpt_str(task: Task, description: str) -> str:
         return f'{task.name}({",".join([arg.name for arg in task.args])})'
 
 
-DISPLAY_OBJECT_BINDINGS = {
-    "onion order": "onion",
-    "tomato order": "tomato",
+DISPLAY_OBJECT_BINDINGS = {}
+OVERCOOKED_DISPLAY_OBJECTS = ["pot1", "pot2", "onion", "tomato", "counter"]
+OVERCOOKED_OBJECT_MARKERS = {
+    "pot",
+    "pot1",
+    "pot2",
+    "ready_pot",
+    "ready_pot1",
+    "ready_pot2",
+    "onion",
+    "tomato",
+    "counter",
+    "dish",
+    "serving pad",
 }
 
 
@@ -48,15 +59,23 @@ def normalize_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
 
 
 def display_grounding_args(task_name: str, task_args: List[str]) -> List[str]:
-    if task_name.strip().lower() == "finish":
-        reverse_bindings = {backend_name: display_name for display_name, backend_name in DISPLAY_OBJECT_BINDINGS.items()}
-        return [reverse_bindings.get(arg.strip().lower(), arg) for arg in task_args]
     return task_args
 
 
 def get_display_objects(env_objects: List[str]) -> List[str]:
-    display_objects = list(env_objects)
-    normalized_objects = {obj.strip().lower() for obj in env_objects}
+    normalized_objects = {str(obj).strip().lower() for obj in env_objects}
+
+    if normalized_objects.intersection(OVERCOOKED_OBJECT_MARKERS):
+        return list(OVERCOOKED_DISPLAY_OBJECTS)
+
+    display_objects = []
+    seen_objects = set()
+    for obj in env_objects:
+        normalized_obj = str(obj).strip().lower()
+        if normalized_obj in seen_objects:
+            continue
+        seen_objects.add(normalized_obj)
+        display_objects.append(obj)
 
     for display_name, backend_name in DISPLAY_OBJECT_BINDINGS.items():
         if backend_name in normalized_objects and display_name not in normalized_objects:

@@ -20,8 +20,6 @@ def _clean_text(value):
 def _task_phrase(name, args=None):
     cleaned_name = _clean_text(name)
     cleaned_args = [_clean_text(arg) for arg in (args or []) if str(arg).strip()]
-    if cleaned_name.lower() == 'finish' and cleaned_args == ['onion']:
-        return 'Finish onion order'
 
     parts = [cleaned_name]
     parts.extend(cleaned_args)
@@ -316,19 +314,6 @@ class WebInterface:
         return
 
     def finish_task(self) -> None:
-        self.user_response = None
-        self.response_received = False
-        self.expected_type = 'finish_task_response'
-        self._set_pending_interaction("finish_task", {
-            "question": "The task is complete. Click Finish Task to start a new task."
-        })
-        self.sio.emit('message', {
-            'type': 'task_completed',
-            'text': 'The task is complete.'
-        })
-        print("Task completion message emitted")
-        while not self.response_received:
-            self.sio.sleep(0.1)
         return
     
     def check_for_break(self) -> bool:
@@ -468,17 +453,21 @@ class WebInterface:
         self.user_response = None  
         self.response_received = False 
         self.expected_type = 'correct_grounding_response'
-        env_objects=list(set(env_objects))
-        available_actions=list(set(available_actions))
+        env_objects=list(dict.fromkeys(env_objects))
+        available_actions=list(dict.fromkeys(available_actions))
+        available_action_names = {action.strip().lower() for action in available_actions}
+        available_object_names = {obj.strip().lower() for obj in env_objects}
+        display_task_name = task_name if task_name.strip().lower() in available_action_names else "NEW_ACTION"
+        display_task_args = [arg for arg in task_args if arg.strip().lower() in available_object_names]
         self._set_pending_interaction("correct_grounding", {
             "user_task": _clean_text(user_task),
-            "current_grounding": _task_phrase(task_name, task_args),
+            "current_grounding": _task_phrase(display_task_name, display_task_args),
         })
         self.sio.emit('message', {
             'type': 'correct_grounding',
             'text': f"Correct the grounding for: '{user_task}'",
-            'current_action': task_name,
-            'current_objects': task_args,
+            'current_action': display_task_name,
+            'current_objects': display_task_args,
             'available_objects': env_objects,
             'available_actions': available_actions
         })

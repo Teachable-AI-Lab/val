@@ -167,7 +167,9 @@ class ValAgent:
 
                     user_choice, next_method_exec, rewards = \
                         self.user_interface.query_next_decomposition_with_edit(
-                            task_exec, method_execs, available_actions, self.env.get_objects(), decision_explanation)
+                            task_exec, method_execs, available_actions,
+                            get_display_objects(self.env.get_objects()),
+                            decision_explanation)
                         
                     # Handle user choice
                     if user_choice == 'approve':

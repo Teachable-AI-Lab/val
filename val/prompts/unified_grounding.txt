@@ -4,7 +4,6 @@ Given a user's natural language input, you need to:
 1. Identify the action (verb) from the input
 2. Identify the objects (nouns) that the action applies to
 3. Map them to available actions and objects in the system
-4. If the user refers to an order, keep OBJECTS as the displayed order name, such as "onion order" or "tomato order"; the system will bind it internally to the ingredient.
 
 Available actions: {available_actions}
 Available objects: {available_objects}
@@ -24,18 +23,3 @@ Input: "go to the onion"
 Output: 
 ACTION: go to
 OBJECTS: onion
-
-Input: "finish the onion order"
-Output:
-ACTION: finish
-OBJECTS: onion order
-
-Input: "finish tomato order"
-Output:
-ACTION: finish
-OBJECTS: tomato order
-
-Input: "Finish onion order"
-Output:
-ACTION: finish
-OBJECTS: onion order

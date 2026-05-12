@@ -170,7 +170,7 @@ Current User Input: "{user_command}"
 IMPORTANT INSTRUCTIONS:
 1. If the user gives a command to DO something (like "Finish onion order", "get onion", "make soup"), you MUST break it down into a sequence of basic actions.
 2. Complex tasks need multiple steps. Use pot1 or pot2 when going to a pot (e.g. go to pot1, go to pot2). For example:
-   - "Finish onion order" means: bind the displayed onion order to the internal onion object, then get onion → go to pot1 → act  → get dish → go to pot2 (the opposite from previous step) → act → go to serving pad  → act
+   - "Cook onion" means: go to onion → act → go to pot1 → act
    - "get onion" means: go to onion → act
    - "make soup" means: get onion → go to pot1 → act
 3. Always think step by step and break down complex commands into the basic actions above.
