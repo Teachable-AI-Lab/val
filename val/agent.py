@@ -56,7 +56,6 @@ class ValAgent:
         task_dict = task_exec.as_dict()
         return self._stable_json_key({
             "task_name": task_dict.get("name"),
-            "task_match": list(task_dict.get("match", [])),
         })
 
     def _method_reward_key(self, method_exec: MethodEx):
@@ -65,7 +64,6 @@ class ValAgent:
             "method_name": method.name,
             "method_args": list(getattr(method, "args", [])),
             "preconditions": [str(precondition) for precondition in (getattr(method, "preconditions", None) or [])],
-            "match": list(getattr(method_exec, "match", [])),
             "children": [
                 {
                     "name": subtask.name,

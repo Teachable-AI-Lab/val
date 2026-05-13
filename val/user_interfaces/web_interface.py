@@ -241,7 +241,7 @@ class WebInterface:
             self.sio.sleep(0.1)
             
         response = self.user_response 
-        rewards = [0.0] * len(method_execs)
+        rewards = [None] * len(method_execs)
         user_choice = response.get('user_choice', None)
         response_index = response.get('index', 0)
         if isinstance(response_index, str) and response_index.isdigit():
