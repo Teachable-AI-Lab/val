@@ -182,6 +182,9 @@ class ValAgent:
                                 task_exec, edited_decomposition
                             )
                         self.user_interface.display_added_method(task_exec, next_method_exec)
+                        rewards = list(rewards)
+                        if len(rewards) < len(method_execs):
+                            rewards.extend([None] * (len(method_execs) - len(rewards)))
                         rewards.append(1)  # Give positive reward to the new method
                         method_execs.append(next_method_exec)
                         print("showed the added method")
@@ -197,6 +200,9 @@ class ValAgent:
                         print("Value next_method_exec.method.subtasks:", next_method_exec.method.subtasks)
                         print("type next_method_exec", type(next_method_exec))
                         self.user_interface.display_added_method(task_exec, next_method_exec)
+                        rewards = list(rewards)
+                        if len(rewards) < len(method_execs):
+                            rewards.extend([None] * (len(method_execs) - len(rewards)))
                         rewards.append(1)
                         method_execs.append(next_method_exec)
                       
@@ -251,7 +257,7 @@ class ValAgent:
         """
         state = self.env.get_state()
         task = task_exec.task 
-        task_args = task_exec.match 
+        task_args = tuple(task_exec.match or task.args)
         verbalized_task = self.verbalize_gpt(task, task_args)
         user_subtasks = self.user_interface.ask_subtasks(verbalized_task, task_exec=task_exec)
         subtasks = []
@@ -317,17 +323,18 @@ class ValAgent:
         arg_map = {arg: V(chr(ord('A')+i))
                    for i, arg in enumerate(task_args)}
 
-        task_args_v = [arg_map[arg] for arg in task_args]
+        task_args_v = tuple(arg_map[arg] for arg in task_args)
 
         # Create subtasks with variables
         subtasks_v = []
         subtask_execs = []
         for subtask in subtasks:
-            v_args = [arg_map[subarg] if subarg in arg_map else subarg
-                        for subarg in subtask.args]
+            subtask_args = tuple(subtask.args)
+            v_args = tuple(arg_map[subarg] if subarg in arg_map else subarg
+                        for subarg in subtask_args)
             print("v_args", v_args)
             subtask_v = Task(subtask.name, args=v_args)
-            subtask_exec = TaskEx(subtask_v, state, match=subtask.args)
+            subtask_exec = TaskEx(subtask_v, state, match=subtask_args)
             subtasks_v.append(subtask_v)
             subtask_execs.append(subtask_exec)
 
@@ -525,4 +532,5 @@ class ValAgent:
         formatted verbalization that can be compared with the user_task.
         """
         task = f"{task_ungrounded.name}({', '.join(task_args)})"
-        return self.gpt.get_chat_gpt_completion(f"{self.verb_prompt}{task}")
+        prompt = f"{self.verb_prompt.rstrip()}\n{task}\n***\n"
+        return self.gpt.get_chat_gpt_completion(prompt).strip()

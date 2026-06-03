@@ -387,13 +387,14 @@ class WebInterface:
             except Exception:
                 task_hash = None
 
+        cleaned_user_task = _clean_text(user_task)
         self._set_pending_interaction("ask_subtasks", {
-            "user_task": _clean_text(user_task),
-            "question": f"What are the steps for completing the task '{user_task}'?",
+            "user_task": cleaned_user_task,
+            "question": f"What are the steps for completing the task '{cleaned_user_task}'?",
         })
         self.sio.emit('message', {
             'type': 'ask_subtasks',
-            'text': f"What are the steps for completing the task '{user_task}'?",
+            'text': f"What are the steps for completing the task '{cleaned_user_task}'?",
             'task_hash': task_hash
         })
         while not self.response_received:
