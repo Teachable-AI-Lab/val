@@ -351,6 +351,120 @@ class ValAgent:
         self.htn_interface.add_method_exec(method_exec)
         return method_exec
 
+    def _flatten_preconditions(self, preconditions):
+        if preconditions is None:
+            return []
+        if isinstance(preconditions, Fact):
+            return [preconditions]
+        if isinstance(preconditions, NOT):
+            return [preconditions]
+        if isinstance(preconditions, (list, tuple)):
+            flattened = []
+            for condition in preconditions:
+                flattened.extend(self._flatten_preconditions(condition))
+            return flattened
+        return [preconditions]
+
+    def _is_variable_like(self, value):
+        return value.__class__.__name__ == "V"
+
+    def _state_entries(self, state):
+        if isinstance(state, list):
+            return [item for item in state if isinstance(item, dict)]
+        if isinstance(state, dict):
+            if isinstance(state.get("content"), dict) and isinstance(state["content"].get("scene"), list):
+                return [item for item in state["content"]["scene"] if isinstance(item, dict)]
+            return [state]
+        return []
+
+    def _format_state_item(self, item: dict):
+        name = item.get("object") or item.get("entityType") or item.get("id") or item.get("objKey")
+        details = []
+        for key in ["status", "sight_status", "player_holding", "actionPoints", "reached", "x", "y", "terrain"]:
+            if key in item:
+                details.append(f"{key}={item[key]}")
+        if name and details:
+            return f"{name} ({', '.join(details)})"
+        if name:
+            return str(name)
+        return ", ".join(f"{key}={value}" for key, value in list(item.items())[:4])
+
+    def _summarize_state(self, state, limit=16):
+        entries = self._state_entries(state)
+        if not entries:
+            return str(state)[:500]
+
+        priority_keys = ("player", "player_holding", "pot", "ready", "counter", "Goal", "Shrine", "Character", "gameData")
+
+        def priority(item):
+            text = " ".join(str(value) for value in item.values())
+            return 0 if any(key in text for key in priority_keys) else 1
+
+        sorted_entries = sorted(entries, key=priority)
+        return "; ".join(self._format_state_item(item) for item in sorted_entries[:limit])
+
+    def _condition_fixed_fields(self, condition):
+        if isinstance(condition, Fact):
+            return {
+                key: value
+                for key, value in condition.items()
+                if not self._is_variable_like(value)
+            }
+        return {}
+
+    def _state_matches_condition(self, state_item: dict, condition: Fact):
+        fixed_fields = self._condition_fixed_fields(condition)
+        if not fixed_fields:
+            return False
+        return all(state_item.get(key) == value for key, value in fixed_fields.items())
+
+    def _precondition_evidence(self, method_exec: MethodEx, state_entries: list):
+        preconditions = self._flatten_preconditions(getattr(method_exec.method, "preconditions", None))
+        if not preconditions:
+            return "no special state requirements"
+
+        evidence = []
+        for condition in preconditions:
+            if isinstance(condition, Fact):
+                matches = [
+                    self._format_state_item(item)
+                    for item in state_entries
+                    if self._state_matches_condition(item, condition)
+                ]
+                if matches:
+                    evidence.append(f"{condition} matches {matches[0]}")
+                else:
+                    fixed_fields = self._condition_fixed_fields(condition)
+                    if fixed_fields:
+                        evidence.append(f"{condition} not directly seen in state")
+                    else:
+                        evidence.append(f"{condition} can bind from the state")
+            elif isinstance(condition, NOT):
+                negated_conditions = self._flatten_preconditions(tuple(condition))
+                for negated_condition in negated_conditions:
+                    if isinstance(negated_condition, Fact):
+                        matches = [
+                            self._format_state_item(item)
+                            for item in state_entries
+                            if self._state_matches_condition(item, negated_condition)
+                        ]
+                        if matches:
+                            evidence.append(f"{negated_condition} is ruled out but appears as {matches[0]}")
+                        else:
+                            evidence.append(f"{negated_condition} is ruled out and not seen in state")
+                    else:
+                        evidence.append(f"not {negated_condition}")
+            else:
+                evidence.append(str(condition))
+        return "; ".join(evidence)
+
+    def _format_method_for_explanation(self, method_exec: MethodEx):
+        subtasks = []
+        for subtask in method_exec.method.subtasks:
+            subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
+            subtasks.append(subtask_str)
+        return f"[{', '.join(subtasks)}]"
+
     
 
 
@@ -377,7 +491,8 @@ class ValAgent:
         
         # Get current state information
         current_state = self.env.get_state()
-        print(f"DEBUG: Current state has {len(current_state)} items")
+        state_entries = self._state_entries(current_state)
+        print(f"DEBUG: Current state has {len(state_entries)} usable items")
         
         # Format task information
         try:
@@ -389,63 +504,41 @@ class ValAgent:
         
         # Format available methods
         method_strs = []
-        precondition_strs = []
+        method_reason_strs = []
         try:
             for i, method_exec in enumerate(method_execs):
                 if method_exec is None or method_exec.method is None:
                     method_strs.append(f"Method {i+1}: [INVALID_METHOD]")
-                    precondition_strs.append(f"Method {i+1}: [INVALID_METHOD]")
+                    method_reason_strs.append(f"Method {i+1}: [INVALID_METHOD]")
                     continue
                     
-                subtasks = []
-                for subtask in method_exec.method.subtasks:
-                    if subtask is None:
-                        subtasks.append("INVALID_SUBTASK")
-                    else:
-                        subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
-                        subtasks.append(subtask_str)
-                method_strs.append(f"Method {i+1}: [{', '.join(subtasks)}]")
-
-                preconditions = getattr(method_exec.method, "preconditions", None) or []
-                precondition_str = ", ".join(str(precondition) for precondition in preconditions)
-                precondition_strs.append(f"Method {i+1}: [{precondition_str or 'none'}]")
+                method_strs.append(f"Method {i+1}: {self._format_method_for_explanation(method_exec)}")
+                evidence = self._precondition_evidence(method_exec, state_entries)
+                chosen_marker = "chosen; " if method_exec is chosen_method_exec else ""
+                method_reason_strs.append(f"Method {i+1}: {chosen_marker}{evidence}")
             available_methods_str = "; ".join(method_strs)
-            method_preconditions_str = "; ".join(precondition_strs)
+            method_preconditions_str = "; ".join(method_reason_strs)
             print(f"DEBUG: Available methods: {available_methods_str}")
-            print(f"DEBUG: Method preconditions: {method_preconditions_str}")
+            print(f"DEBUG: Method state evidence: {method_preconditions_str}")
         except Exception as e:
             print(f"ERROR formatting methods: {e}")
             available_methods_str = "Error formatting methods"
-            method_preconditions_str = "Error formatting preconditions"
+            method_preconditions_str = "Error formatting method state evidence"
         
         # Format chosen method
         try:
             if chosen_method_exec.method is None:
                 chosen_method_str = "[INVALID_CHOSEN_METHOD]"
             else:
-                chosen_subtasks = []
-                for subtask in chosen_method_exec.method.subtasks:
-                    if subtask is None:
-                        chosen_subtasks.append("INVALID_SUBTASK")
-                    else:
-                        subtask_str = f"{subtask.name}({', '.join([str(arg) for arg in subtask.args])})"
-                        chosen_subtasks.append(subtask_str)
-                chosen_method_str = f"[{', '.join(chosen_subtasks)}]"
+                chosen_method_str = self._format_method_for_explanation(chosen_method_exec)
             print(f"DEBUG: Chosen method: {chosen_method_str}")
         except Exception as e:
             print(f"ERROR formatting chosen method: {e}")
             chosen_method_str = "[ERROR_FORMATTING_CHOSEN_METHOD]"
         
-        # Format state information (simplified for readability)
-        state_info = []
+        # Format state information for the language model.
         try:
-            for item in current_state:
-                if isinstance(item, dict):
-                    if 'object' in item:
-                        state_info.append(f"{item['object']}: {item.get('status', 'present')}")
-                    elif 'terrain' in item:
-                        state_info.append(f"terrain at ({item['x']},{item['y']}): {item['terrain']}")
-            current_state_str = "; ".join(state_info[:10])  # Limit to first 10 items for readability
+            current_state_str = self._summarize_state(current_state)
             print(f"DEBUG: State string: {current_state_str}")
         except Exception as e:
             print(f"ERROR formatting state: {e}")
